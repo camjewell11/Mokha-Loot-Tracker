@@ -7,3 +7,5 @@ build
 nbactions.xml
 nb-configuration.xml
 nbproject/
+src/main/java/com/camjewell/oracleJdk-25
+/bin/
