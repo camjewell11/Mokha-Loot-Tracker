@@ -38,61 +38,32 @@ public class MokhaLostLootOverlay extends Overlay {
 
         // Add title
         panelComponent.getChildren().add(TitleComponent.builder()
-                .text("Mokha Lost Loot")
+                .text("Potential Loot Loss")
                 .color(Color.RED)
                 .build());
 
         // Show current run info if in arena or delve interface is visible
         if (plugin.isInMokhaArena() || plugin.isDelveInterfaceVisible()) {
-            int currentLevel = plugin.getCurrentDelveNumber();
-            if (currentLevel > 0) {
-                panelComponent.getChildren().add(LineComponent.builder()
-                        .left("Current Level:")
-                        .right(String.valueOf(currentLevel))
-                        .rightColor(Color.CYAN)
-                        .build());
-            }
-
             long currentValue = plugin.getCurrentLootValue();
             if (currentValue > 0) {
                 String formattedValue = QuantityFormatter.quantityToStackSize(currentValue) + " gp";
                 panelComponent.getChildren().add(LineComponent.builder()
-                        .left("Potential Loot Loss:")
+                        .left("Loss Value:")
                         .right(formattedValue)
                         .rightColor(Color.YELLOW)
                         .build());
             }
         }
 
-        // Add total lost value
-        if (config.showTotalValue()) {
-            long totalLost = plugin.getTotalLostValue();
-            if (totalLost > 0) {
-                String formattedValue = QuantityFormatter.quantityToStackSize(totalLost) + " gp";
+        // Show the overlay when delve interface is visible (completion screen), in
+        // arena on wave 2+ with loot value, or have historical stats
+        int currentLevel = plugin.getCurrentDelveNumber();
+        long currentValue = plugin.getCurrentLootValue();
+        boolean showCurrentRun = plugin.isDelveInterfaceVisible()
+                || (plugin.isInMokhaArena() && currentLevel > 1 && currentValue > 0);
+        boolean showHistoricalStats = plugin.getTotalLostValue() > 0;
 
-                panelComponent.getChildren().add(LineComponent.builder()
-                        .left("Total Lost:")
-                        .right(formattedValue)
-                        .rightColor(Color.RED)
-                        .build());
-            }
-        }
-
-        // Add death count
-        if (config.showDeathCount()) {
-            int deaths = plugin.getTimesDied();
-            if (deaths > 0) {
-                panelComponent.getChildren().add(LineComponent.builder()
-                        .left("Deaths:")
-                        .right(String.valueOf(deaths))
-                        .rightColor(Color.ORANGE)
-                        .build());
-            }
-        }
-
-        // Show the overlay if in arena, at delve interface, or have historical stats
-        if (plugin.isInMokhaArena() || plugin.isDelveInterfaceVisible() || plugin.getTotalLostValue() > 0
-                || plugin.getTimesDied() > 0) {
+        if (showCurrentRun || showHistoricalStats) {
             return panelComponent.render(graphics);
         }
 

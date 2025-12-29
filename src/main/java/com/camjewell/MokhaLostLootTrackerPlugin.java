@@ -21,13 +21,34 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
+// Simple class to hold item data for serialization
+class LootItem {
+    private final int id;
+    private final int quantity;
+
+    public LootItem(int id, int quantity) {
+        this.id = id;
+        this.quantity = quantity;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+}
+
 @Slf4j
-@PluginDescriptor(name = "Mokha Lost Loot", description = "Tracks loot lost from dying at the Doom of Mokhaihitl boss", tags = {
+@PluginDescriptor(name = "Mokha Lost Loot", description = "Tracks loot lost from dying at the Doom of Mokhaiotl boss", tags = {
         "mokha", "loot", "boss", "death", "tracking" })
 public class MokhaLostLootTrackerPlugin extends Plugin {
     private static final String CONFIG_KEY_TOTAL_LOST = "totalLostValue";
     private static final String CONFIG_KEY_TIMES_DIED = "timesDied";
+    private static final String CONFIG_KEY_DEATH_COSTS = "totalDeathCosts";
     private static final String CONFIG_KEY_WAVE_PREFIX = "wave";
+    private static final String CONFIG_KEY_WAVE_ITEMS_PREFIX = "waveItems";
     private static final int MAX_TRACKED_WAVES = 9; // 1-8 individually, 9+ combined
 
     @Inject
@@ -58,10 +79,12 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
 
     private int currentDelveNumber = 0;
     private int previousDelveNumber = 0;
-    private List<ItemStack> currentUnclaimedLoot = new ArrayList<>();
+    private List<LootItem> currentUnclaimedLoot = new ArrayList<>();
     private long currentLootValue = 0;
     private long previousWaveLootValue = 0;
     private long[] waveLootValues = new long[MAX_TRACKED_WAVES + 1]; // Index 0 unused, 1-9 for waves
+    @SuppressWarnings("unchecked")
+    private List<LootItem>[] waveItemStacks = new List[MAX_TRACKED_WAVES + 1]; // Items per wave
     private boolean isDead = false;
     private boolean delveInterfaceVisible = false;
     private boolean inMokhaArena = false;
@@ -127,21 +150,26 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
             if (currentlyDead && !isDead) {
                 // Player just died
                 isDead = true;
-                log.debug("Player death detected");
+                log.info("Player death detected - isDead was: {}, now: {}", !isDead, isDead);
 
                 // If player died with unclaimed loot, record it immediately
                 if (currentLootValue > 0 && currentDelveNumber > 0) {
-                    log.info("Recording lost loot immediately upon death: {} gp", currentLootValue);
+                    log.info("Recording lost loot immediately upon death: {} gp (wave {})", currentLootValue,
+                            currentDelveNumber);
                     recordLostLoot();
                     resetCurrentLoot();
+                } else {
+                    log.info("Player died but no loot to record (value: {}, wave: {})", currentLootValue,
+                            currentDelveNumber);
                 }
             } else if (!currentlyDead && isDead) {
                 // Player respawned
+                log.info("Player respawned - isDead was: {}, now false", isDead);
                 isDead = false;
             }
         }
 
-        // Debug: Log all visible widgets to help find Mokhaihitl interface
+        // Debug: Log all visible widgets to help find Mokhaiotl interface
         if (config.enableDebugMode()) {
             logVisibleWidgets();
         }
@@ -211,8 +239,55 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
         checkDelveWidget();
     }
 
+    @Subscribe
+    public void onChatMessage(ChatMessage chatMessage) {
+        String message = chatMessage.getMessage();
+        log.info("Chat message [{}]: '{}'", chatMessage.getType(), message);
+
+        if (chatMessage.getType() != ChatMessageType.GAMEMESSAGE) {
+            return;
+        }
+
+        // Match "Death charges you X x Coins."
+        String lowerMessage = message.toLowerCase();
+        if (lowerMessage.contains("death") && lowerMessage.contains("charges you") && lowerMessage.contains("coins")) {
+            log.info("Detected death cost message: {}", message);
+            try {
+                // Try to extract number from the message using regex
+                String cleanMessage = message.replaceAll("<[^>]*>", ""); // Strip HTML tags
+                log.info("Cleaned message: {}", cleanMessage);
+
+                // Find the pattern "Death charges you X x Coins"
+                java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("Death charges you ([0-9,]+) x Coins",
+                        java.util.regex.Pattern.CASE_INSENSITIVE);
+                java.util.regex.Matcher matcher = pattern.matcher(cleanMessage);
+
+                if (matcher.find()) {
+                    String costStr = matcher.group(1).replace(",", "");
+                    long cost = Long.parseLong(costStr);
+
+                    // Add to total death costs
+                    String accountHash = getAccountHash();
+                    String configGroup = "mokhalostloot." + accountHash;
+                    long totalCosts = getLongConfig(configGroup, CONFIG_KEY_DEATH_COSTS);
+                    totalCosts += cost;
+                    configManager.setConfiguration(configGroup, CONFIG_KEY_DEATH_COSTS, totalCosts);
+
+                    log.info("Recorded death cost: {} gp (Total: {} gp)", cost, totalCosts);
+
+                    // Update panel
+                    panel.updateStats();
+                } else {
+                    log.warn("Could not extract cost from message: {}", cleanMessage);
+                }
+            } catch (Exception e) {
+                log.error("Failed to parse death cost from message: {}", message, e);
+            }
+        }
+    }
+
     private void checkDelveWidget() {
-        // Widget Group 919 is the Mokhaihitl delve interface
+        // Widget Group 919 is the Mokhaiotl delve interface
         Widget mainWidget = client.getWidget(919, 2);
 
         if (mainWidget != null && !mainWidget.isHidden()) {
@@ -289,10 +364,17 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
                     int itemId = child.getItemId();
                     int quantity = child.getItemQuantity();
 
+                    // Only add valid items (positive ID and quantity)
                     if (itemId > 0 && quantity > 0) {
-                        ItemStack item = new ItemStack(itemId, quantity);
-                        currentUnclaimedLoot.add(item);
-                        log.debug("Found loot item: {} x{}", itemId, quantity);
+                        // Verify item is valid by checking if ItemManager can resolve it
+                        String itemName = itemManager.getItemComposition(itemId).getName();
+                        if (itemName != null && !itemName.equalsIgnoreCase("null")) {
+                            LootItem item = new LootItem(itemId, quantity);
+                            currentUnclaimedLoot.add(item);
+                            log.debug("Found loot item: {} ({}) x{}", itemName, itemId, quantity);
+                        } else {
+                            log.debug("Skipping invalid item ID {} with quantity {}", itemId, quantity);
+                        }
                     }
                 }
             }
@@ -313,9 +395,11 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
                 long incrementalLoot = currentLootValue - previousWaveLootValue;
                 int waveIndex = Math.min(previousDelveNumber, MAX_TRACKED_WAVES);
                 waveLootValues[waveIndex] = incrementalLoot;
+                // Copy current loot items for this wave
+                waveItemStacks[waveIndex] = new ArrayList<>(currentUnclaimedLoot);
                 previousWaveLootValue = currentLootValue;
-                log.debug("Wave {} incremental loot: {} gp (total was {} gp)",
-                        previousDelveNumber, incrementalLoot, currentLootValue);
+                log.debug("Wave {} incremental loot: {} gp with {} items (total was {} gp)",
+                        previousDelveNumber, incrementalLoot, currentUnclaimedLoot.size(), currentLootValue);
             }
 
             // If delve number reset to 1, clear tracking (loot was either claimed or
@@ -345,9 +429,11 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
             long incrementalLoot = currentLootValue - previousWaveLootValue;
             int waveIndex = Math.min(currentDelveNumber, MAX_TRACKED_WAVES);
             waveLootValues[waveIndex] = incrementalLoot;
+            // Copy current loot items for this wave
+            waveItemStacks[waveIndex] = new ArrayList<>(currentUnclaimedLoot);
         }
 
-        // Save each wave's incremental loot value
+        // Save each wave's incremental loot value and items
         for (int wave = 1; wave <= MAX_TRACKED_WAVES; wave++) {
             if (waveLootValues[wave] > 0) {
                 String waveKey = CONFIG_KEY_WAVE_PREFIX + wave;
@@ -355,6 +441,49 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
                 existingWaveLost += waveLootValues[wave];
                 configManager.setConfiguration(configGroup, waveKey, existingWaveLost);
                 log.debug("Recorded wave {} lost: {} gp", wave, waveLootValues[wave]);
+
+                // Save items for this wave
+                if (waveItemStacks[wave] != null && !waveItemStacks[wave].isEmpty()) {
+                    String itemsKey = CONFIG_KEY_WAVE_ITEMS_PREFIX + wave;
+                    String existingItems = configManager.getConfiguration(configGroup, itemsKey);
+
+                    // Merge new items with existing items using a map
+                    java.util.Map<Integer, Integer> itemMap = new java.util.HashMap<>();
+
+                    // Add existing items to map
+                    if (existingItems != null && !existingItems.isEmpty()) {
+                        String[] pairs = existingItems.split(",");
+                        for (String pair : pairs) {
+                            try {
+                                String[] parts = pair.split(":");
+                                if (parts.length == 2) {
+                                    int itemId = Integer.parseInt(parts[0]);
+                                    int quantity = Integer.parseInt(parts[1]);
+                                    itemMap.put(itemId, quantity);
+                                }
+                            } catch (NumberFormatException e) {
+                                log.error("Error parsing item pair: {}", pair, e);
+                            }
+                        }
+                    }
+
+                    // Add new items to map
+                    for (LootItem newItem : waveItemStacks[wave]) {
+                        int itemId = newItem.getId();
+                        int quantity = newItem.getQuantity();
+                        itemMap.put(itemId, itemMap.getOrDefault(itemId, 0) + quantity);
+                    }
+
+                    // Convert map back to list for serialization
+                    List<LootItem> allItems = new ArrayList<>();
+                    for (java.util.Map.Entry<Integer, Integer> entry : itemMap.entrySet()) {
+                        allItems.add(new LootItem(entry.getKey(), entry.getValue()));
+                    }
+
+                    String serializedItems = serializeItems(allItems);
+                    configManager.setConfiguration(configGroup, itemsKey, serializedItems);
+                    log.debug("Recorded wave {} items: {}", wave, serializedItems);
+                }
             }
         }
 
@@ -364,6 +493,7 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
 
         // Get current death count
         int timesDied = getIntConfig(configGroup, CONFIG_KEY_TIMES_DIED);
+        log.info("Current death count before increment: {}", timesDied);
         timesDied++;
 
         // Save new values
@@ -390,6 +520,10 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
         currentLootValue = 0;
         previousWaveLootValue = 0;
         waveLootValues = new long[MAX_TRACKED_WAVES + 1];
+        waveItemStacks = new List[MAX_TRACKED_WAVES + 1];
+        for (int i = 0; i <= MAX_TRACKED_WAVES; i++) {
+            waveItemStacks[i] = new ArrayList<>();
+        }
         currentDelveNumber = 0;
         previousDelveNumber = 0;
     }
@@ -425,6 +559,48 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
         return 0;
     }
 
+    // Serialize items to string format: "itemId:quantity,itemId:quantity,..."
+    private String serializeItems(List<LootItem> items) {
+        if (items == null || items.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (LootItem item : items) {
+            if (sb.length() > 0) {
+                sb.append(",");
+            }
+            sb.append(item.getId()).append(":").append(item.getQuantity());
+        }
+        return sb.toString();
+    }
+
+    // Deserialize items from string and merge with existing items
+    private List<LootItem> deserializeAndMergeItems(String serialized) {
+        java.util.Map<Integer, Integer> itemMap = new java.util.HashMap<>();
+
+        if (serialized != null && !serialized.isEmpty()) {
+            String[] pairs = serialized.split(",");
+            for (String pair : pairs) {
+                try {
+                    String[] parts = pair.split(":");
+                    if (parts.length == 2) {
+                        int itemId = Integer.parseInt(parts[0]);
+                        int quantity = Integer.parseInt(parts[1]);
+                        itemMap.put(itemId, itemMap.getOrDefault(itemId, 0) + quantity);
+                    }
+                } catch (NumberFormatException e) {
+                    log.error("Error parsing item pair: {}", pair, e);
+                }
+            }
+        }
+
+        List<LootItem> result = new ArrayList<>();
+        for (java.util.Map.Entry<Integer, Integer> entry : itemMap.entrySet()) {
+            result.add(new LootItem(entry.getKey(), entry.getValue()));
+        }
+        return result;
+    }
+
     public long getTotalLostValue() {
         String accountHash = getAccountHash();
         String configGroup = "mokhalostloot." + accountHash;
@@ -435,6 +611,12 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
         String accountHash = getAccountHash();
         String configGroup = "mokhalostloot." + accountHash;
         return getIntConfig(configGroup, CONFIG_KEY_TIMES_DIED);
+    }
+
+    public long getTotalDeathCosts() {
+        String accountHash = getAccountHash();
+        String configGroup = "mokhalostloot." + accountHash;
+        return getLongConfig(configGroup, CONFIG_KEY_DEATH_COSTS);
     }
 
     public long getCurrentLootValue() {
@@ -460,6 +642,14 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
         return getLongConfig(configGroup, waveKey);
     }
 
+    public List<LootItem> getWaveLostItems(int wave) {
+        String accountHash = getAccountHash();
+        String configGroup = "mokhalostloot." + accountHash;
+        String itemsKey = CONFIG_KEY_WAVE_ITEMS_PREFIX + wave;
+        String serialized = configManager.getConfiguration(configGroup, itemsKey);
+        return deserializeAndMergeItems(serialized);
+    }
+
     public void resetStats() {
         String accountHash = getAccountHash();
         String configGroup = "mokhalostloot." + accountHash;
@@ -470,7 +660,11 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
         // Clear per-wave stats
         for (int wave = 1; wave <= MAX_TRACKED_WAVES; wave++) {
             configManager.unsetConfiguration(configGroup, CONFIG_KEY_WAVE_PREFIX + wave);
+            configManager.unsetConfiguration(configGroup, CONFIG_KEY_WAVE_ITEMS_PREFIX + wave);
         }
+
+        // Reset death costs
+        configManager.unsetConfiguration(configGroup, CONFIG_KEY_DEATH_COSTS);
 
         log.info("Mokha lost loot stats reset");
 

@@ -1,6 +1,8 @@
 package com.camjewell;
 
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.ItemComposition;
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
@@ -10,20 +12,27 @@ import javax.inject.Inject;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 public class MokhaLostLootPanel extends PluginPanel {
     private final MokhaLostLootTrackerPlugin plugin;
     private final MokhaLostLootTrackerConfig config;
+    private final ItemManager itemManager;
 
     private final JPanel statsPanel = new JPanel();
     private final JLabel totalLostLabel = new JLabel();
     private final JLabel deathCountLabel = new JLabel();
+    private final Map<Integer, JPanel> waveItemPanels = new HashMap<>();
 
     @Inject
-    public MokhaLostLootPanel(MokhaLostLootTrackerPlugin plugin, MokhaLostLootTrackerConfig config) {
+    public MokhaLostLootPanel(MokhaLostLootTrackerPlugin plugin, MokhaLostLootTrackerConfig config,
+            ItemManager itemManager) {
         this.plugin = plugin;
         this.config = config;
+        this.itemManager = itemManager;
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -124,22 +133,14 @@ public class MokhaLostLootPanel extends PluginPanel {
         for (int wave = 1; wave <= 8; wave++) {
             long waveLost = plugin.getWaveLostValue(wave);
             if (waveLost > 0) {
-                JLabel waveValueLabel = new JLabel();
-                waveValueLabel.setFont(FontManager.getRunescapeFont());
-                waveValueLabel.setText(QuantityFormatter.quantityToStackSize(waveLost) + " gp");
-                waveValueLabel.setForeground(Color.YELLOW);
-                statsPanel.add(createStatRow("  Wave " + wave + ":", waveValueLabel));
+                addWaveSection(wave, waveLost);
             }
         }
 
         // Wave 9+
         long wave9PlusLost = plugin.getWaveLostValue(9);
         if (wave9PlusLost > 0) {
-            JLabel wave9ValueLabel = new JLabel();
-            wave9ValueLabel.setFont(FontManager.getRunescapeFont());
-            wave9ValueLabel.setText(QuantityFormatter.quantityToStackSize(wave9PlusLost) + " gp");
-            wave9ValueLabel.setForeground(Color.YELLOW);
-            statsPanel.add(createStatRow("  Wave 9+:", wave9ValueLabel));
+            addWaveSection(9, wave9PlusLost);
         }
 
         // Add separator before current run stats
@@ -156,7 +157,92 @@ public class MokhaLostLootPanel extends PluginPanel {
             statsPanel.add(createStatRow("Current Run:", currentRunLabel));
         }
 
+        // Add total death costs (always show)
+        long deathCosts = plugin.getTotalDeathCosts();
+        JLabel deathCostsLabel = new JLabel();
+        deathCostsLabel.setFont(FontManager.getRunescapeFont());
+        deathCostsLabel.setText(QuantityFormatter.quantityToStackSize(deathCosts) + " gp");
+        deathCostsLabel.setForeground(new Color(255, 100, 100)); // Light red
+        statsPanel.add(createStatRow("Death Costs:", deathCostsLabel));
+
         revalidate();
         repaint();
+    }
+
+    private void addWaveSection(int wave, long waveLost) {
+        // Create wave header (clickable to expand/collapse)
+        JPanel waveHeaderPanel = new JPanel(new BorderLayout());
+        waveHeaderPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        waveHeaderPanel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        String waveName = wave == 9 ? "Wave 9+" : "Wave " + wave;
+        JLabel waveLabel = new JLabel("  " + waveName + ":");
+        waveLabel.setFont(FontManager.getRunescapeFont());
+        waveLabel.setForeground(Color.LIGHT_GRAY);
+
+        JLabel waveValueLabel = new JLabel(QuantityFormatter.quantityToStackSize(waveLost) + " gp");
+        waveValueLabel.setFont(FontManager.getRunescapeFont());
+        waveValueLabel.setForeground(Color.YELLOW);
+
+        waveHeaderPanel.add(waveLabel, BorderLayout.WEST);
+        waveHeaderPanel.add(waveValueLabel, BorderLayout.EAST);
+
+        // Create items panel (initially hidden)
+        JPanel itemsPanel = new JPanel();
+        itemsPanel.setLayout(new BoxLayout(itemsPanel, BoxLayout.Y_AXIS));
+        itemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        itemsPanel.setVisible(false);
+        itemsPanel.setBorder(new EmptyBorder(2, 20, 2, 5));
+
+        // Get items for this wave
+        List<com.camjewell.LootItem> items = plugin.getWaveLostItems(wave);
+        log.debug("Wave {} has {} items", wave, items != null ? items.size() : 0);
+        if (items != null && !items.isEmpty()) {
+            for (com.camjewell.LootItem item : items) {
+                // Skip invalid items
+                if (item.getId() <= 0) {
+                    log.warn("Skipping invalid item with ID: {}", item.getId());
+                    continue;
+                }
+
+                ItemComposition itemComp = itemManager.getItemComposition(item.getId());
+                String itemName = itemComp.getName();
+
+                // Skip if item name is null or "null"
+                if (itemName == null || itemName.equalsIgnoreCase("null")) {
+                    log.warn("Skipping item with null name, ID: {}", item.getId());
+                    continue;
+                }
+
+                JLabel itemLabel = new JLabel(
+                        "  • " + itemName + " x" + QuantityFormatter.quantityToStackSize(item.getQuantity()));
+                itemLabel.setFont(FontManager.getRunescapeSmallFont());
+                itemLabel.setForeground(Color.WHITE);
+                itemsPanel.add(itemLabel);
+            }
+        } else {
+            // Add a placeholder if no items
+            JLabel noItemsLabel = new JLabel("  (No items tracked)");
+            noItemsLabel.setFont(FontManager.getRunescapeSmallFont());
+            noItemsLabel.setForeground(Color.GRAY);
+            itemsPanel.add(noItemsLabel);
+        }
+
+        waveItemPanels.put(wave, itemsPanel);
+
+        // Add click listener to toggle visibility
+        waveHeaderPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                boolean newVisibility = !itemsPanel.isVisible();
+                itemsPanel.setVisible(newVisibility);
+                log.debug("Wave {} items panel visibility toggled to {}", wave, newVisibility);
+                statsPanel.revalidate();
+                statsPanel.repaint();
+            }
+        });
+
+        statsPanel.add(waveHeaderPanel);
+        statsPanel.add(itemsPanel);
     }
 }
