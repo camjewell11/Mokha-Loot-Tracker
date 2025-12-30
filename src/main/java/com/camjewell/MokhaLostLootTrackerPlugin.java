@@ -91,7 +91,6 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
 
     @Override
     protected void startUp() throws Exception {
-        log.info("Mokha Lost Loot Tracker started!");
         overlayManager.add(overlay);
 
         // Create a default icon first to ensure it's never null
@@ -100,7 +99,6 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
             BufferedImage loadedIcon = ImageUtil.loadImageResource(getClass(), "/mokha_icon.png");
             if (loadedIcon != null) {
                 icon = loadedIcon;
-                log.info("Mokha icon loaded successfully");
             }
         } catch (Exception e) {
             log.warn("Could not load mokha_icon.png, using default blank icon", e);
@@ -114,12 +112,10 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
                 .build();
 
         clientToolbar.addNavigation(navButton);
-        log.info("Navigation button added to toolbar");
     }
 
     @Override
     protected void shutDown() throws Exception {
-        log.info("Mokha Lost Loot Tracker stopped!");
         overlayManager.remove(overlay);
         clientToolbar.removeNavigation(navButton);
         resetCurrentLoot();
@@ -134,13 +130,6 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
             inMokhaArena = mokhaWidget != null && !mokhaWidget.isHidden()
                     && mokhaWidget.getText() != null
                     && mokhaWidget.getText().contains("Mokha");
-
-            if (config.enableDebugMode() && inMokhaArena) {
-                int[] regions = client.getMapRegions();
-                if (regions != null && regions.length > 0) {
-                    log.info("In Mokha arena! Regions: {}", java.util.Arrays.toString(regions));
-                }
-            }
         }
 
         // Check if player is dead
@@ -150,86 +139,25 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
             if (currentlyDead && !isDead) {
                 // Player just died
                 isDead = true;
-                log.info("Player death detected - isDead was: {}, now: {}", !isDead, isDead);
 
-                // If player died with unclaimed loot, record it immediately
-                if (currentLootValue > 0 && currentDelveNumber > 0) {
-                    log.info("Recording lost loot immediately upon death: {} gp (wave {})", currentLootValue,
-                            currentDelveNumber);
-                    recordLostLoot();
-                    resetCurrentLoot();
-                } else {
-                    log.info("Player died but no loot to record (value: {}, wave: {})", currentLootValue,
-                            currentDelveNumber);
+                // Only track deaths in Mokha arena
+                if (inMokhaArena) {
+                    if (currentLootValue > 0 && currentDelveNumber > 0) {
+                        recordLostLoot();
+                        resetCurrentLoot();
+                    } else {
+                        // Count death even without loot
+                        incrementDeathCounter();
+                    }
                 }
             } else if (!currentlyDead && isDead) {
                 // Player respawned
-                log.info("Player respawned - isDead was: {}, now false", isDead);
                 isDead = false;
             }
         }
 
-        // Debug: Log all visible widgets to help find Mokhaiotl interface
-        if (config.enableDebugMode()) {
-            logVisibleWidgets();
-        }
-
         // Check for delve deeper widget and parse loot
         checkDelveWidget();
-    }
-
-    private void logVisibleWidgets() {
-        // Log all widgets with specific IDs that might be the delve interface
-        for (int groupId = 0; groupId < 1000; groupId++) {
-            for (int childId = 0; childId < 100; childId++) {
-                Widget widget = client.getWidget(groupId, childId);
-                if (widget != null && !widget.isHidden()) {
-                    String text = widget.getText();
-                    int itemId = widget.getItemId();
-                    int itemQty = widget.getItemQuantity();
-                    Widget[] children = widget.getChildren();
-                    int childCount = children != null ? children.length : 0;
-
-                    // Log if it has text, items, or children
-                    if ((text != null && !text.isEmpty()) || itemId > 0 || childCount > 0) {
-                        log.info("Widget [{}:{}] Text='{}' ItemId={} ItemQty={} Children={}",
-                                groupId, childId, text != null ? text : "", itemId, itemQty, childCount);
-
-                        // SPECIAL: Log all children of Widget 919:2 to find "Level X Complete!"
-                        if (groupId == 919 && childId == 2 && children != null) {
-                            log.info("=== EXAMINING ALL CHILDREN OF WIDGET 919:2 ===");
-                            for (int i = 0; i < children.length; i++) {
-                                Widget child = children[i];
-                                if (child != null) {
-                                    String childText = child.getText();
-                                    String childName = child.getName();
-                                    log.info("  Child[{}] Text='{}' Name='{}' ItemId={} ItemQty={} Hidden={}",
-                                            i, childText != null ? childText : "",
-                                            childName != null ? childName : "",
-                                            child.getItemId(), child.getItemQuantity(), child.isHidden());
-                                }
-                            }
-                            log.info("=== END OF WIDGET 919:2 CHILDREN ===");
-                        }
-
-                        // If it has "Level" or "Delve" or "Claim" in text, log all children
-                        if (text != null && (text.contains("Level") || text.contains("Delve") ||
-                                text.contains("Claim") || text.contains("value:") || text.contains("GP"))) {
-                            if (children != null) {
-                                for (int i = 0; i < children.length; i++) {
-                                    Widget child = children[i];
-                                    if (child != null && !child.isHidden()) {
-                                        log.info("  Child[{}] Text='{}' ItemId={} ItemQty={}",
-                                                i, child.getText() != null ? child.getText() : "",
-                                                child.getItemId(), child.getItemQuantity());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     @Subscribe
@@ -242,20 +170,24 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
     @Subscribe
     public void onChatMessage(ChatMessage chatMessage) {
         String message = chatMessage.getMessage();
-        log.info("Chat message [{}]: '{}'", chatMessage.getType(), message);
 
         if (chatMessage.getType() != ChatMessageType.GAMEMESSAGE) {
             return;
         }
 
         // Match "Death charges you X x Coins."
+        // Message format: "[12:12] Death charges you 2,000 x Coins. You have 11,291,550
+        // x Coins left in Death's Coffer."
         String lowerMessage = message.toLowerCase();
         if (lowerMessage.contains("death") && lowerMessage.contains("charges you") && lowerMessage.contains("coins")) {
-            log.info("Detected death cost message: {}", message);
+            // Only track death costs if in Mokha arena
+            if (!inMokhaArena) {
+                return;
+            }
+
             try {
                 // Try to extract number from the message using regex
                 String cleanMessage = message.replaceAll("<[^>]*>", ""); // Strip HTML tags
-                log.info("Cleaned message: {}", cleanMessage);
 
                 // Find the pattern "Death charges you X x Coins"
                 java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("Death charges you ([0-9,]+) x Coins",
@@ -272,8 +204,6 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
                     long totalCosts = getLongConfig(configGroup, CONFIG_KEY_DEATH_COSTS);
                     totalCosts += cost;
                     configManager.setConfiguration(configGroup, CONFIG_KEY_DEATH_COSTS, totalCosts);
-
-                    log.info("Recorded death cost: {} gp (Total: {} gp)", cost, totalCosts);
 
                     // Update panel
                     panel.updateStats();
@@ -311,7 +241,6 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
                         String numStr = valueText.replaceAll("[^0-9]", "");
                         if (!numStr.isEmpty()) {
                             currentLootValue = Long.parseLong(numStr);
-                            log.debug("Current loot value: {} gp", currentLootValue);
                         }
                     } catch (Exception e) {
                         log.error("Error parsing loot value", e);
@@ -440,7 +369,6 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
                 long existingWaveLost = getLongConfig(configGroup, waveKey);
                 existingWaveLost += waveLootValues[wave];
                 configManager.setConfiguration(configGroup, waveKey, existingWaveLost);
-                log.debug("Recorded wave {} lost: {} gp", wave, waveLootValues[wave]);
 
                 // Save items for this wave
                 if (waveItemStacks[wave] != null && !waveItemStacks[wave].isEmpty()) {
@@ -482,7 +410,6 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
 
                     String serializedItems = serializeItems(allItems);
                     configManager.setConfiguration(configGroup, itemsKey, serializedItems);
-                    log.debug("Recorded wave {} items: {}", wave, serializedItems);
                 }
             }
         }
@@ -493,15 +420,11 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
 
         // Get current death count
         int timesDied = getIntConfig(configGroup, CONFIG_KEY_TIMES_DIED);
-        log.info("Current death count before increment: {}", timesDied);
         timesDied++;
 
         // Save new values
         configManager.setConfiguration(configGroup, CONFIG_KEY_TOTAL_LOST, totalLost);
         configManager.setConfiguration(configGroup, CONFIG_KEY_TIMES_DIED, timesDied);
-
-        log.info("Lost loot recorded: {} gp on wave {} (Total lost: {} gp, Deaths: {})",
-                currentLootValue, currentDelveNumber, totalLost, timesDied);
 
         // Send chat notification
         if (config.showChatNotifications()) {
@@ -510,6 +433,21 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
                             + " gp (Wave " + currentDelveNumber + ")",
                     null);
         }
+
+        // Update panel stats
+        panel.updateStats();
+    }
+
+    private void incrementDeathCounter() {
+        String accountHash = getAccountHash();
+        String configGroup = "mokhalostloot." + accountHash;
+
+        // Get current death count and increment
+        int timesDied = getIntConfig(configGroup, CONFIG_KEY_TIMES_DIED);
+        timesDied++;
+
+        // Save new value
+        configManager.setConfiguration(configGroup, CONFIG_KEY_TIMES_DIED, timesDied);
 
         // Update panel stats
         panel.updateStats();
@@ -666,15 +604,12 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
         // Reset death costs
         configManager.unsetConfiguration(configGroup, CONFIG_KEY_DEATH_COSTS);
 
-        log.info("Mokha lost loot stats reset");
-
-        if (config.showChatNotifications()) {
-            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-                    "Mokha lost loot stats have been reset.", null);
-        }
-
-        // Update panel stats
-        panel.updateStats();
+        // Update panel stats on UI thread with forced repaint
+        javax.swing.SwingUtilities.invokeLater(() -> {
+            panel.updateStats();
+            panel.revalidate();
+            panel.repaint();
+        });
     }
 
     @Provides
@@ -682,7 +617,6 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
         return configManager.getConfig(MokhaLostLootTrackerConfig.class);
     }
 
-    // Helper class for storing item information
     private static class ItemStack {
         private final int itemId;
         private final int quantity;

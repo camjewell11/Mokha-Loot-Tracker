@@ -56,11 +56,11 @@ public class MokhaLostLootOverlay extends Overlay {
         }
 
         // Show the overlay when delve interface is visible (completion screen), in
-        // arena on wave 2+ with loot value, or have historical stats
+        // arena with loot value, or have historical stats
         int currentLevel = plugin.getCurrentDelveNumber();
         long currentValue = plugin.getCurrentLootValue();
         boolean showCurrentRun = plugin.isDelveInterfaceVisible()
-                || (plugin.isInMokhaArena() && currentLevel > 1 && currentValue > 0);
+                || (plugin.isInMokhaArena() && currentValue > 0);
         boolean showHistoricalStats = plugin.getTotalLostValue() > 0;
 
         if (showCurrentRun || showHistoricalStats) {

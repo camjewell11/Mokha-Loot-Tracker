@@ -72,7 +72,7 @@ public class MokhaLostLootPanel extends PluginPanel {
                     JOptionPane.YES_NO_OPTION);
             if (confirm == JOptionPane.YES_OPTION) {
                 plugin.resetStats();
-                updateStats();
+                // updateStats() is called by resetStats() via SwingUtilities.invokeLater
             }
         });
 
@@ -106,6 +106,7 @@ public class MokhaLostLootPanel extends PluginPanel {
     public void updateStats() {
         // Clear existing stats
         statsPanel.removeAll();
+        waveItemPanels.clear();
 
         long totalLost = plugin.getTotalLostValue();
         int deaths = plugin.getTimesDied();
@@ -165,6 +166,8 @@ public class MokhaLostLootPanel extends PluginPanel {
         deathCostsLabel.setForeground(new Color(255, 100, 100)); // Light red
         statsPanel.add(createStatRow("Death Costs:", deathCostsLabel));
 
+        statsPanel.revalidate();
+        statsPanel.repaint();
         revalidate();
         repaint();
     }
@@ -196,7 +199,6 @@ public class MokhaLostLootPanel extends PluginPanel {
 
         // Get items for this wave
         List<com.camjewell.LootItem> items = plugin.getWaveLostItems(wave);
-        log.debug("Wave {} has {} items", wave, items != null ? items.size() : 0);
         if (items != null && !items.isEmpty()) {
             for (com.camjewell.LootItem item : items) {
                 // Skip invalid items
@@ -236,7 +238,6 @@ public class MokhaLostLootPanel extends PluginPanel {
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 boolean newVisibility = !itemsPanel.isVisible();
                 itemsPanel.setVisible(newVisibility);
-                log.debug("Wave {} items panel visibility toggled to {}", wave, newVisibility);
                 statsPanel.revalidate();
                 statsPanel.repaint();
             }
