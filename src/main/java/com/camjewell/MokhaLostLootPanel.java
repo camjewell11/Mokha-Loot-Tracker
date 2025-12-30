@@ -1,18 +1,26 @@
 package com.camjewell;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.GridLayout;
+import java.util.List;
+
+import javax.inject.Inject;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JSeparator;
+import javax.swing.border.EmptyBorder;
+
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ItemComposition;
 import net.runelite.client.game.ItemManager;
-import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
+import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.QuantityFormatter;
-
-import javax.inject.Inject;
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import java.awt.*;
-import java.util.List;
 
 @Slf4j
 public class MokhaLostLootPanel extends PluginPanel {
@@ -21,6 +29,7 @@ public class MokhaLostLootPanel extends PluginPanel {
 
     private final JPanel statsPanel = new JPanel();
     private final JLabel totalLostLabel = new JLabel();
+    private final JLabel totalClaimedLabel = new JLabel();
     private final JLabel deathCountLabel = new JLabel();
 
     @Inject
@@ -50,6 +59,8 @@ public class MokhaLostLootPanel extends PluginPanel {
 
         totalLostLabel.setFont(FontManager.getRunescapeFont());
         totalLostLabel.setForeground(Color.WHITE);
+        totalClaimedLabel.setFont(FontManager.getRunescapeFont());
+        totalClaimedLabel.setForeground(Color.WHITE);
         deathCountLabel.setFont(FontManager.getRunescapeFont());
         deathCountLabel.setForeground(Color.WHITE);
 
@@ -110,6 +121,11 @@ public class MokhaLostLootPanel extends PluginPanel {
         totalLostLabel.setForeground(totalLost > 0 ? Color.RED : Color.WHITE);
         statsPanel.add(createStatRow("Total Lost:", totalLostLabel));
 
+        long totalClaimed = plugin.getTotalClaimedValue();
+        totalClaimedLabel.setText(QuantityFormatter.quantityToStackSize(totalClaimed) + " gp");
+        totalClaimedLabel.setForeground(totalClaimed > 0 ? new Color(100, 255, 100) : Color.WHITE);
+        statsPanel.add(createStatRow("Total Claimed:", totalClaimedLabel));
+
         deathCountLabel.setText(String.valueOf(deaths));
         deathCountLabel.setForeground(deaths > 0 ? Color.ORANGE : Color.WHITE);
         statsPanel.add(createStatRow("Deaths:", deathCountLabel));
@@ -138,9 +154,56 @@ public class MokhaLostLootPanel extends PluginPanel {
             addWaveSection(9, wave9PlusLost);
         }
 
-        // Add separator before current run stats
+        // Add death costs after lost loot
+        long deathCosts = plugin.getTotalDeathCosts();
+        if (deathCosts > 0) {
+            JLabel deathCostsLabel = new JLabel();
+            deathCostsLabel.setFont(FontManager.getRunescapeFont());
+            deathCostsLabel.setText(QuantityFormatter.quantityToStackSize(deathCosts) + " gp");
+            deathCostsLabel.setForeground(new Color(255, 100, 100)); // Light red
+            statsPanel.add(createStatRow("Death Costs:", deathCostsLabel));
+        }
+
+        // Add separator and claimed loot section
         JSeparator separator2 = new JSeparator();
+        separator2.setBorder(new EmptyBorder(5, 0, 5, 0));
         statsPanel.add(separator2);
+
+        // Add claimed loot header
+        JLabel claimedHeader = new JLabel("Claimed Loot by Wave:");
+        claimedHeader.setFont(FontManager.getRunescapeBoldFont());
+        claimedHeader.setForeground(new Color(100, 255, 100)); // Light green
+        statsPanel.add(claimedHeader);
+
+        // Waves 1-8 individually (claimed)
+        boolean hasClaimedLoot = false;
+        for (int wave = 1; wave <= 8; wave++) {
+            long waveClaimed = plugin.getWaveClaimedValue(wave);
+            if (waveClaimed > 0) {
+                addClaimedWaveSection(wave, waveClaimed);
+                hasClaimedLoot = true;
+            }
+        }
+
+        // Wave 9+ (claimed)
+        long wave9PlusClaimed = plugin.getWaveClaimedValue(9);
+        if (wave9PlusClaimed > 0) {
+            addClaimedWaveSection(9, wave9PlusClaimed);
+            hasClaimedLoot = true;
+        }
+
+        // If no claimed loot, show a message
+        if (!hasClaimedLoot) {
+            JLabel noClaimedLabel = new JLabel("  No loot claimed yet");
+            noClaimedLabel.setFont(FontManager.getRunescapeSmallFont());
+            noClaimedLabel.setForeground(Color.GRAY);
+            statsPanel.add(noClaimedLabel);
+        }
+
+        // Add separator before current run stats
+        JSeparator separator3 = new JSeparator();
+        separator3.setBorder(new EmptyBorder(5, 0, 5, 0));
+        statsPanel.add(separator3);
 
         // Add current/previous run total
         long currentRunValue = plugin.getCurrentLootValue();
@@ -151,14 +214,6 @@ public class MokhaLostLootPanel extends PluginPanel {
             currentRunLabel.setForeground(Color.CYAN);
             statsPanel.add(createStatRow("Current Run:", currentRunLabel));
         }
-
-        // Add total death costs (always show)
-        long deathCosts = plugin.getTotalDeathCosts();
-        JLabel deathCostsLabel = new JLabel();
-        deathCostsLabel.setFont(FontManager.getRunescapeFont());
-        deathCostsLabel.setText(QuantityFormatter.quantityToStackSize(deathCosts) + " gp");
-        deathCostsLabel.setForeground(new Color(255, 100, 100)); // Light red
-        statsPanel.add(createStatRow("Death Costs:", deathCostsLabel));
 
         statsPanel.revalidate();
         statsPanel.repaint();
@@ -195,7 +250,58 @@ public class MokhaLostLootPanel extends PluginPanel {
             for (com.camjewell.LootItem item : items) {
                 // Skip invalid items
                 if (item.getId() <= 0) {
-                    log.warn("Skipping invalid item with ID: {}", item.getId());
+                    continue;
+                }
+
+                ItemComposition itemComp = itemManager.getItemComposition(item.getId());
+                String itemName = itemComp.getName();
+
+                // Skip if item name is null or "null"
+                if (itemName == null || itemName.equalsIgnoreCase("null")) {
+                    continue;
+                }
+
+                JLabel itemLabel = new JLabel(
+                        "  • " + itemName + " x" + QuantityFormatter.quantityToStackSize(item.getQuantity()));
+                itemLabel.setFont(FontManager.getRunescapeSmallFont());
+                itemLabel.setForeground(Color.WHITE);
+                itemsPanel.add(itemLabel);
+            }
+        }
+
+        statsPanel.add(waveHeaderPanel);
+        statsPanel.add(itemsPanel);
+    }
+
+    private void addClaimedWaveSection(int wave, long waveClaimed) {
+        // Create wave header
+        JPanel waveHeaderPanel = new JPanel(new BorderLayout());
+        waveHeaderPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        String waveName = wave == 9 ? "Wave 9+" : "Wave " + wave;
+        JLabel waveLabel = new JLabel("  " + waveName + ":");
+        waveLabel.setFont(FontManager.getRunescapeFont());
+        waveLabel.setForeground(Color.LIGHT_GRAY);
+
+        JLabel waveValueLabel = new JLabel(QuantityFormatter.quantityToStackSize(waveClaimed) + " gp");
+        waveValueLabel.setFont(FontManager.getRunescapeFont());
+        waveValueLabel.setForeground(new Color(100, 255, 100)); // Light green
+
+        waveHeaderPanel.add(waveLabel, BorderLayout.WEST);
+        waveHeaderPanel.add(waveValueLabel, BorderLayout.EAST);
+
+        // Create items panel (always visible)
+        JPanel itemsPanel = new JPanel();
+        itemsPanel.setLayout(new BoxLayout(itemsPanel, BoxLayout.Y_AXIS));
+        itemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        itemsPanel.setBorder(new EmptyBorder(2, 20, 2, 5));
+
+        // Get items for this wave
+        List<com.camjewell.LootItem> items = plugin.getWaveClaimedItems(wave);
+        if (items != null && !items.isEmpty()) {
+            for (com.camjewell.LootItem item : items) {
+                // Skip invalid items
+                if (item.getId() <= 0) {
                     continue;
                 }
 

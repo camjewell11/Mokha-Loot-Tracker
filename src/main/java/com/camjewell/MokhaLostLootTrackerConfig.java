@@ -15,4 +15,9 @@ public interface MokhaLostLootTrackerConfig extends Config {
 	default boolean showChatNotifications() {
 		return true;
 	}
+
+	@ConfigItem(keyName = "excludeSunKissedBonesValue", name = "Exclude Sun-kissed Bones Value", description = "Exclude Sun-kissed Bones value (8000 gp each) from loot tracking", position = 2)
+	default boolean excludeSunKissedBonesValue() {
+		return true;
+	}
 }
