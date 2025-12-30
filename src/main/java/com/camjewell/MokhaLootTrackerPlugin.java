@@ -116,7 +116,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     BufferedImage loadedIcon = ImageIO.read(in);
                     if (loadedIcon != null) {
                         icon = loadedIcon;
-                        log.info("Successfully loaded mokha_icon.png");
                     } else {
                         log.warn("ImageIO.read returned null for mokha_icon.png");
                     }
@@ -179,18 +178,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (currentlyDead && !isDead) {
                 // Player just died
                 isDead = true;
-                log.info("Player died! inMokhaArena={}, currentLootValue={}, currentDelveNumber={}",
-                        inMokhaArena, currentLootValue, currentDelveNumber);
 
                 // Only track deaths in Mokha arena
                 if (inMokhaArena) {
                     if (currentLootValue > 0 && currentDelveNumber > 0) {
-                        log.info("Recording lost loot on death");
                         recordLostLoot();
                         resetCurrentLoot();
                     } else {
                         // Count death even without loot
-                        log.info("Death without loot - incrementing counter only");
                         incrementDeathCounter();
                     }
                 }
@@ -218,13 +213,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Detect "Descend" button click (continue to next wave)
         if (menuOption != null && menuOption.contains("Descend")) {
-            log.info("Player clicked 'Descend' - continuing to next wave");
+            // Continue to next wave
         }
 
         // Detect "Leave" button click (final step in claim flow: Claim and Leave ->
         // Confirm -> Leave)
         if (menuOption != null && menuOption.contains("Leave")) {
-            log.info("Player clicked 'Leave' - recording claimed loot");
             // Player is claiming - record the loot immediately
             if (lastVisibleLootValue > 0 && lastVisibleDelveNumber > 0) {
                 // Ensure current wave data is populated before claiming
@@ -233,8 +227,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     long incrementalLoot = lastVisibleLootValue - previousWaveLootValue;
                     waveLootValues[waveIndex] = incrementalLoot;
                     waveItemStacks[waveIndex] = new ArrayList<>(lastVisibleLootItems);
-                    log.info("Populated wave {} data on claim: {} gp with {} items",
-                            lastVisibleDelveNumber, incrementalLoot, lastVisibleLootItems.size());
                 }
 
                 recordClaimedLoot();
@@ -347,16 +339,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     if (incrementalValue > 0) {
                         waveLootValues[currentDelveNumber] = incrementalValue;
 
-                        log.info("Wave {} detected: incrementalValue={}, cumulative={}",
-                                currentDelveNumber, incrementalValue, currentLootValue);
-
                         // Calculate incremental items (items added this wave only)
                         List<LootItem> incrementalItems = calculateIncrementalItems(currentUnclaimedLoot,
                                 previousWaveItems);
                         waveItemStacks[currentDelveNumber] = incrementalItems;
-
-                        log.info("Wave {} stored {} incremental items",
-                                currentDelveNumber, incrementalItems.size());
 
                         // Update previous wave tracking
                         previousWaveLootValue = currentLootValue;
@@ -367,9 +353,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         } else {
             // Delve interface just closed
             if (wasDelveInterfaceVisible) {
-                log.info(
-                        "Delve interface closed. isDead={}, lastVisibleLootValue={}, lastVisibleDelveNumber={}",
-                        isDead, lastVisibleLootValue, lastVisibleDelveNumber);
                 // Note: Claim detection is now handled by onMenuOptionClicked tracking button
                 // presses
             }
@@ -434,16 +417,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
             previousDelveNumber = currentDelveNumber;
             currentDelveNumber = newDelveNumber;
 
-            log.info("Delve number changed: {} -> {}", previousDelveNumber, currentDelveNumber);
-
             // If delve number reset to 1, clear tracking (loot was either claimed or
             // already recorded on death)
             if (currentDelveNumber == 1 && previousDelveNumber > 1) {
-                log.info("Delve reset detected ({}->1). Loot value: {}", previousDelveNumber, currentLootValue);
-
-                if (currentLootValue > 0) {
-                    log.info("Loot was claimed or already recorded");
-                }
                 // Clear current tracking
                 resetCurrentLoot();
             }
@@ -452,12 +428,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     private void recordLostLoot() {
         if (currentLootValue == 0) {
-            log.warn("recordLostLoot called but currentLootValue is 0");
             return;
         }
-
-        log.info("recordLostLoot: currentDelveNumber={}, currentLootValue={}, items={}",
-                currentDelveNumber, currentLootValue, currentUnclaimedLoot.size());
 
         String accountHash = getAccountHash();
         String configGroup = "mokhaloot." + accountHash;
@@ -473,24 +445,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // Calculate incremental items for this wave
                 List<LootItem> incrementalItems = calculateIncrementalItems(currentUnclaimedLoot, previousWaveItems);
                 waveItemStacks[waveIndex] = incrementalItems;
-                log.info("Emergency wave {} calculation on death: {} gp", waveIndex, incrementalLoot);
             }
         }
 
         // Save each wave's incremental loot value and items
         for (int wave = 1; wave <= MAX_TRACKED_WAVES; wave++) {
             if (waveLootValues[wave] > 0) {
-                log.info("Saving lost loot for wave {}: {} gp with {} items",
-                        wave, waveLootValues[wave],
-                        waveItemStacks[wave] != null ? waveItemStacks[wave].size() : 0);
-
                 // Apply adjustment for Sun-kissed Bones if enabled
                 long adjustedWaveValue = getAdjustedLootValue(waveLootValues[wave], waveItemStacks[wave]);
-
-                if (adjustedWaveValue != waveLootValues[wave]) {
-                    log.info("Wave {} adjusted for Sun-kissed Bones: {} -> {}",
-                            wave, waveLootValues[wave], adjustedWaveValue);
-                }
 
                 String waveKey = CONFIG_KEY_WAVE_PREFIX + wave;
                 long existingWaveLost = getLongConfig(configGroup, waveKey);
@@ -567,18 +529,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private void recordClaimedLoot() {
-        log.info("recordClaimedLoot called. lastVisibleLootValue={}", lastVisibleLootValue);
-
         if (lastVisibleLootValue == 0) {
-            log.info("Skipping recordClaimedLoot - lastVisibleLootValue is 0");
             return;
         }
 
         String accountHash = getAccountHash();
         String configGroup = "mokhaloot." + accountHash;
-
-        log.info("Recording claimed loot. accountHash={}, lastVisibleDelveNumber={}", accountHash,
-                lastVisibleDelveNumber);
 
         // Save all waves that have loot data
         for (int wave = 1; wave <= MAX_TRACKED_WAVES; wave++) {
@@ -592,18 +548,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
             // Apply adjustment for Sun-kissed Bones if enabled
             long adjustedIncrementalLoot = getAdjustedLootValue(incrementalLoot, waveItemStacks[waveIndex]);
 
-            log.info("Wave {}: incrementalLoot={}, adjustedIncrementalLoot={}, items={}",
-                    waveIndex, incrementalLoot, adjustedIncrementalLoot,
-                    waveItemStacks[waveIndex] != null ? waveItemStacks[waveIndex].size() : 0);
-
             // Save claimed loot for this wave
             String waveKey = CONFIG_KEY_WAVE_CLAIMED_PREFIX + waveIndex;
             long existingWaveClaimed = getLongConfig(configGroup, waveKey);
             existingWaveClaimed += adjustedIncrementalLoot;
             configManager.setConfiguration(configGroup, waveKey, existingWaveClaimed);
-
-            log.info("Saved wave {} claimed value: {} (was {})", waveIndex, existingWaveClaimed,
-                    existingWaveClaimed - adjustedIncrementalLoot);
 
             // Save items for this wave
             if (waveItemStacks[waveIndex] != null && !waveItemStacks[waveIndex].isEmpty()) {
@@ -753,7 +702,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         boolean excludeEnabled = config.excludeSunKissedBonesValue();
 
         if (!excludeEnabled) {
-            log.debug("Sun-kissed Bones exclusion is DISABLED");
             return baseValue;
         }
 
@@ -767,16 +715,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (item.getId() == SUN_KISSED_BONES_ID) {
                 bonesQuantity = item.getQuantity();
                 adjustment = (long) bonesQuantity * SUN_KISSED_BONES_VALUE;
-                log.info("Found Sun-kissed bones x{} in items, calculating adjustment: {} gp",
-                        bonesQuantity, adjustment);
                 break;
             }
         }
 
         long adjustedValue = Math.max(0, baseValue - adjustment);
-        if (adjustment > 0) {
-            log.info("Sun-kissed Bones adjustment: {} - {} = {}", baseValue, adjustment, adjustedValue);
-        }
 
         return adjustedValue;
     }
@@ -898,8 +841,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     public void resetStats() {
-        log.info("resetStats() called - clearing all loot data");
-
         String accountHash = getAccountHash();
         String configGroup = "mokhaloot." + accountHash;
 
@@ -917,8 +858,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Reset death costs
         configManager.unsetConfiguration(configGroup, CONFIG_KEY_DEATH_COSTS);
 
-        log.info("All stats reset complete for account hash: {}", accountHash);
-
         // Update panel stats on UI thread with forced repaint
         javax.swing.SwingUtilities.invokeLater(() -> {
             panel.updateStats();
@@ -932,4 +871,3 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return configManager.getConfig(MokhaLootTrackerConfig.class);
     }
 }
-
