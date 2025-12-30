@@ -2,8 +2,6 @@ package com.camjewell;
 
 import com.google.inject.Provides;
 import javax.inject.Inject;
-import javax.imageio.ImageIO;
-import java.io.InputStream;
 import java.awt.image.BufferedImage;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
@@ -17,9 +15,8 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.QuantityFormatter;
-
-import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -108,24 +105,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     protected void startUp() throws Exception {
         overlayManager.add(overlay);
 
-        // Load icon from package resources using direct InputStream
-        BufferedImage icon = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-        try (InputStream in = getClass().getResourceAsStream("mokha_icon.png")) {
-            if (in != null) {
-                synchronized (ImageIO.class) {
-                    BufferedImage loadedIcon = ImageIO.read(in);
-                    if (loadedIcon != null) {
-                        icon = loadedIcon;
-                    } else {
-                        log.warn("ImageIO.read returned null for mokha_icon.png");
-                    }
-                }
-            } else {
-                log.warn("mokha_icon.png resource not found");
-            }
-        } catch (Exception e) {
-            log.warn("Could not load mokha_icon.png", e);
-        }
+        BufferedImage icon = ImageUtil.loadImageResource(getClass(), "mokha_icon.png");
 
         navButton = NavigationButton.builder()
                 .tooltip("Mokha Loot")
