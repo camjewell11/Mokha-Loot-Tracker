@@ -13,25 +13,20 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
 
 @Slf4j
 public class MokhaLostLootPanel extends PluginPanel {
     private final MokhaLostLootTrackerPlugin plugin;
-    private final MokhaLostLootTrackerConfig config;
     private final ItemManager itemManager;
 
     private final JPanel statsPanel = new JPanel();
     private final JLabel totalLostLabel = new JLabel();
     private final JLabel deathCountLabel = new JLabel();
-    private final Map<Integer, JPanel> waveItemPanels = new HashMap<>();
 
     @Inject
-    public MokhaLostLootPanel(MokhaLostLootTrackerPlugin plugin, MokhaLostLootTrackerConfig config,
+    public MokhaLostLootPanel(MokhaLostLootTrackerPlugin plugin,
             ItemManager itemManager) {
         this.plugin = plugin;
-        this.config = config;
         this.itemManager = itemManager;
 
         setLayout(new BorderLayout());
@@ -106,7 +101,6 @@ public class MokhaLostLootPanel extends PluginPanel {
     public void updateStats() {
         // Clear existing stats
         statsPanel.removeAll();
-        waveItemPanels.clear();
 
         long totalLost = plugin.getTotalLostValue();
         int deaths = plugin.getTimesDied();
@@ -173,10 +167,9 @@ public class MokhaLostLootPanel extends PluginPanel {
     }
 
     private void addWaveSection(int wave, long waveLost) {
-        // Create wave header (clickable to expand/collapse)
+        // Create wave header
         JPanel waveHeaderPanel = new JPanel(new BorderLayout());
         waveHeaderPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        waveHeaderPanel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         String waveName = wave == 9 ? "Wave 9+" : "Wave " + wave;
         JLabel waveLabel = new JLabel("  " + waveName + ":");
@@ -190,11 +183,10 @@ public class MokhaLostLootPanel extends PluginPanel {
         waveHeaderPanel.add(waveLabel, BorderLayout.WEST);
         waveHeaderPanel.add(waveValueLabel, BorderLayout.EAST);
 
-        // Create items panel (initially hidden)
+        // Create items panel (always visible)
         JPanel itemsPanel = new JPanel();
         itemsPanel.setLayout(new BoxLayout(itemsPanel, BoxLayout.Y_AXIS));
         itemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        itemsPanel.setVisible(false);
         itemsPanel.setBorder(new EmptyBorder(2, 20, 2, 5));
 
         // Get items for this wave
@@ -222,26 +214,7 @@ public class MokhaLostLootPanel extends PluginPanel {
                 itemLabel.setForeground(Color.WHITE);
                 itemsPanel.add(itemLabel);
             }
-        } else {
-            // Add a placeholder if no items
-            JLabel noItemsLabel = new JLabel("  (No items tracked)");
-            noItemsLabel.setFont(FontManager.getRunescapeSmallFont());
-            noItemsLabel.setForeground(Color.GRAY);
-            itemsPanel.add(noItemsLabel);
         }
-
-        waveItemPanels.put(wave, itemsPanel);
-
-        // Add click listener to toggle visibility
-        waveHeaderPanel.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
-                boolean newVisibility = !itemsPanel.isVisible();
-                itemsPanel.setVisible(newVisibility);
-                statsPanel.revalidate();
-                statsPanel.repaint();
-            }
-        });
 
         statsPanel.add(waveHeaderPanel);
         statsPanel.add(itemsPanel);

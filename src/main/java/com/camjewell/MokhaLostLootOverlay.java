@@ -4,28 +4,25 @@ import javax.inject.Inject;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Color;
-import net.runelite.api.Client;
 import net.runelite.client.ui.overlay.Overlay;
+import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
-import net.runelite.client.ui.overlay.OverlayPriority;
 import net.runelite.client.ui.overlay.components.LineComponent;
 import net.runelite.client.ui.overlay.components.PanelComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
 import net.runelite.client.util.QuantityFormatter;
 
 public class MokhaLostLootOverlay extends Overlay {
-    private final Client client;
     private final MokhaLostLootTrackerPlugin plugin;
     private final MokhaLostLootTrackerConfig config;
     private final PanelComponent panelComponent = new PanelComponent();
 
     @Inject
-    private MokhaLostLootOverlay(Client client, MokhaLostLootTrackerPlugin plugin, MokhaLostLootTrackerConfig config) {
-        this.client = client;
+    private MokhaLostLootOverlay(MokhaLostLootTrackerPlugin plugin, MokhaLostLootTrackerConfig config) {
         this.plugin = plugin;
         this.config = config;
         setPosition(OverlayPosition.TOP_LEFT);
-        setPriority(OverlayPriority.LOW);
+        setLayer(OverlayLayer.ABOVE_SCENE);
     }
 
     @Override
@@ -57,7 +54,6 @@ public class MokhaLostLootOverlay extends Overlay {
 
         // Show the overlay when delve interface is visible (completion screen), in
         // arena with loot value, or have historical stats
-        int currentLevel = plugin.getCurrentDelveNumber();
         long currentValue = plugin.getCurrentLootValue();
         boolean showCurrentRun = plugin.isDelveInterfaceVisible()
                 || (plugin.isInMokhaArena() && currentValue > 0);

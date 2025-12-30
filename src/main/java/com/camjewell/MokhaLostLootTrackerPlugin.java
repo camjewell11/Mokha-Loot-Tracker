@@ -93,15 +93,15 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
     protected void startUp() throws Exception {
         overlayManager.add(overlay);
 
-        // Create a default icon first to ensure it's never null
+        // Load icon from package resources
         BufferedImage icon = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
         try {
-            BufferedImage loadedIcon = ImageUtil.loadImageResource(getClass(), "/mokha_icon.png");
+            BufferedImage loadedIcon = ImageUtil.loadImageResource(getClass(), "mokha_icon.png");
             if (loadedIcon != null) {
                 icon = loadedIcon;
             }
         } catch (Exception e) {
-            log.warn("Could not load mokha_icon.png, using default blank icon", e);
+            log.warn("Could not load mokha_icon.png, using blank icon", e);
         }
 
         navButton = NavigationButton.builder()
@@ -615,23 +615,5 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
     @Provides
     MokhaLostLootTrackerConfig provideConfig(ConfigManager configManager) {
         return configManager.getConfig(MokhaLostLootTrackerConfig.class);
-    }
-
-    private static class ItemStack {
-        private final int itemId;
-        private final int quantity;
-
-        public ItemStack(int itemId, int quantity) {
-            this.itemId = itemId;
-            this.quantity = quantity;
-        }
-
-        public int getItemId() {
-            return itemId;
-        }
-
-        public int getQuantity() {
-            return quantity;
-        }
     }
 }
