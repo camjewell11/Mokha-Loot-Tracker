@@ -2,6 +2,9 @@ package com.camjewell;
 
 import com.google.inject.Provides;
 import javax.inject.Inject;
+import javax.imageio.ImageIO;
+import java.io.InputStream;
+import java.awt.image.BufferedImage;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.*;
@@ -93,15 +96,24 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
     protected void startUp() throws Exception {
         overlayManager.add(overlay);
 
-        // Load icon from package resources
+        // Load icon from package resources using direct InputStream
         BufferedImage icon = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-        try {
-            BufferedImage loadedIcon = ImageUtil.loadImageResource(getClass(), "mokha_icon.png");
-            if (loadedIcon != null) {
-                icon = loadedIcon;
+        try (InputStream in = getClass().getResourceAsStream("mokha_icon.png")) {
+            if (in != null) {
+                synchronized (ImageIO.class) {
+                    BufferedImage loadedIcon = ImageIO.read(in);
+                    if (loadedIcon != null) {
+                        icon = loadedIcon;
+                        log.info("Successfully loaded mokha_icon.png");
+                    } else {
+                        log.warn("ImageIO.read returned null for mokha_icon.png");
+                    }
+                }
+            } else {
+                log.warn("mokha_icon.png resource not found");
             }
         } catch (Exception e) {
-            log.warn("Could not load mokha_icon.png, using blank icon", e);
+            log.warn("Could not load mokha_icon.png", e);
         }
 
         navButton = NavigationButton.builder()
