@@ -12,13 +12,13 @@ import net.runelite.client.ui.overlay.components.PanelComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
 import net.runelite.client.util.QuantityFormatter;
 
-public class MokhaLostLootOverlay extends Overlay {
-    private final MokhaLostLootTrackerPlugin plugin;
-    private final MokhaLostLootTrackerConfig config;
+public class MokhaLootOverlay extends Overlay {
+    private final MokhaLootTrackerPlugin plugin;
+    private final MokhaLootTrackerConfig config;
     private final PanelComponent panelComponent = new PanelComponent();
 
     @Inject
-    private MokhaLostLootOverlay(MokhaLostLootTrackerPlugin plugin, MokhaLostLootTrackerConfig config) {
+    private MokhaLootOverlay(MokhaLootTrackerPlugin plugin, MokhaLootTrackerConfig config) {
         this.plugin = plugin;
         this.config = config;
         setPosition(OverlayPosition.TOP_LEFT);
@@ -66,3 +66,4 @@ public class MokhaLostLootOverlay extends Overlay {
         return null;
     }
 }
+

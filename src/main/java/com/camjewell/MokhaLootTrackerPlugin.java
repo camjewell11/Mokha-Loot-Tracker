@@ -43,9 +43,9 @@ class LootItem {
 }
 
 @Slf4j
-@PluginDescriptor(name = "Mokha Lost Loot", description = "Tracks loot lost from dying at the Doom of Mokhaiotl boss", tags = {
+@PluginDescriptor(name = "Mokha Loot", description = "Tracks loot lost from dying at the Doom of Mokhaiotl boss", tags = {
         "mokha", "loot", "boss", "death", "tracking" })
-public class MokhaLostLootTrackerPlugin extends Plugin {
+public class MokhaLootTrackerPlugin extends Plugin {
     private static final int SUN_KISSED_BONES_ID = 33212;
     private static final int SUN_KISSED_BONES_VALUE = 8000;
     private static final String CONFIG_KEY_TOTAL_LOST = "totalLostValue";
@@ -61,7 +61,7 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
     private Client client;
 
     @Inject
-    private MokhaLostLootTrackerConfig config;
+    private MokhaLootTrackerConfig config;
 
     @Inject
     private ConfigManager configManager;
@@ -73,13 +73,13 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
     private ItemManager itemManager;
 
     @Inject
-    private MokhaLostLootOverlay overlay;
+    private MokhaLootOverlay overlay;
 
     @Inject
     private ClientToolbar clientToolbar;
 
     @Inject
-    private MokhaLostLootPanel panel;
+    private MokhaLootPanel panel;
 
     private NavigationButton navButton;
 
@@ -129,7 +129,7 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
         }
 
         navButton = NavigationButton.builder()
-                .tooltip("Mokha Lost Loot")
+                .tooltip("Mokha Loot")
                 .icon(icon)
                 .priority(5)
                 .panel(panel)
@@ -280,7 +280,7 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
 
                     // Add to total death costs
                     String accountHash = getAccountHash();
-                    String configGroup = "mokhalostloot." + accountHash;
+                    String configGroup = "mokhaloot." + accountHash;
                     long totalCosts = getLongConfig(configGroup, CONFIG_KEY_DEATH_COSTS);
                     totalCosts += cost;
                     configManager.setConfiguration(configGroup, CONFIG_KEY_DEATH_COSTS, totalCosts);
@@ -460,7 +460,7 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
                 currentDelveNumber, currentLootValue, currentUnclaimedLoot.size());
 
         String accountHash = getAccountHash();
-        String configGroup = "mokhalostloot." + accountHash;
+        String configGroup = "mokhaloot." + accountHash;
 
         // Note: Wave data should already be stored from checkDelveWidget()
         // Only recalculate if the current wave wasn't stored yet (edge case)
@@ -575,7 +575,7 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
         }
 
         String accountHash = getAccountHash();
-        String configGroup = "mokhalostloot." + accountHash;
+        String configGroup = "mokhaloot." + accountHash;
 
         log.info("Recording claimed loot. accountHash={}, lastVisibleDelveNumber={}", accountHash,
                 lastVisibleDelveNumber);
@@ -666,7 +666,7 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
 
     private void incrementDeathCounter() {
         String accountHash = getAccountHash();
-        String configGroup = "mokhalostloot." + accountHash;
+        String configGroup = "mokhaloot." + accountHash;
 
         // Get current death count and increment
         int timesDied = getIntConfig(configGroup, CONFIG_KEY_TIMES_DIED);
@@ -825,25 +825,25 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
 
     public long getTotalLostValue() {
         String accountHash = getAccountHash();
-        String configGroup = "mokhalostloot." + accountHash;
+        String configGroup = "mokhaloot." + accountHash;
         return getLongConfig(configGroup, CONFIG_KEY_TOTAL_LOST);
     }
 
     public int getTimesDied() {
         String accountHash = getAccountHash();
-        String configGroup = "mokhalostloot." + accountHash;
+        String configGroup = "mokhaloot." + accountHash;
         return getIntConfig(configGroup, CONFIG_KEY_TIMES_DIED);
     }
 
     public long getTotalDeathCosts() {
         String accountHash = getAccountHash();
-        String configGroup = "mokhalostloot." + accountHash;
+        String configGroup = "mokhaloot." + accountHash;
         return getLongConfig(configGroup, CONFIG_KEY_DEATH_COSTS);
     }
 
     public long getTotalClaimedValue() {
         String accountHash = getAccountHash();
-        String configGroup = "mokhalostloot." + accountHash;
+        String configGroup = "mokhaloot." + accountHash;
         long total = 0;
         for (int wave = 1; wave <= MAX_TRACKED_WAVES; wave++) {
             total += getWaveClaimedValue(wave);
@@ -869,14 +869,14 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
 
     public long getWaveLostValue(int wave) {
         String accountHash = getAccountHash();
-        String configGroup = "mokhalostloot." + accountHash;
+        String configGroup = "mokhaloot." + accountHash;
         String waveKey = CONFIG_KEY_WAVE_PREFIX + wave;
         return getLongConfig(configGroup, waveKey);
     }
 
     public List<LootItem> getWaveLostItems(int wave) {
         String accountHash = getAccountHash();
-        String configGroup = "mokhalostloot." + accountHash;
+        String configGroup = "mokhaloot." + accountHash;
         String itemsKey = CONFIG_KEY_WAVE_ITEMS_PREFIX + wave;
         String serialized = configManager.getConfiguration(configGroup, itemsKey);
         return deserializeAndMergeItems(serialized);
@@ -884,14 +884,14 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
 
     public long getWaveClaimedValue(int wave) {
         String accountHash = getAccountHash();
-        String configGroup = "mokhalostloot." + accountHash;
+        String configGroup = "mokhaloot." + accountHash;
         String waveKey = CONFIG_KEY_WAVE_CLAIMED_PREFIX + wave;
         return getLongConfig(configGroup, waveKey);
     }
 
     public List<LootItem> getWaveClaimedItems(int wave) {
         String accountHash = getAccountHash();
-        String configGroup = "mokhalostloot." + accountHash;
+        String configGroup = "mokhaloot." + accountHash;
         String itemsKey = CONFIG_KEY_WAVE_CLAIMED_ITEMS_PREFIX + wave;
         String serialized = configManager.getConfiguration(configGroup, itemsKey);
         return deserializeAndMergeItems(serialized);
@@ -901,7 +901,7 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
         log.info("resetStats() called - clearing all loot data");
 
         String accountHash = getAccountHash();
-        String configGroup = "mokhalostloot." + accountHash;
+        String configGroup = "mokhaloot." + accountHash;
 
         configManager.unsetConfiguration(configGroup, CONFIG_KEY_TOTAL_LOST);
         configManager.unsetConfiguration(configGroup, CONFIG_KEY_TIMES_DIED);
@@ -928,7 +928,8 @@ public class MokhaLostLootTrackerPlugin extends Plugin {
     }
 
     @Provides
-    MokhaLostLootTrackerConfig provideConfig(ConfigManager configManager) {
-        return configManager.getConfig(MokhaLostLootTrackerConfig.class);
+    MokhaLootTrackerConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(MokhaLootTrackerConfig.class);
     }
 }
+

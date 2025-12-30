@@ -4,8 +4,8 @@ import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 
-@ConfigGroup("mokhalostloot")
-public interface MokhaLostLootTrackerConfig extends Config {
+@ConfigGroup("mokhaloot")
+public interface MokhaLootTrackerConfig extends Config {
 	@ConfigItem(keyName = "showOverlay", name = "Show Overlay", description = "Display an overlay with potential loot loss during runs", position = 0)
 	default boolean showOverlay() {
 		return true;
@@ -21,3 +21,4 @@ public interface MokhaLostLootTrackerConfig extends Config {
 		return true;
 	}
 }
+

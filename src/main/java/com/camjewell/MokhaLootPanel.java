@@ -23,8 +23,8 @@ import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.QuantityFormatter;
 
 @Slf4j
-public class MokhaLostLootPanel extends PluginPanel {
-    private final MokhaLostLootTrackerPlugin plugin;
+public class MokhaLootPanel extends PluginPanel {
+    private final MokhaLootTrackerPlugin plugin;
     private final ItemManager itemManager;
 
     private final JPanel statsPanel = new JPanel();
@@ -33,7 +33,7 @@ public class MokhaLostLootPanel extends PluginPanel {
     private final JLabel deathCountLabel = new JLabel();
 
     @Inject
-    public MokhaLostLootPanel(MokhaLostLootTrackerPlugin plugin,
+    public MokhaLootPanel(MokhaLootTrackerPlugin plugin,
             ItemManager itemManager) {
         this.plugin = plugin;
         this.itemManager = itemManager;
@@ -47,7 +47,7 @@ public class MokhaLostLootPanel extends PluginPanel {
         titlePanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         titlePanel.setLayout(new BorderLayout());
 
-        JLabel title = new JLabel("Mokha Lost Loot Tracker");
+        JLabel title = new JLabel("Mokha Loot Tracker");
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(Color.WHITE);
         titlePanel.add(title, BorderLayout.CENTER);
@@ -326,3 +326,4 @@ public class MokhaLostLootPanel extends PluginPanel {
         statsPanel.add(itemsPanel);
     }
 }
+
