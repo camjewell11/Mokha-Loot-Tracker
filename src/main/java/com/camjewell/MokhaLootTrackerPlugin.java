@@ -370,9 +370,22 @@ public class MokhaLootTrackerPlugin extends Plugin {
                                 previousWaveItems);
                         waveItemStacks[currentDelveNumber] = incrementalItems;
 
+                        // Log items stored for this wave
+                        // log.info("Wave {} - Stored {} incremental items in waveItemStacks",
+                        // currentDelveNumber,
+                        // incrementalItems.size());
+                        // for (LootItem item : incrementalItems) {
+                        // log.info(" Item: ID={}, Quantity={}, Name={}", item.getId(),
+                        // item.getQuantity(),
+                        // item.getName());
+                        // }
+
                         // Update previous wave tracking
                         previousWaveLootValue = currentLootValue;
                         previousWaveItems = new ArrayList<>(currentUnclaimedLoot);
+
+                        // Update panel to show current run value
+                        panel.updateStats();
                     }
                 }
             }
@@ -578,8 +591,24 @@ public class MokhaLootTrackerPlugin extends Plugin {
             int waveIndex = wave;
             long incrementalLoot = waveLootValues[wave];
 
+            // Log what items we have for this wave before adjustment
+            // log.info("=== Recording CLAIMED loot for Wave {} ===", wave);
+            // log.info("Incremental loot value: {}", incrementalLoot);
+            // if (waveItemStacks[waveIndex] != null) {
+            // log.info("{} items in waveItemStacks[{}]:", waveItemStacks[waveIndex].size(),
+            // waveIndex);
+            // for (LootItem item : waveItemStacks[waveIndex]) {
+            // log.info(" Item: ID={}, Quantity={}, Name={}", item.getId(),
+            // item.getQuantity(),
+            // item.getName());
+            // }
+            // } else {
+            // log.warn("waveItemStacks[{}] is NULL!", waveIndex);
+            // }
+
             // Apply adjustment for Sun-kissed Bones if enabled
             long adjustedIncrementalLoot = getAdjustedLootValue(incrementalLoot, waveItemStacks[waveIndex]);
+            log.info("After adjustment: {} (original: {})", adjustedIncrementalLoot, incrementalLoot);
 
             // Save claimed loot for this wave
             String waveKey = CONFIG_KEY_WAVE_CLAIMED_PREFIX + waveIndex;
@@ -734,11 +763,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private long getAdjustedLootValue(long baseValue, List<LootItem> items) {
         boolean excludeEnabled = config.excludeSunKissedBonesValue();
 
+        // log.info("getAdjustedLootValue: baseValue={}, excludeEnabled={}, items={}",
+        // baseValue, excludeEnabled, items == null ? "NULL" : items.size() + " items");
+        // if (items != null && !items.isEmpty()) {
+        // for (LootItem item : items) {
+        // log.info(" Checking item: ID={}, Quantity={}", item.getId(),
+        // item.getQuantity());
+        // }
+        // }
+
         if (!excludeEnabled) {
             return baseValue;
         }
 
         if (items == null || items.isEmpty()) {
+            // log.warn("No items to check for sun-kissed bones adjustment");
             return baseValue;
         }
 
@@ -889,10 +928,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
         String configGroup = "mokhaloot." + accountHash;
         String waveKey = CONFIG_KEY_WAVE_CLAIMED_PREFIX + wave;
         long value = getLongConfig(configGroup, waveKey);
-        if (wave <= 3) { // Only log first 3 waves to avoid spam
-            log.info("getWaveClaimedValue({}) with accountHash={}, configGroup={}, value={}", wave, accountHash,
-                    configGroup, value);
-        }
+        // if (wave <= 3) { // Only log first 3 waves to avoid spam
+        // log.info("getWaveClaimedValue({}) with accountHash={}, configGroup={},
+        // value={}", wave, accountHash,
+        // configGroup, value);
+        // }
         return value;
     }
 

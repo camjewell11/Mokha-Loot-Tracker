@@ -286,7 +286,7 @@ public class MokhaLootPanel extends PluginPanel {
         JPanel itemsPanel = new JPanel();
         itemsPanel.setLayout(new BoxLayout(itemsPanel, BoxLayout.Y_AXIS));
         itemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        itemsPanel.setBorder(new EmptyBorder(0, 20, 0, 5)); // No bottom padding
+        itemsPanel.setBorder(new EmptyBorder(0, 10, 0, 5)); // Reduced left padding
         itemsPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1000)); // Allow growth
 
         // Use provided items (already fetched)
@@ -301,10 +301,17 @@ public class MokhaLootPanel extends PluginPanel {
                 String itemName = item.getName() != null ? item.getName() : "Item " + item.getId();
 
                 JLabel itemLabel = new JLabel(
-                        "  • " + itemName + " x" + QuantityFormatter.quantityToStackSize(item.getQuantity()));
+                        "• " + itemName + " x" + QuantityFormatter.quantityToStackSize(item.getQuantity()));
                 itemLabel.setFont(FontManager.getRunescapeSmallFont());
                 itemLabel.setForeground(Color.WHITE);
-                itemsPanel.add(itemLabel);
+
+                // Wrap label in container panel with BorderLayout.WEST for left alignment
+                JPanel itemContainer = new JPanel(new BorderLayout());
+                itemContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                itemContainer.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+                itemContainer.add(itemLabel, BorderLayout.WEST);
+
+                itemsPanel.add(itemContainer);
             }
         }
 
@@ -337,7 +344,7 @@ public class MokhaLootPanel extends PluginPanel {
         JPanel itemsPanel = new JPanel();
         itemsPanel.setLayout(new BoxLayout(itemsPanel, BoxLayout.Y_AXIS));
         itemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        itemsPanel.setBorder(new EmptyBorder(0, 20, 0, 5)); // No bottom padding
+        itemsPanel.setBorder(new EmptyBorder(0, 10, 0, 5)); // Reduced left padding
         itemsPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1000)); // Allow growth
 
         // Use provided items (already fetched)
@@ -352,10 +359,17 @@ public class MokhaLootPanel extends PluginPanel {
                 String itemName = item.getName() != null ? item.getName() : "Item " + item.getId();
 
                 JLabel itemLabel = new JLabel(
-                        "  • " + itemName + " x" + QuantityFormatter.quantityToStackSize(item.getQuantity()));
+                        "• " + itemName + " x" + QuantityFormatter.quantityToStackSize(item.getQuantity()));
                 itemLabel.setFont(FontManager.getRunescapeSmallFont());
                 itemLabel.setForeground(Color.WHITE);
-                itemsPanel.add(itemLabel);
+
+                // Wrap label in container panel with BorderLayout.WEST for left alignment
+                JPanel itemContainer = new JPanel(new BorderLayout());
+                itemContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                itemContainer.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+                itemContainer.add(itemLabel, BorderLayout.WEST);
+
+                itemsPanel.add(itemContainer);
             }
         }
 
