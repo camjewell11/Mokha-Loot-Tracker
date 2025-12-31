@@ -942,10 +942,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
         String itemsKey = CONFIG_KEY_WAVE_CLAIMED_ITEMS_PREFIX + wave;
         String serialized = configManager.getConfiguration(configGroup, itemsKey);
         List<LootItem> items = deserializeAndMergeItems(serialized);
-        if (wave <= 3) { // Only log first 3 waves to avoid spam
-            log.info("getWaveClaimedItems({}) with accountHash={}, serialized={}, items count={}", wave, accountHash,
-                    serialized, items != null ? items.size() : 0);
-        }
+        // if (wave <= 3) { // Only log first 3 waves to avoid spam
+        // log.info("getWaveClaimedItems({}) with accountHash={}, serialized={}, items
+        // count={}", wave, accountHash,
+        // serialized, items != null ? items.size() : 0);
+        // }
         return items;
     }
 
