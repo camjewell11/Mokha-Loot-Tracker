@@ -47,7 +47,7 @@ class LootItem {
 }
 
 @Slf4j
-@PluginDescriptor(name = "Mokha Loot", description = "Tracks loot lost from dying at the Doom of Mokhaiotl boss", tags = {
+@PluginDescriptor(name = "Mokha Loot Tracker", description = "Tracks loot lost and claimed at the Doom of Mokhaiotl boss", tags = {
         "mokha", "loot", "boss", "death", "tracking" })
 public class MokhaLootTrackerPlugin extends Plugin {
     private static final int SUN_KISSED_BONES_ID = 33212;
