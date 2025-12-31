@@ -157,22 +157,22 @@ public class MokhaLootPanel extends PluginPanel {
             // Add summary stats
             totalLostLabel.setText(QuantityFormatter.quantityToStackSize(totalLost) + " gp");
             totalLostLabel.setForeground(totalLost > 0 ? Color.RED : Color.WHITE);
-            statsPanel.add(createStatRow("Total Lost:", totalLostLabel));
+            statsPanel.add(createStatRow("  Total Lost:", totalLostLabel));
 
             totalClaimedLabel.setText(QuantityFormatter.quantityToStackSize(totalClaimed) + " gp");
             totalClaimedLabel.setForeground(totalClaimed > 0 ? new Color(100, 255, 100) : Color.WHITE);
-            statsPanel.add(createStatRow("Total Claimed:", totalClaimedLabel));
+            statsPanel.add(createStatRow("  Total Claimed:", totalClaimedLabel));
 
             // Add death costs to summary (always show)
             JLabel deathCostsLabel = new JLabel();
             deathCostsLabel.setFont(FontManager.getRunescapeFont());
             deathCostsLabel.setText(QuantityFormatter.quantityToStackSize(deathCosts) + " gp");
             deathCostsLabel.setForeground(deathCosts > 0 ? new Color(255, 100, 100) : Color.WHITE);
-            statsPanel.add(createStatRow("Death Costs:", deathCostsLabel));
+            statsPanel.add(createStatRow("  Death Costs:", deathCostsLabel));
 
             deathCountLabel.setText(String.format("%s", QuantityFormatter.quantityToStackSize(deaths)));
             deathCountLabel.setForeground(deaths > 0 ? Color.ORANGE : Color.WHITE);
-            statsPanel.add(createStatRow("Deaths:", deathCountLabel));
+            statsPanel.add(createStatRow("  Deaths:", deathCountLabel));
 
             // Add separator with padding
             JSeparator separator = new JSeparator();
