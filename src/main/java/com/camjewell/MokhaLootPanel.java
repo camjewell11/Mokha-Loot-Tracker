@@ -2,7 +2,7 @@ package com.camjewell;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.GridLayout;
+import java.awt.Dimension;
 import java.util.List;
 
 import javax.inject.Inject;
@@ -11,11 +11,11 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollBar;
 import javax.swing.JSeparator;
 import javax.swing.border.EmptyBorder;
 
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.ItemComposition;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
@@ -41,6 +41,9 @@ public class MokhaLootPanel extends PluginPanel {
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
 
+        // Customize scrollbar appearance for modern look
+        customizeScrollBar();
+
         // Title panel
         JPanel titlePanel = new JPanel();
         titlePanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
@@ -52,10 +55,10 @@ public class MokhaLootPanel extends PluginPanel {
         title.setForeground(Color.WHITE);
         titlePanel.add(title, BorderLayout.CENTER);
 
-        // Stats panel
-        statsPanel.setLayout(new GridLayout(0, 1, 0, 5));
+        // Stats panel - use BoxLayout for tighter control
+        statsPanel.setLayout(new BoxLayout(statsPanel, BoxLayout.Y_AXIS));
         statsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        statsPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        statsPanel.setBorder(new EmptyBorder(3, 10, 3, 10));
 
         totalLostLabel.setFont(FontManager.getRunescapeFont());
         totalLostLabel.setForeground(Color.WHITE);
@@ -63,9 +66,6 @@ public class MokhaLootPanel extends PluginPanel {
         totalClaimedLabel.setForeground(Color.WHITE);
         deathCountLabel.setFont(FontManager.getRunescapeFont());
         deathCountLabel.setForeground(Color.WHITE);
-
-        statsPanel.add(createStatRow("Total Lost:", totalLostLabel));
-        statsPanel.add(createStatRow("Deaths:", deathCountLabel));
 
         // Reset button
         JButton resetButton = new JButton("Reset Stats");
@@ -82,22 +82,30 @@ public class MokhaLootPanel extends PluginPanel {
             }
         });
 
-        JPanel buttonPanel = new JPanel();
+        JPanel buttonPanel = new JPanel(new BorderLayout());
         buttonPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         buttonPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-        buttonPanel.add(resetButton);
+        buttonPanel.add(resetButton, BorderLayout.CENTER);
+
+        // Wrap stats panel in a container with button at bottom
+        JPanel contentWrapper = new JPanel(new BorderLayout());
+        contentWrapper.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        contentWrapper.add(statsPanel, BorderLayout.CENTER);
+        contentWrapper.add(buttonPanel, BorderLayout.SOUTH);
 
         // Add all panels
         add(titlePanel, BorderLayout.NORTH);
-        add(statsPanel, BorderLayout.CENTER);
-        add(buttonPanel, BorderLayout.SOUTH);
+        add(contentWrapper, BorderLayout.CENTER);
 
-        updateStats();
+        // Don't call updateStats() here - it will be called from startUp() on the
+        // client thread
     }
 
     private JPanel createStatRow(String label, JLabel valueLabel) {
         JPanel row = new JPanel(new BorderLayout());
         row.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        row.setBorder(new EmptyBorder(0, 0, 0, 0)); // No spacing
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20)); // Limit height
 
         JLabel labelComponent = new JLabel(label);
         labelComponent.setFont(FontManager.getRunescapeFont());
@@ -110,121 +118,157 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     public void updateStats() {
-        // Clear existing stats
-        statsPanel.removeAll();
-
+        // Fetch all data first (needs to be on client thread for ItemManager)
         long totalLost = plugin.getTotalLostValue();
         int deaths = plugin.getTimesDied();
-
-        // Add summary stats
-        totalLostLabel.setText(QuantityFormatter.quantityToStackSize(totalLost) + " gp");
-        totalLostLabel.setForeground(totalLost > 0 ? Color.RED : Color.WHITE);
-        statsPanel.add(createStatRow("Total Lost:", totalLostLabel));
-
         long totalClaimed = plugin.getTotalClaimedValue();
-        totalClaimedLabel.setText(QuantityFormatter.quantityToStackSize(totalClaimed) + " gp");
-        totalClaimedLabel.setForeground(totalClaimed > 0 ? new Color(100, 255, 100) : Color.WHITE);
-        statsPanel.add(createStatRow("Total Claimed:", totalClaimedLabel));
-
-        deathCountLabel.setText(String.valueOf(deaths));
-        deathCountLabel.setForeground(deaths > 0 ? Color.ORANGE : Color.WHITE);
-        statsPanel.add(createStatRow("Deaths:", deathCountLabel));
-
-        // Add separator
-        JSeparator separator = new JSeparator();
-        statsPanel.add(separator);
-
-        // Add wave-specific stats
-        JLabel waveHeader = new JLabel("Lost Loot by Wave:");
-        waveHeader.setFont(FontManager.getRunescapeBoldFont());
-        waveHeader.setForeground(Color.LIGHT_GRAY);
-        statsPanel.add(waveHeader);
-
-        // Waves 1-8 individually
-        for (int wave = 1; wave <= 8; wave++) {
-            long waveLost = plugin.getWaveLostValue(wave);
-            if (waveLost > 0) {
-                addWaveSection(wave, waveLost);
-            }
-        }
-
-        // Wave 9+
-        long wave9PlusLost = plugin.getWaveLostValue(9);
-        if (wave9PlusLost > 0) {
-            addWaveSection(9, wave9PlusLost);
-        }
-
-        // Add death costs after lost loot
         long deathCosts = plugin.getTotalDeathCosts();
-        if (deathCosts > 0) {
+        long currentRunValue = plugin.getCurrentLootValue();
+
+        // Fetch all wave data
+        long[] waveLostValues = new long[10];
+        long[] waveClaimedValues = new long[10];
+        List<com.camjewell.LootItem>[] waveLostItems = new List[10];
+        List<com.camjewell.LootItem>[] waveClaimedItems = new List[10];
+
+        for (int wave = 1; wave <= 9; wave++) {
+            waveLostValues[wave] = plugin.getWaveLostValue(wave);
+            waveLostItems[wave] = plugin.getWaveLostItems(wave);
+            waveClaimedValues[wave] = plugin.getWaveClaimedValue(wave);
+            waveClaimedItems[wave] = plugin.getWaveClaimedItems(wave);
+        }
+
+        // Now update UI on Swing thread
+        javax.swing.SwingUtilities.invokeLater(() -> {
+            // Clear existing stats
+            statsPanel.removeAll();
+
+            // Add Profit/Loss header
+            JLabel profitLossHeader = new JLabel("Profit/Loss:");
+            profitLossHeader.setFont(FontManager.getRunescapeBoldFont());
+            profitLossHeader.setForeground(Color.LIGHT_GRAY);
+            JPanel profitHeaderPanel = new JPanel(new BorderLayout());
+            profitHeaderPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            profitHeaderPanel.setBorder(new EmptyBorder(1, 0, 0, 0));
+            profitHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
+            profitHeaderPanel.add(profitLossHeader, BorderLayout.WEST);
+            statsPanel.add(profitHeaderPanel);
+
+            // Add summary stats
+            totalLostLabel.setText(QuantityFormatter.quantityToStackSize(totalLost) + " gp");
+            totalLostLabel.setForeground(totalLost > 0 ? Color.RED : Color.WHITE);
+            statsPanel.add(createStatRow("Total Lost:", totalLostLabel));
+
+            totalClaimedLabel.setText(QuantityFormatter.quantityToStackSize(totalClaimed) + " gp");
+            totalClaimedLabel.setForeground(totalClaimed > 0 ? new Color(100, 255, 100) : Color.WHITE);
+            statsPanel.add(createStatRow("Total Claimed:", totalClaimedLabel));
+
+            // Add death costs to summary (always show)
             JLabel deathCostsLabel = new JLabel();
             deathCostsLabel.setFont(FontManager.getRunescapeFont());
             deathCostsLabel.setText(QuantityFormatter.quantityToStackSize(deathCosts) + " gp");
-            deathCostsLabel.setForeground(new Color(255, 100, 100)); // Light red
+            deathCostsLabel.setForeground(deathCosts > 0 ? new Color(255, 100, 100) : Color.WHITE);
             statsPanel.add(createStatRow("Death Costs:", deathCostsLabel));
-        }
 
-        // Add separator and claimed loot section
-        JSeparator separator2 = new JSeparator();
-        separator2.setBorder(new EmptyBorder(5, 0, 5, 0));
-        statsPanel.add(separator2);
+            deathCountLabel.setText(String.format("%s", QuantityFormatter.quantityToStackSize(deaths)));
+            deathCountLabel.setForeground(deaths > 0 ? Color.ORANGE : Color.WHITE);
+            statsPanel.add(createStatRow("Deaths:", deathCountLabel));
 
-        // Add claimed loot header
-        JLabel claimedHeader = new JLabel("Claimed Loot by Wave:");
-        claimedHeader.setFont(FontManager.getRunescapeBoldFont());
-        claimedHeader.setForeground(new Color(100, 255, 100)); // Light green
-        statsPanel.add(claimedHeader);
+            // Add separator with padding
+            JSeparator separator = new JSeparator();
+            separator.setForeground(Color.DARK_GRAY);
+            JPanel separatorPanel = new JPanel(new BorderLayout());
+            separatorPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            separatorPanel.setBorder(new EmptyBorder(10, 0, 10, 0));
+            separatorPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 21)); // 1px line + 20px padding
+            separatorPanel.add(separator, BorderLayout.CENTER);
+            statsPanel.add(separatorPanel);
 
-        // Waves 1-8 individually (claimed)
-        boolean hasClaimedLoot = false;
-        for (int wave = 1; wave <= 8; wave++) {
-            long waveClaimed = plugin.getWaveClaimedValue(wave);
-            if (waveClaimed > 0) {
-                addClaimedWaveSection(wave, waveClaimed);
-                hasClaimedLoot = true;
+            // Add wave-specific stats
+            JLabel waveHeader = new JLabel("Lost Loot by Wave:");
+            waveHeader.setFont(FontManager.getRunescapeBoldFont());
+            waveHeader.setForeground(Color.LIGHT_GRAY);
+            JPanel headerPanel = new JPanel(new BorderLayout());
+            headerPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            headerPanel.setBorder(new EmptyBorder(1, 0, 0, 0));
+            headerPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
+            headerPanel.add(waveHeader, BorderLayout.WEST);
+            statsPanel.add(headerPanel);
+
+            // Waves 1-8 individually
+            for (int wave = 1; wave <= 8; wave++) {
+                addWaveSection(wave, waveLostValues[wave], waveLostItems[wave]);
             }
-        }
 
-        // Wave 9+ (claimed)
-        long wave9PlusClaimed = plugin.getWaveClaimedValue(9);
-        if (wave9PlusClaimed > 0) {
-            addClaimedWaveSection(9, wave9PlusClaimed);
-            hasClaimedLoot = true;
-        }
+            // Wave 9+
+            addWaveSection(9, waveLostValues[9], waveLostItems[9]);
+            JSeparator separator2 = new JSeparator();
+            separator2.setForeground(Color.DARK_GRAY);
+            JPanel separatorPanel2 = new JPanel(new BorderLayout());
+            separatorPanel2.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            separatorPanel2.setBorder(new EmptyBorder(10, 0, 10, 0));
+            separatorPanel2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 21)); // 1px line + 20px padding
+            separatorPanel2.add(separator2, BorderLayout.CENTER);
+            statsPanel.add(separatorPanel2);
 
-        // If no claimed loot, show a message
-        if (!hasClaimedLoot) {
-            JLabel noClaimedLabel = new JLabel("  No loot claimed yet");
-            noClaimedLabel.setFont(FontManager.getRunescapeSmallFont());
-            noClaimedLabel.setForeground(Color.GRAY);
-            statsPanel.add(noClaimedLabel);
-        }
+            // Add claimed loot header
+            JLabel claimedHeader = new JLabel("Claimed Loot by Wave:");
+            claimedHeader.setFont(FontManager.getRunescapeBoldFont());
+            claimedHeader.setForeground(new Color(100, 255, 100)); // Light green
+            JPanel claimedHeaderPanel = new JPanel(new BorderLayout());
+            claimedHeaderPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            claimedHeaderPanel.setBorder(new EmptyBorder(1, 0, 0, 0));
+            claimedHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
+            claimedHeaderPanel.add(claimedHeader, BorderLayout.WEST);
+            statsPanel.add(claimedHeaderPanel);
 
-        // Add separator before current run stats
-        JSeparator separator3 = new JSeparator();
-        separator3.setBorder(new EmptyBorder(5, 0, 5, 0));
-        statsPanel.add(separator3);
+            // Waves 1-8 individually (claimed)
+            for (int wave = 1; wave <= 8; wave++) {
+                addClaimedWaveSection(wave, waveClaimedValues[wave], waveClaimedItems[wave]);
+            }
 
-        // Add current/previous run total
-        long currentRunValue = plugin.getCurrentLootValue();
-        if (currentRunValue > 0) {
+            // Wave 9+ (claimed)
+            addClaimedWaveSection(9, waveClaimedValues[9], waveClaimedItems[9]);
+            JSeparator separator3 = new JSeparator();
+            separator3.setForeground(Color.DARK_GRAY);
+            JPanel separatorPanel3 = new JPanel(new BorderLayout());
+            separatorPanel3.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            separatorPanel3.setBorder(new EmptyBorder(10, 0, 10, 0));
+            separatorPanel3.setMaximumSize(new Dimension(Integer.MAX_VALUE, 21));
+            separatorPanel3.add(separator3, BorderLayout.CENTER);
+            statsPanel.add(separatorPanel3);
+
+            // Add current run header (always show)
+            JLabel currentRunHeader = new JLabel("Current Run:");
+            currentRunHeader.setFont(FontManager.getRunescapeBoldFont());
+            currentRunHeader.setForeground(Color.CYAN);
+            JPanel currentRunHeaderPanel = new JPanel(new BorderLayout());
+            currentRunHeaderPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            currentRunHeaderPanel.setBorder(new EmptyBorder(1, 0, 0, 0));
+            currentRunHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
+            currentRunHeaderPanel.add(currentRunHeader, BorderLayout.WEST);
+            statsPanel.add(currentRunHeaderPanel);
+
+            // Add current run value row (always show)
             JLabel currentRunLabel = new JLabel();
             currentRunLabel.setFont(FontManager.getRunescapeFont());
             currentRunLabel.setText(QuantityFormatter.quantityToStackSize(currentRunValue) + " gp");
-            currentRunLabel.setForeground(Color.CYAN);
-            statsPanel.add(createStatRow("Current Run:", currentRunLabel));
-        }
+            currentRunLabel.setForeground(currentRunValue > 0 ? Color.CYAN : Color.WHITE);
+            statsPanel.add(createStatRow("  Loss Value:", currentRunLabel));
 
-        statsPanel.revalidate();
-        statsPanel.repaint();
-        revalidate();
-        repaint();
+            statsPanel.revalidate();
+            statsPanel.repaint();
+            revalidate();
+            repaint();
+        });
     }
 
-    private void addWaveSection(int wave, long waveLost) {
+    private void addWaveSection(int wave, long waveLost, List<com.camjewell.LootItem> items) {
         // Create wave header
         JPanel waveHeaderPanel = new JPanel(new BorderLayout());
         waveHeaderPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        waveHeaderPanel.setBorder(new EmptyBorder(1, 0, 1, 0)); // Compact spacing
+        waveHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
 
         String waveName = wave == 9 ? "Wave 9+" : "Wave " + wave;
         JLabel waveLabel = new JLabel("  " + waveName + ":");
@@ -233,7 +277,7 @@ public class MokhaLootPanel extends PluginPanel {
 
         JLabel waveValueLabel = new JLabel(QuantityFormatter.quantityToStackSize(waveLost) + " gp");
         waveValueLabel.setFont(FontManager.getRunescapeFont());
-        waveValueLabel.setForeground(Color.YELLOW);
+        waveValueLabel.setForeground(Color.RED);
 
         waveHeaderPanel.add(waveLabel, BorderLayout.WEST);
         waveHeaderPanel.add(waveValueLabel, BorderLayout.EAST);
@@ -242,10 +286,10 @@ public class MokhaLootPanel extends PluginPanel {
         JPanel itemsPanel = new JPanel();
         itemsPanel.setLayout(new BoxLayout(itemsPanel, BoxLayout.Y_AXIS));
         itemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        itemsPanel.setBorder(new EmptyBorder(2, 20, 2, 5));
+        itemsPanel.setBorder(new EmptyBorder(0, 20, 0, 5)); // No bottom padding
+        itemsPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1000)); // Allow growth
 
-        // Get items for this wave
-        List<com.camjewell.LootItem> items = plugin.getWaveLostItems(wave);
+        // Use provided items (already fetched)
         if (items != null && !items.isEmpty()) {
             for (com.camjewell.LootItem item : items) {
                 // Skip invalid items
@@ -253,13 +297,8 @@ public class MokhaLootPanel extends PluginPanel {
                     continue;
                 }
 
-                ItemComposition itemComp = itemManager.getItemComposition(item.getId());
-                String itemName = itemComp.getName();
-
-                // Skip if item name is null or "null"
-                if (itemName == null || itemName.equalsIgnoreCase("null")) {
-                    continue;
-                }
+                // Use the stored name if available, otherwise use the ID
+                String itemName = item.getName() != null ? item.getName() : "Item " + item.getId();
 
                 JLabel itemLabel = new JLabel(
                         "  • " + itemName + " x" + QuantityFormatter.quantityToStackSize(item.getQuantity()));
@@ -273,10 +312,14 @@ public class MokhaLootPanel extends PluginPanel {
         statsPanel.add(itemsPanel);
     }
 
-    private void addClaimedWaveSection(int wave, long waveClaimed) {
+    private void addClaimedWaveSection(int wave, long waveClaimed, List<com.camjewell.LootItem> items) {
         // Create wave header
         JPanel waveHeaderPanel = new JPanel(new BorderLayout());
         waveHeaderPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        waveHeaderPanel.setBorder(new EmptyBorder(0, 0, 0, 0)); // No spacing
+        waveHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
+        waveHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
+        waveHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
 
         String waveName = wave == 9 ? "Wave 9+" : "Wave " + wave;
         JLabel waveLabel = new JLabel("  " + waveName + ":");
@@ -294,10 +337,10 @@ public class MokhaLootPanel extends PluginPanel {
         JPanel itemsPanel = new JPanel();
         itemsPanel.setLayout(new BoxLayout(itemsPanel, BoxLayout.Y_AXIS));
         itemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        itemsPanel.setBorder(new EmptyBorder(2, 20, 2, 5));
+        itemsPanel.setBorder(new EmptyBorder(0, 20, 0, 5)); // No bottom padding
+        itemsPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1000)); // Allow growth
 
-        // Get items for this wave
-        List<com.camjewell.LootItem> items = plugin.getWaveClaimedItems(wave);
+        // Use provided items (already fetched)
         if (items != null && !items.isEmpty()) {
             for (com.camjewell.LootItem item : items) {
                 // Skip invalid items
@@ -305,14 +348,8 @@ public class MokhaLootPanel extends PluginPanel {
                     continue;
                 }
 
-                ItemComposition itemComp = itemManager.getItemComposition(item.getId());
-                String itemName = itemComp.getName();
-
-                // Skip if item name is null or "null"
-                if (itemName == null || itemName.equalsIgnoreCase("null")) {
-                    log.warn("Skipping item with null name, ID: {}", item.getId());
-                    continue;
-                }
+                // Use the stored name if available, otherwise use the ID
+                String itemName = item.getName() != null ? item.getName() : "Item " + item.getId();
 
                 JLabel itemLabel = new JLabel(
                         "  • " + itemName + " x" + QuantityFormatter.quantityToStackSize(item.getQuantity()));
@@ -325,5 +362,41 @@ public class MokhaLootPanel extends PluginPanel {
         statsPanel.add(waveHeaderPanel);
         statsPanel.add(itemsPanel);
     }
-}
 
+    private void customizeScrollBar() {
+        // Get the scrollbar from PluginPanel's scroll pane
+        JScrollBar verticalScrollBar = getScrollPane().getVerticalScrollBar();
+
+        // Set modern styling
+        verticalScrollBar.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        verticalScrollBar.setPreferredSize(new Dimension(8, 0)); // Thinner scrollbar
+        verticalScrollBar.setUnitIncrement(16); // Smoother scrolling
+
+        // Use modern UI with custom colors
+        verticalScrollBar.setUI(new javax.swing.plaf.basic.BasicScrollBarUI() {
+            @Override
+            protected void configureScrollBarColors() {
+                this.thumbColor = ColorScheme.DARK_GRAY_COLOR;
+                this.trackColor = new Color(30, 30, 30);
+            }
+
+            @Override
+            protected javax.swing.JButton createDecreaseButton(int orientation) {
+                return createZeroButton();
+            }
+
+            @Override
+            protected javax.swing.JButton createIncreaseButton(int orientation) {
+                return createZeroButton();
+            }
+
+            private javax.swing.JButton createZeroButton() {
+                javax.swing.JButton button = new javax.swing.JButton();
+                button.setPreferredSize(new Dimension(0, 0));
+                button.setMinimumSize(new Dimension(0, 0));
+                button.setMaximumSize(new Dimension(0, 0));
+                return button;
+            }
+        });
+    }
+}

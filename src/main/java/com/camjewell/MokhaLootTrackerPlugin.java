@@ -15,6 +15,7 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.QuantityFormatter;
 import java.util.ArrayList;
@@ -24,10 +25,12 @@ import java.util.List;
 class LootItem {
     private final int id;
     private final int quantity;
+    private final String name;
 
-    public LootItem(int id, int quantity) {
+    public LootItem(int id, int quantity, String name) {
         this.id = id;
         this.quantity = quantity;
+        this.name = name;
     }
 
     public int getId() {
@@ -36,6 +39,10 @@ class LootItem {
 
     public int getQuantity() {
         return quantity;
+    }
+
+    public String getName() {
+        return name;
     }
 }
 
@@ -70,6 +77,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private ItemManager itemManager;
 
     @Inject
+    private ClientThread clientThread;
+
+    @Inject
     private MokhaLootOverlay overlay;
 
     @Inject
@@ -101,6 +111,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private List<LootItem> lastVisibleLootItems = new ArrayList<>();
     private int lastVisibleDelveNumber = 0;
 
+    // Flag to trigger panel refresh after login when account hash becomes available
+    private boolean needsPanelRefresh = false;
+
     @Override
     protected void startUp() throws Exception {
         overlayManager.add(overlay);
@@ -115,6 +128,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 .build();
 
         clientToolbar.addNavigation(navButton);
+
+        // Clear any "default" config from dummy data testing
+        // This ensures we only show data for actual logged-in accounts
+        clearDefaultConfig();
+
+        // Set flag to refresh panel once account hash is available
+        // Don't call updateStats() here - it would read from "default" config
+        needsPanelRefresh = true;
     }
 
     @Override
@@ -125,7 +146,27 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        // Refresh panel after login to load account-specific data
+        if (event.getGameState() == GameState.LOGGED_IN) {
+            needsPanelRefresh = true;
+        }
+    }
+
+    @Subscribe
     public void onGameTick(GameTick tick) {
+        // Refresh panel once account hash is available
+        // This ensures we load the correct account's data, not "default"
+        if (needsPanelRefresh) {
+            long accountHash = client.getAccountHash();
+            if (accountHash != -1) {
+                needsPanelRefresh = false;
+                // Call updateStats directly - we're already on client thread
+                // so ItemManager will work, then updateStats will handle UI updates
+                panel.updateStats();
+            }
+        }
+
         // Store previous arena state
         wasInMokhaArena = inMokhaArena;
 
@@ -161,10 +202,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
                 // Only track deaths in Mokha arena
                 if (inMokhaArena) {
+                    log.info("Player died in arena. currentLootValue={}, currentDelveNumber={}", currentLootValue,
+                            currentDelveNumber);
                     if (currentLootValue > 0 && currentDelveNumber > 0) {
+                        log.info("Recording lost loot for wave {}", currentDelveNumber);
                         recordLostLoot();
                         resetCurrentLoot();
                     } else {
+                        log.info("No loot to record, just counting death");
                         // Count death even without loot
                         incrementDeathCounter();
                     }
@@ -257,7 +302,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     totalCosts += cost;
                     configManager.setConfiguration(configGroup, CONFIG_KEY_DEATH_COSTS, totalCosts);
 
-                    // Update panel
+                    // Update panel - we're already on client thread, so ItemManager will work
+                    // updateStats() will handle UI updates on Swing thread internally
                     panel.updateStats();
                 } else {
                     log.warn("Could not extract cost from message: {}", cleanMessage);
@@ -383,7 +429,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                         // Verify item is valid by checking if ItemManager can resolve it
                         String itemName = itemManager.getItemComposition(itemId).getName();
                         if (itemName != null && !itemName.equalsIgnoreCase("null")) {
-                            LootItem item = new LootItem(itemId, quantity);
+                            LootItem item = new LootItem(itemId, quantity, itemName);
                             currentUnclaimedLoot.add(item);
                         }
                     }
@@ -408,8 +454,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     private void recordLostLoot() {
         if (currentLootValue == 0) {
+            log.info("recordLostLoot called but currentLootValue is 0, returning");
             return;
         }
+
+        log.info("Recording lost loot: currentLootValue={}, currentDelveNumber={}", currentLootValue,
+                currentDelveNumber);
+        log.info("Wave loot values: {}", java.util.Arrays.toString(waveLootValues));
 
         String accountHash = getAccountHash();
         String configGroup = "mokhaloot." + accountHash;
@@ -474,7 +525,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     // Convert map back to list for serialization
                     List<LootItem> allItems = new ArrayList<>();
                     for (java.util.Map.Entry<Integer, Integer> entry : itemMap.entrySet()) {
-                        allItems.add(new LootItem(entry.getKey(), entry.getValue()));
+                        allItems.add(new LootItem(entry.getKey(), entry.getValue(), null));
                     }
 
                     String serializedItems = serializeItems(allItems);
@@ -504,8 +555,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     null);
         }
 
-        // Update panel stats
-        panel.updateStats();
+        // Update panel stats on Swing thread (data fetched on this client thread)
+        javax.swing.SwingUtilities.invokeLater(() -> {
+            panel.updateStats();
+        });
     }
 
     private void recordClaimedLoot() {
@@ -569,7 +622,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // Convert map back to list for serialization
                 List<LootItem> allItems = new ArrayList<>();
                 for (java.util.Map.Entry<Integer, Integer> entry : itemMap.entrySet()) {
-                    allItems.add(new LootItem(entry.getKey(), entry.getValue()));
+                    allItems.add(new LootItem(entry.getKey(), entry.getValue(), null));
                 }
 
                 String serializedItems = serializeItems(allItems);
@@ -639,7 +692,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
             int incrementalQuantity = currentQuantity - previousQuantity;
             if (incrementalQuantity > 0) {
-                incrementalItems.add(new LootItem(itemId, incrementalQuantity));
+                incrementalItems.add(new LootItem(itemId, incrementalQuantity, null));
             }
         }
 
@@ -695,11 +748,23 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (item.getId() == SUN_KISSED_BONES_ID) {
                 bonesQuantity = item.getQuantity();
                 adjustment = (long) bonesQuantity * SUN_KISSED_BONES_VALUE;
+                log.info("=== SUN-KISSED BONES DETECTED ===");
+                log.info("Item ID: {} matches SUN_KISSED_BONES_ID ({})", item.getId(), SUN_KISSED_BONES_ID);
+                log.info("Quantity: {}", bonesQuantity);
+                log.info("Value per bone: {}", SUN_KISSED_BONES_VALUE);
+                log.info("Total adjustment: {} ({}k)", adjustment, adjustment / 1000);
+                log.info("Base value: {} ({}k)", baseValue, baseValue / 1000);
                 break;
             }
         }
 
         long adjustedValue = Math.max(0, baseValue - adjustment);
+
+        if (adjustment > 0) {
+            log.info("Adjusted value: {} ({}k) - Subtracted {} sun-kissed bones worth {}gp",
+                    adjustedValue, adjustedValue / 1000, bonesQuantity, adjustment);
+            log.info("================================");
+        }
 
         return adjustedValue;
     }
@@ -741,7 +806,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         List<LootItem> result = new ArrayList<>();
         for (java.util.Map.Entry<Integer, Integer> entry : itemMap.entrySet()) {
-            result.add(new LootItem(entry.getKey(), entry.getValue()));
+            // Try to fetch the item name from ItemManager (only works on client thread)
+            String itemName = null;
+            try {
+                // Check if we're on the client thread before calling ItemManager
+                if (client.isClientThread()) {
+                    ItemComposition itemComp = itemManager.getItemComposition(entry.getKey());
+                    if (itemComp != null) {
+                        itemName = itemComp.getName();
+                    }
+                }
+                // If not on client thread, name will be null and display as "Item {id}"
+            } catch (Exception e) {
+                // If we can't fetch the name, it will remain null and display as "Item {id}"
+            }
+            result.add(new LootItem(entry.getKey(), entry.getValue(), itemName));
         }
         return result;
     }
@@ -809,7 +888,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
         String accountHash = getAccountHash();
         String configGroup = "mokhaloot." + accountHash;
         String waveKey = CONFIG_KEY_WAVE_CLAIMED_PREFIX + wave;
-        return getLongConfig(configGroup, waveKey);
+        long value = getLongConfig(configGroup, waveKey);
+        if (wave <= 3) { // Only log first 3 waves to avoid spam
+            log.info("getWaveClaimedValue({}) with accountHash={}, configGroup={}, value={}", wave, accountHash,
+                    configGroup, value);
+        }
+        return value;
     }
 
     public List<LootItem> getWaveClaimedItems(int wave) {
@@ -817,7 +901,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
         String configGroup = "mokhaloot." + accountHash;
         String itemsKey = CONFIG_KEY_WAVE_CLAIMED_ITEMS_PREFIX + wave;
         String serialized = configManager.getConfiguration(configGroup, itemsKey);
-        return deserializeAndMergeItems(serialized);
+        List<LootItem> items = deserializeAndMergeItems(serialized);
+        if (wave <= 3) { // Only log first 3 waves to avoid spam
+            log.info("getWaveClaimedItems({}) with accountHash={}, serialized={}, items count={}", wave, accountHash,
+                    serialized, items != null ? items.size() : 0);
+        }
+        return items;
     }
 
     public void resetStats() {
@@ -838,16 +927,38 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Reset death costs
         configManager.unsetConfiguration(configGroup, CONFIG_KEY_DEATH_COSTS);
 
-        // Update panel stats on UI thread with forced repaint
-        javax.swing.SwingUtilities.invokeLater(() -> {
-            panel.updateStats();
-            panel.revalidate();
-            panel.repaint();
+        // Update panel stats on client thread (to fetch item names), then refresh UI
+        clientThread.invokeLater(() -> {
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                panel.updateStats();
+                panel.revalidate();
+                panel.repaint();
+            });
         });
+    }
+
+    private void clearDefaultConfig() {
+        // Clear any leftover config from dummy data that was saved under "default"
+        // account
+        String configGroup = "mokhaloot.default";
+
+        configManager.unsetConfiguration(configGroup, CONFIG_KEY_TOTAL_LOST);
+        configManager.unsetConfiguration(configGroup, CONFIG_KEY_TIMES_DIED);
+        configManager.unsetConfiguration(configGroup, CONFIG_KEY_DEATH_COSTS);
+
+        for (int wave = 1; wave <= MAX_TRACKED_WAVES; wave++) {
+            configManager.unsetConfiguration(configGroup, CONFIG_KEY_WAVE_PREFIX + wave);
+            configManager.unsetConfiguration(configGroup, CONFIG_KEY_WAVE_ITEMS_PREFIX + wave);
+            configManager.unsetConfiguration(configGroup, CONFIG_KEY_WAVE_CLAIMED_PREFIX + wave);
+            configManager.unsetConfiguration(configGroup, CONFIG_KEY_WAVE_CLAIMED_ITEMS_PREFIX + wave);
+        }
     }
 
     @Provides
     MokhaLootTrackerConfig provideConfig(ConfigManager configManager) {
         return configManager.getConfig(MokhaLootTrackerConfig.class);
     }
+
+    // TODO: Remove this method before production - for UI testing only
+
 }
