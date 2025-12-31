@@ -9,6 +9,7 @@ import net.runelite.api.events.*;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
@@ -50,7 +51,7 @@ class LootItem {
 @PluginDescriptor(name = "Mokha Loot Tracker", description = "Tracks loot lost and claimed at the Doom of Mokhaiotl boss", tags = {
         "mokha", "loot", "boss", "death", "tracking" })
 public class MokhaLootTrackerPlugin extends Plugin {
-    private static final int SUN_KISSED_BONES_ID = 33212;
+    private static final int SUN_KISSED_BONES_ID = 29378;
     private static final int SUN_KISSED_BONES_VALUE = 8000;
     private static final String CONFIG_KEY_TOTAL_LOST = "totalLostValue";
     private static final String CONFIG_KEY_TIMES_DIED = "timesDied";
@@ -202,14 +203,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
                 // Only track deaths in Mokha arena
                 if (inMokhaArena) {
-                    log.info("Player died in arena. currentLootValue={}, currentDelveNumber={}", currentLootValue,
-                            currentDelveNumber);
                     if (currentLootValue > 0 && currentDelveNumber > 0) {
-                        log.info("Recording lost loot for wave {}", currentDelveNumber);
                         recordLostLoot();
                         resetCurrentLoot();
                     } else {
-                        log.info("No loot to record, just counting death");
                         // Count death even without loot
                         incrementDeathCounter();
                     }
@@ -232,9 +229,18 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     @Subscribe
+    public void onConfigChanged(ConfigChanged configChanged) {
+        if (configChanged.getGroup().equals("mokhaloot") &&
+                configChanged.getKey().equals("excludeSunKissedBonesValue")) {
+            // Refresh panel when sun-kissed bones setting changes
+            clientThread.invokeLater(() -> panel.updateStats());
+        }
+    }
+
+    @Subscribe
     public void onMenuOptionClicked(MenuOptionClicked event) {
         String menuOption = event.getMenuOption();
-        String menuTarget = event.getMenuTarget();
+        // String menuTarget = event.getMenuTarget();
 
         // Detect "Descend" button click (continue to next wave)
         if (menuOption != null && menuOption.contains("Descend")) {
@@ -467,13 +473,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     private void recordLostLoot() {
         if (currentLootValue == 0) {
-            log.info("recordLostLoot called but currentLootValue is 0, returning");
             return;
         }
-
-        log.info("Recording lost loot: currentLootValue={}, currentDelveNumber={}", currentLootValue,
-                currentDelveNumber);
-        log.info("Wave loot values: {}", java.util.Arrays.toString(waveLootValues));
 
         String accountHash = getAccountHash();
         String configGroup = "mokhaloot." + accountHash;
@@ -591,24 +592,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
             int waveIndex = wave;
             long incrementalLoot = waveLootValues[wave];
 
-            // Log what items we have for this wave before adjustment
-            // log.info("=== Recording CLAIMED loot for Wave {} ===", wave);
-            // log.info("Incremental loot value: {}", incrementalLoot);
-            // if (waveItemStacks[waveIndex] != null) {
-            // log.info("{} items in waveItemStacks[{}]:", waveItemStacks[waveIndex].size(),
-            // waveIndex);
-            // for (LootItem item : waveItemStacks[waveIndex]) {
-            // log.info(" Item: ID={}, Quantity={}, Name={}", item.getId(),
-            // item.getQuantity(),
-            // item.getName());
-            // }
-            // } else {
-            // log.warn("waveItemStacks[{}] is NULL!", waveIndex);
-            // }
-
             // Apply adjustment for Sun-kissed Bones if enabled
             long adjustedIncrementalLoot = getAdjustedLootValue(incrementalLoot, waveItemStacks[waveIndex]);
-            log.info("After adjustment: {} (original: {})", adjustedIncrementalLoot, incrementalLoot);
 
             // Save claimed loot for this wave
             String waveKey = CONFIG_KEY_WAVE_CLAIMED_PREFIX + waveIndex;
@@ -763,49 +748,23 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private long getAdjustedLootValue(long baseValue, List<LootItem> items) {
         boolean excludeEnabled = config.excludeSunKissedBonesValue();
 
-        // log.info("getAdjustedLootValue: baseValue={}, excludeEnabled={}, items={}",
-        // baseValue, excludeEnabled, items == null ? "NULL" : items.size() + " items");
-        // if (items != null && !items.isEmpty()) {
-        // for (LootItem item : items) {
-        // log.info(" Checking item: ID={}, Quantity={}", item.getId(),
-        // item.getQuantity());
-        // }
-        // }
-
         if (!excludeEnabled) {
             return baseValue;
         }
 
         if (items == null || items.isEmpty()) {
-            // log.warn("No items to check for sun-kissed bones adjustment");
             return baseValue;
         }
 
         long adjustment = 0;
-        int bonesQuantity = 0;
         for (LootItem item : items) {
             if (item.getId() == SUN_KISSED_BONES_ID) {
-                bonesQuantity = item.getQuantity();
-                adjustment = (long) bonesQuantity * SUN_KISSED_BONES_VALUE;
-                log.info("=== SUN-KISSED BONES DETECTED ===");
-                log.info("Item ID: {} matches SUN_KISSED_BONES_ID ({})", item.getId(), SUN_KISSED_BONES_ID);
-                log.info("Quantity: {}", bonesQuantity);
-                log.info("Value per bone: {}", SUN_KISSED_BONES_VALUE);
-                log.info("Total adjustment: {} ({}k)", adjustment, adjustment / 1000);
-                log.info("Base value: {} ({}k)", baseValue, baseValue / 1000);
+                adjustment = (long) item.getQuantity() * SUN_KISSED_BONES_VALUE;
                 break;
             }
         }
 
-        long adjustedValue = Math.max(0, baseValue - adjustment);
-
-        if (adjustment > 0) {
-            log.info("Adjusted value: {} ({}k) - Subtracted {} sun-kissed bones worth {}gp",
-                    adjustedValue, adjustedValue / 1000, bonesQuantity, adjustment);
-            log.info("================================");
-        }
-
-        return adjustedValue;
+        return Math.max(0, baseValue - adjustment);
     }
 
     // Serialize items to string format: "itemId:quantity,itemId:quantity,..."
@@ -865,9 +824,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     public long getTotalLostValue() {
-        String accountHash = getAccountHash();
-        String configGroup = "mokhaloot." + accountHash;
-        return getLongConfig(configGroup, CONFIG_KEY_TOTAL_LOST);
+        // Calculate from wave values which already have adjustments applied
+        long total = 0;
+        for (int wave = 1; wave <= MAX_TRACKED_WAVES; wave++) {
+            total += getWaveLostValue(wave);
+        }
+        return total;
     }
 
     public int getTimesDied() {
@@ -912,7 +874,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
         String accountHash = getAccountHash();
         String configGroup = "mokhaloot." + accountHash;
         String waveKey = CONFIG_KEY_WAVE_PREFIX + wave;
-        return getLongConfig(configGroup, waveKey);
+        long baseValue = getLongConfig(configGroup, waveKey);
+
+        // Apply adjustment in real-time based on current checkbox state
+        List<LootItem> items = getWaveLostItems(wave);
+        return getAdjustedLootValue(baseValue, items);
     }
 
     public List<LootItem> getWaveLostItems(int wave) {
@@ -927,13 +893,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
         String accountHash = getAccountHash();
         String configGroup = "mokhaloot." + accountHash;
         String waveKey = CONFIG_KEY_WAVE_CLAIMED_PREFIX + wave;
-        long value = getLongConfig(configGroup, waveKey);
-        // if (wave <= 3) { // Only log first 3 waves to avoid spam
-        // log.info("getWaveClaimedValue({}) with accountHash={}, configGroup={},
-        // value={}", wave, accountHash,
-        // configGroup, value);
-        // }
-        return value;
+        long baseValue = getLongConfig(configGroup, waveKey);
+
+        // Apply adjustment in real-time based on current checkbox state
+        List<LootItem> items = getWaveClaimedItems(wave);
+        return getAdjustedLootValue(baseValue, items);
     }
 
     public List<LootItem> getWaveClaimedItems(int wave) {
@@ -942,11 +906,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         String itemsKey = CONFIG_KEY_WAVE_CLAIMED_ITEMS_PREFIX + wave;
         String serialized = configManager.getConfiguration(configGroup, itemsKey);
         List<LootItem> items = deserializeAndMergeItems(serialized);
-        // if (wave <= 3) { // Only log first 3 waves to avoid spam
-        // log.info("getWaveClaimedItems({}) with accountHash={}, serialized={}, items
-        // count={}", wave, accountHash,
-        // serialized, items != null ? items.size() : 0);
-        // }
         return items;
     }
 
@@ -999,7 +958,4 @@ public class MokhaLootTrackerPlugin extends Plugin {
     MokhaLootTrackerConfig provideConfig(ConfigManager configManager) {
         return configManager.getConfig(MokhaLootTrackerConfig.class);
     }
-
-    // TODO: Remove this method before production - for UI testing only
-
 }
