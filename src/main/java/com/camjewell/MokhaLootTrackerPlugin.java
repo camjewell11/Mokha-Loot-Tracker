@@ -383,25 +383,38 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
                 // Calculate and save incremental loot for THIS wave
                 // The interface shows cumulative rewards, so we subtract previous total
-                if (currentDelveNumber > 0 && currentDelveNumber <= MAX_TRACKED_WAVES) {
+                if (currentDelveNumber > 0) {
+                    int waveIndex = currentDelveNumber > MAX_TRACKED_WAVES ? MAX_TRACKED_WAVES : currentDelveNumber;
                     long incrementalValue = currentLootValue - previousWaveLootValue;
                     if (incrementalValue > 0) {
-                        waveLootValues[currentDelveNumber] = incrementalValue;
-
-                        // Calculate incremental items (items added this wave only)
-                        List<LootItem> incrementalItems = calculateIncrementalItems(currentUnclaimedLoot,
-                                previousWaveItems);
-                        waveItemStacks[currentDelveNumber] = incrementalItems;
-
-                        // Log items stored for this wave
-                        // log.info("Wave {} - Stored {} incremental items in waveItemStacks",
-                        // currentDelveNumber,
-                        // incrementalItems.size());
-                        // for (LootItem item : incrementalItems) {
-                        // log.info(" Item: ID={}, Quantity={}, Name={}", item.getId(),
-                        // item.getQuantity(),
-                        // item.getName());
-                        // }
+                        // For wave 9+, accumulate instead of overwrite
+                        if (currentDelveNumber > MAX_TRACKED_WAVES) {
+                            waveLootValues[waveIndex] += incrementalValue;
+                            // Merge incremental items into waveItemStacks[9]
+                            List<LootItem> incrementalItems = calculateIncrementalItems(currentUnclaimedLoot,
+                                    previousWaveItems);
+                            if (waveItemStacks[waveIndex] == null) {
+                                waveItemStacks[waveIndex] = new ArrayList<>();
+                            }
+                            // Merge by itemId
+                            java.util.Map<Integer, Integer> itemMap = new java.util.HashMap<>();
+                            for (LootItem item : waveItemStacks[waveIndex]) {
+                                itemMap.put(item.getId(), itemMap.getOrDefault(item.getId(), 0) + item.getQuantity());
+                            }
+                            for (LootItem item : incrementalItems) {
+                                itemMap.put(item.getId(), itemMap.getOrDefault(item.getId(), 0) + item.getQuantity());
+                            }
+                            waveItemStacks[waveIndex] = new ArrayList<>();
+                            for (java.util.Map.Entry<Integer, Integer> entry : itemMap.entrySet()) {
+                                waveItemStacks[waveIndex].add(new LootItem(entry.getKey(), entry.getValue(), null));
+                            }
+                        } else {
+                            waveLootValues[waveIndex] = incrementalValue;
+                            // Calculate incremental items (items added this wave only)
+                            List<LootItem> incrementalItems = calculateIncrementalItems(currentUnclaimedLoot,
+                                    previousWaveItems);
+                            waveItemStacks[waveIndex] = incrementalItems;
+                        }
 
                         // Update previous wave tracking
                         previousWaveLootValue = currentLootValue;
