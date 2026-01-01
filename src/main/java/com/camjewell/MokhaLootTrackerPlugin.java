@@ -51,6 +51,16 @@ class LootItem {
 @PluginDescriptor(name = "Mokha Loot Tracker", description = "Tracks loot lost and claimed at the Doom of Mokhaiotl boss", tags = {
         "mokha", "loot", "boss", "death", "tracking" })
 public class MokhaLootTrackerPlugin extends Plugin {
+    // High-value items to highlight
+    private static final int AVERNIC_TREADS_ID = 33209;
+    private static final int MOKHAIOTL_CLOTH_ID = 33210;
+    private static final int EYE_OF_AYAK_ID = 33211;
+
+    // Items for calculating Mokhaiotl Cloth value
+    private static final int DEMON_TEAR_ID = 33206;
+    private static final int CONFLICTION_GAUNTLETS_ID = 33213;
+    private static final int TORMENTED_BRACELET_ID = 19544;
+
     private static final int SUN_KISSED_BONES_ID = 29378;
     private static final int SUN_KISSED_BONES_VALUE = 8000;
     private static final String CONFIG_KEY_TOTAL_LOST = "totalLostValue";
@@ -230,10 +240,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     @Subscribe
     public void onConfigChanged(ConfigChanged configChanged) {
-        if (configChanged.getGroup().equals("mokhaloot") &&
-                configChanged.getKey().equals("excludeSunKissedBonesValue")) {
-            // Refresh panel when sun-kissed bones setting changes
-            clientThread.invokeLater(() -> panel.updateStats());
+        if (configChanged.getGroup().equals("mokhaloot")) {
+            if (configChanged.getKey().equals("excludeSunKissedBonesValue")) {
+                // Refresh panel when sun-kissed bones setting changes
+                clientThread.invokeLater(() -> panel.updateStats());
+            }
         }
     }
 
@@ -356,6 +367,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
             Widget lootContainerWidget = client.getWidget(919, 19);
             if (lootContainerWidget != null) {
                 parseCurrentLoot(lootContainerWidget);
+
+                // Recalculate loot value with custom pricing for Mokhaiotl Cloth
+                currentLootValue = 0;
+                for (LootItem item : currentUnclaimedLoot) {
+                    currentLootValue += getItemValue(item.getId(), item.getQuantity());
+                }
             }
 
             // Save the current state while interface is visible (before it gets cleared)
@@ -856,6 +873,101 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     public long getCurrentLootValue() {
         return getAdjustedLootValue(currentLootValue, currentUnclaimedLoot);
+    }
+
+    public List<LootItem> getCurrentLootItems() {
+        List<LootItem> items = new ArrayList<>(currentUnclaimedLoot);
+
+        // If test mode is enabled, add test items
+        // Removed testMode and test item injection
+
+        return items;
+    }
+
+    public boolean isHighValueItem(int itemId) {
+        return itemId == AVERNIC_TREADS_ID || itemId == MOKHAIOTL_CLOTH_ID || itemId == EYE_OF_AYAK_ID;
+    }
+
+    // Calculate the value of Mokhaiotl Cloth based on current GE prices
+    // Formula: Confliction Gauntlets - (Tormented Bracelet + (Demon Tear * 10000))
+    private long getMokhaiotlClothValue() {
+        // Fallback values (update as needed)
+        final int FALLBACK_GAUNTLETS = 71000000; // 71m
+        final int FALLBACK_BRACELET = 22000000; // 22m
+        final int FALLBACK_TEAR = 275; // 275 each
+        try {
+            log.info("Mokhaiotl Cloth: Gauntlets ID: {}, Bracelet ID: {}, Tear ID: {}", CONFLICTION_GAUNTLETS_ID,
+                    TORMENTED_BRACELET_ID, DEMON_TEAR_ID);
+            int gauntletsPrice = itemManager.getItemPrice(CONFLICTION_GAUNTLETS_ID);
+            int braceletPrice = itemManager.getItemPrice(TORMENTED_BRACELET_ID);
+            int tearPrice = itemManager.getItemPrice(DEMON_TEAR_ID);
+
+            log.info("Raw prices - Gauntlets: {}, Bracelet: {}, Tear: {}", gauntletsPrice, braceletPrice, tearPrice);
+
+            if (gauntletsPrice <= 0) {
+                log.warn("Gauntlets price unavailable, using fallback: {}", FALLBACK_GAUNTLETS);
+                gauntletsPrice = FALLBACK_GAUNTLETS;
+            }
+            if (braceletPrice <= 0) {
+                log.warn("Bracelet price unavailable, using fallback: {}", FALLBACK_BRACELET);
+                braceletPrice = FALLBACK_BRACELET;
+            }
+            if (tearPrice <= 0) {
+                log.warn("Tear price unavailable, using fallback: {}", FALLBACK_TEAR);
+                tearPrice = FALLBACK_TEAR;
+            }
+
+            log.info("Final prices used - Gauntlets: {} (ID: {}), Bracelet: {} (ID: {}), Tear: {} (ID: {})",
+                    gauntletsPrice, CONFLICTION_GAUNTLETS_ID, braceletPrice, TORMENTED_BRACELET_ID, tearPrice,
+                    DEMON_TEAR_ID);
+
+            long clothValue = gauntletsPrice - (braceletPrice + ((long) tearPrice * 10000));
+            log.info("Mokhaiotl Cloth calculated value: {} (Formula: {} - ({} + ({} * 10000)))", clothValue,
+                    gauntletsPrice, braceletPrice, tearPrice);
+            return Math.max(0, clothValue); // Ensure non-negative
+        } catch (Exception e) {
+            log.error("Error calculating Mokhaiotl Cloth value", e);
+            return 0;
+        }
+    }
+
+    // Get the value for a specific item, with special handling for Mokhaiotl Cloth
+    private long getItemValue(int itemId, int quantity) {
+        if (itemId == MOKHAIOTL_CLOTH_ID) {
+            return getMokhaiotlClothValue() * quantity;
+        }
+        long itemPrice = itemManager.getItemPrice(itemId);
+        return itemPrice * quantity;
+    }
+
+    // Test mode: Add rare items to current loot for testing display
+    private void addTestItems() {
+        // Check if test items are already added to avoid duplicates
+        boolean hasTestItems = currentUnclaimedLoot.stream()
+                .anyMatch(item -> item.getId() == AVERNIC_TREADS_ID
+                        || item.getId() == MOKHAIOTL_CLOTH_ID
+                        || item.getId() == EYE_OF_AYAK_ID);
+
+        if (!hasTestItems) {
+            try {
+                // Add one of each rare item
+                String treadsName = itemManager.getItemComposition(AVERNIC_TREADS_ID).getName();
+                String clothName = itemManager.getItemComposition(MOKHAIOTL_CLOTH_ID).getName();
+                String eyeName = itemManager.getItemComposition(EYE_OF_AYAK_ID).getName();
+
+                currentUnclaimedLoot.add(new LootItem(AVERNIC_TREADS_ID, 1, treadsName));
+                currentUnclaimedLoot.add(new LootItem(MOKHAIOTL_CLOTH_ID, 1, clothName));
+                currentUnclaimedLoot.add(new LootItem(EYE_OF_AYAK_ID, 1, eyeName));
+
+                // Recalculate total value with test items
+                currentLootValue = 0;
+                for (LootItem item : currentUnclaimedLoot) {
+                    currentLootValue += getItemValue(item.getId(), item.getQuantity());
+                }
+            } catch (Exception e) {
+                log.error("Error adding test items", e);
+            }
+        }
     }
 
     public int getCurrentDelveNumber() {

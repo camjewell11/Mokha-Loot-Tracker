@@ -1,9 +1,11 @@
 package com.camjewell;
 
-import javax.inject.Inject;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
-import java.awt.Color;
+
+import javax.inject.Inject;
+
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -52,18 +54,10 @@ public class MokhaLootOverlay extends Overlay {
             }
         }
 
-        // Show the overlay when delve interface is visible (completion screen), in
-        // arena with loot value, or have historical stats
-        long currentValue = plugin.getCurrentLootValue();
-        boolean showCurrentRun = plugin.isDelveInterfaceVisible()
-                || (plugin.isInMokhaArena() && currentValue > 0);
-        boolean showHistoricalStats = plugin.getTotalLostValue() > 0;
-
-        if (showCurrentRun || showHistoricalStats) {
+        // Only show overlay if in arena or delve interface is visible
+        if (plugin.isInMokhaArena() || plugin.isDelveInterfaceVisible()) {
             return panelComponent.render(graphics);
         }
-
         return null;
     }
 }
-

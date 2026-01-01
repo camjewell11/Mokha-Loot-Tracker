@@ -124,6 +124,7 @@ public class MokhaLootPanel extends PluginPanel {
         long totalClaimed = plugin.getTotalClaimedValue();
         long deathCosts = plugin.getTotalDeathCosts();
         long currentRunValue = plugin.getCurrentLootValue();
+        List<com.camjewell.LootItem> currentRunItems = plugin.getCurrentLootItems();
 
         // Fetch all wave data
         long[] waveLostValues = new long[10];
@@ -256,6 +257,30 @@ public class MokhaLootPanel extends PluginPanel {
             currentRunLabel.setForeground(currentRunValue > 0 ? Color.CYAN : Color.WHITE);
             statsPanel.add(createStatRow("  Loss Value:", currentRunLabel));
 
+            // Add current run items
+            if (currentRunItems != null && !currentRunItems.isEmpty()) {
+                JPanel itemsPanel = new JPanel();
+                itemsPanel.setLayout(new BoxLayout(itemsPanel, BoxLayout.Y_AXIS));
+                itemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+                for (com.camjewell.LootItem item : currentRunItems) {
+                    JLabel itemLabel = new JLabel();
+                    boolean isHighValue = plugin.isHighValueItem(item.getId());
+                    itemLabel.setFont(
+                            isHighValue ? FontManager.getRunescapeBoldFont() : FontManager.getRunescapeSmallFont());
+                    itemLabel.setText("    " + item.getName() + " x" + item.getQuantity());
+                    itemLabel.setForeground(isHighValue ? new Color(255, 215, 0) : Color.LIGHT_GRAY);
+
+                    JPanel itemContainer = new JPanel(new BorderLayout());
+                    itemContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                    itemContainer.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+                    itemContainer.add(itemLabel, BorderLayout.WEST);
+                    itemsPanel.add(itemContainer);
+                }
+
+                statsPanel.add(itemsPanel);
+            }
+
             statsPanel.revalidate();
             statsPanel.repaint();
             revalidate();
@@ -300,10 +325,12 @@ public class MokhaLootPanel extends PluginPanel {
                 // Use the stored name if available, otherwise use the ID
                 String itemName = item.getName() != null ? item.getName() : "Item " + item.getId();
 
+                boolean isHighValue = plugin.isHighValueItem(item.getId());
                 JLabel itemLabel = new JLabel(
                         "• " + itemName + " x" + QuantityFormatter.quantityToStackSize(item.getQuantity()));
-                itemLabel.setFont(FontManager.getRunescapeSmallFont());
-                itemLabel.setForeground(Color.WHITE);
+                itemLabel.setFont(
+                        isHighValue ? FontManager.getRunescapeBoldFont() : FontManager.getRunescapeSmallFont());
+                itemLabel.setForeground(isHighValue ? new Color(255, 215, 0) : Color.WHITE);
 
                 // Wrap label in container panel with BorderLayout.WEST for left alignment
                 JPanel itemContainer = new JPanel(new BorderLayout());
@@ -358,10 +385,12 @@ public class MokhaLootPanel extends PluginPanel {
                 // Use the stored name if available, otherwise use the ID
                 String itemName = item.getName() != null ? item.getName() : "Item " + item.getId();
 
+                boolean isHighValue = plugin.isHighValueItem(item.getId());
                 JLabel itemLabel = new JLabel(
                         "• " + itemName + " x" + QuantityFormatter.quantityToStackSize(item.getQuantity()));
-                itemLabel.setFont(FontManager.getRunescapeSmallFont());
-                itemLabel.setForeground(Color.WHITE);
+                itemLabel.setFont(
+                        isHighValue ? FontManager.getRunescapeBoldFont() : FontManager.getRunescapeSmallFont());
+                itemLabel.setForeground(isHighValue ? new Color(255, 215, 0) : Color.WHITE);
 
                 // Wrap label in container panel with BorderLayout.WEST for left alignment
                 JPanel itemContainer = new JPanel(new BorderLayout());

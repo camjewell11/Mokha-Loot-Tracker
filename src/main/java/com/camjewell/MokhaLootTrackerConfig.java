@@ -20,5 +20,5 @@ public interface MokhaLootTrackerConfig extends Config {
 	default boolean excludeSunKissedBonesValue() {
 		return true;
 	}
-}
 
+}
