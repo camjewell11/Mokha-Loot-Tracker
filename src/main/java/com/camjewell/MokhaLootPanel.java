@@ -173,40 +173,39 @@ public class MokhaLootPanel extends PluginPanel {
 
         // Debug logging for item values if enabled
         if (plugin.config.debugItemValueLogging()) {
-            System.out.println("[MokhaLootTracker] Debug: Current Run Items (filtered):");
+            log.info("[MokhaLootTracker] Debug: Current Run Items (filtered):");
             for (com.camjewell.LootItem item : currentRunItems) {
                 long value = plugin.getItemValue(item.getId(), item.getQuantity());
-                System.out.println("  " + (item.getName() != null ? item.getName() : ("Item " + item.getId())) +
+                log.info("  " + (item.getName() != null ? item.getName() : ("Item " + item.getId())) +
                         " x" + item.getQuantity() + " = " + value + " gp");
             }
             // Log excluded items for current run
             if (minValue > 0) {
-                System.out.println("[MokhaLootTracker] Debug: Current Run Items (excluded by threshold):");
+                log.info("[MokhaLootTracker] Debug: Current Run Items (excluded by threshold):");
                 for (com.camjewell.LootItem item : allCurrentRunItems) {
                     if (plugin.getItemValue(item.getId(), 1) < minValue) {
                         long value = plugin.getItemValue(item.getId(), item.getQuantity());
-                        System.out.println("  " + (item.getName() != null ? item.getName() : ("Item " + item.getId())) +
+                        log.info("  " + (item.getName() != null ? item.getName() : ("Item " + item.getId())) +
                                 " x" + item.getQuantity() + " = " + value + " gp");
                     }
                 }
             }
             // Log by wave
             for (int wave = 1; wave <= 9; wave++) {
-                System.out
-                        .println("[MokhaLootTracker] Debug: Wave " + (wave == 9 ? "9+" : wave) + " Items (filtered):");
+                log.info("[MokhaLootTracker] Debug: Wave " + (wave == 9 ? "9+" : wave) + " Items (filtered):");
                 for (com.camjewell.LootItem item : waveLostItems[wave]) {
                     long value = plugin.getItemValue(item.getId(), item.getQuantity());
-                    System.out.println("  " + (item.getName() != null ? item.getName() : ("Item " + item.getId())) +
+                    log.info("  " + (item.getName() != null ? item.getName() : ("Item " + item.getId())) +
                             " x" + item.getQuantity() + " = " + value + " gp");
                 }
                 if (minValue > 0) {
                     List<com.camjewell.LootItem> lostAll = plugin.getWaveLostItems(wave);
-                    System.out.println("[MokhaLootTracker] Debug: Wave " + (wave == 9 ? "9+" : wave)
+                    log.info("[MokhaLootTracker] Debug: Wave " + (wave == 9 ? "9+" : wave)
                             + " Items (excluded by threshold):");
                     for (com.camjewell.LootItem item : lostAll) {
                         if (plugin.getItemValue(item.getId(), 1) < minValue) {
                             long value = plugin.getItemValue(item.getId(), item.getQuantity());
-                            System.out.println(
+                            log.info(
                                     "  " + (item.getName() != null ? item.getName() : ("Item " + item.getId())) +
                                             " x" + item.getQuantity() + " = " + value + " gp");
                         }
