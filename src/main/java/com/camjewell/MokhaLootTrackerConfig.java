@@ -6,19 +6,29 @@ import net.runelite.client.config.ConfigItem;
 
 @ConfigGroup("mokhaloot")
 public interface MokhaLootTrackerConfig extends Config {
-	@ConfigItem(keyName = "showOverlay", name = "Show Overlay", description = "Display an overlay with potential loot loss during runs", position = 0)
+
+	@ConfigItem(keyName = "minItemValueThreshold", name = "Exclude Items Under Value", description = "Items individually valued under this amount will be excluded from wave value and item lists. Set to 0 to show all items. The panel will show both filtered and full values.", position = 3)
+	default int minItemValueThreshold() {
+		return 0;
+	}
+
+	@ConfigItem(keyName = "showOverlay", name = "Show Overlay", description = "Display an overlay with potential loot loss during runs. Only visible in the Mokha arena or delve interface.", position = 0)
 	default boolean showOverlay() {
 		return true;
 	}
 
-	@ConfigItem(keyName = "showChatNotifications", name = "Chat Notifications", description = "Show a chat message when loot is lost", position = 1)
+	@ConfigItem(keyName = "showChatNotifications", name = "Chat Notifications", description = "Show a chat message when loot is lost (e.g. on death or claim)", position = 1)
 	default boolean showChatNotifications() {
 		return true;
 	}
 
-	@ConfigItem(keyName = "excludeSunKissedBonesValue", name = "Exclude Sun-kissed Bones Value", description = "Exclude Sun-kissed Bones value (8000 gp each) from loot tracking", position = 2)
+	@ConfigItem(keyName = "excludeSunKissedBonesValue", name = "Exclude Sun-kissed Bones Value", description = "Exclude Sun-kissed Bones value (8000 gp each) from loot tracking. If enabled, bones are not counted in lost/claimed values.", position = 2)
 	default boolean excludeSunKissedBonesValue() {
 		return true;
 	}
 
+	@ConfigItem(keyName = "debugItemValueLogging", name = "Debug: Log Item Values", description = "If enabled, logs the value of all earned and excluded items for each wave and current run when the panel is refreshed.", position = 99)
+	default boolean debugItemValueLogging() {
+		return false;
+	}
 }

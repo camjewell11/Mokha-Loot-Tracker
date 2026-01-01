@@ -76,7 +76,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private Client client;
 
     @Inject
-    private MokhaLootTrackerConfig config;
+    MokhaLootTrackerConfig config;
 
     @Inject
     private ConfigManager configManager;
@@ -241,8 +241,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     @Subscribe
     public void onConfigChanged(ConfigChanged configChanged) {
         if (configChanged.getGroup().equals("mokhaloot")) {
-            if (configChanged.getKey().equals("excludeSunKissedBonesValue")) {
-                // Refresh panel when sun-kissed bones setting changes
+            if (configChanged.getKey().equals("excludeSunKissedBonesValue") ||
+                    configChanged.getKey().equals("minItemValueThreshold")) {
+                // Refresh panel when filter settings change
                 clientThread.invokeLater(() -> panel.updateStats());
             }
         }
@@ -671,6 +672,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
                 String serializedItems = serializeItems(allItems);
                 configManager.setConfiguration(configGroup, itemsKey, serializedItems);
+            } else {
             }
         }
 
@@ -945,7 +947,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     // Get the value for a specific item, with special handling for Mokhaiotl Cloth
-    private long getItemValue(int itemId, int quantity) {
+    long getItemValue(int itemId, int quantity) {
         if (itemId == MOKHAIOTL_CLOTH_ID) {
             return getMokhaiotlClothValue() * quantity;
         }
@@ -995,15 +997,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return inMokhaArena;
     }
 
+    /**
+     * Returns the filtered value (excluding items below threshold) for the wave.
+     * Use getWaveLostFullValue for the unfiltered value.
+     */
     public long getWaveLostValue(int wave) {
-        String accountHash = getAccountHash();
-        String configGroup = "mokhaloot." + accountHash;
-        String waveKey = CONFIG_KEY_WAVE_PREFIX + wave;
-        long baseValue = getLongConfig(configGroup, waveKey);
-
-        // Apply adjustment in real-time based on current checkbox state
         List<LootItem> items = getWaveLostItems(wave);
-        return getAdjustedLootValue(baseValue, items);
+        return getFilteredLootValue(items);
+    }
+
+    /**
+     * Returns the full value (all items, no threshold) for the wave.
+     */
+    public long getWaveLostFullValue(int wave) {
+        List<LootItem> items = getWaveLostItems(wave);
+        return getTotalLootValue(items);
     }
 
     public List<LootItem> getWaveLostItems(int wave) {
@@ -1014,15 +1022,68 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return deserializeAndMergeItems(serialized);
     }
 
+    /**
+     * Returns the filtered value (excluding items below threshold) for claimed loot
+     * in the wave.
+     * Use getWaveClaimedFullValue for the unfiltered value.
+     */
     public long getWaveClaimedValue(int wave) {
-        String accountHash = getAccountHash();
-        String configGroup = "mokhaloot." + accountHash;
-        String waveKey = CONFIG_KEY_WAVE_CLAIMED_PREFIX + wave;
-        long baseValue = getLongConfig(configGroup, waveKey);
-
-        // Apply adjustment in real-time based on current checkbox state
         List<LootItem> items = getWaveClaimedItems(wave);
-        return getAdjustedLootValue(baseValue, items);
+        return getFilteredLootValue(items);
+    }
+
+    /**
+     * Returns the full value (all items, no threshold) for claimed loot in the
+     * wave.
+     */
+    public long getWaveClaimedFullValue(int wave) {
+        List<LootItem> items = getWaveClaimedItems(wave);
+        return getTotalLootValue(items);
+    }
+
+    /**
+     * Returns only items above the value threshold for display.
+     */
+    public List<LootItem> filterItemsByValue(List<LootItem> items) {
+        int minValue = config.minItemValueThreshold();
+        if (minValue <= 0 || items == null)
+            return items;
+        List<LootItem> filtered = new ArrayList<>();
+        for (LootItem item : items) {
+            if (getItemValue(item.getId(), 1) >= minValue) {
+                filtered.add(item);
+            }
+        }
+        return filtered;
+    }
+
+    /**
+     * Returns the sum of values for items above the threshold.
+     */
+    public long getFilteredLootValue(List<LootItem> items) {
+        int minValue = config.minItemValueThreshold();
+        if (items == null)
+            return 0;
+        long total = 0;
+        for (LootItem item : items) {
+            if (minValue > 0 && getItemValue(item.getId(), 1) < minValue)
+                continue;
+            total += getItemValue(item.getId(), item.getQuantity());
+        }
+        return total;
+    }
+
+    /**
+     * Returns the sum of values for all items (no threshold).
+     */
+    public long getTotalLootValue(List<LootItem> items) {
+        if (items == null)
+            return 0;
+        long total = 0;
+        for (LootItem item : items) {
+            total += getItemValue(item.getId(), item.getQuantity());
+        }
+        return total;
     }
 
     public List<LootItem> getWaveClaimedItems(int wave) {
