@@ -233,13 +233,35 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
                 // Only track deaths in Mokha arena
                 if (inMokhaArena) {
-                    if (currentLootValue > 0 && currentDelveNumber > 0) {
+                    boolean hasLoot = currentLootValue > 0 || lastVisibleLootValue > 0
+                            || (currentUnclaimedLoot != null && !currentUnclaimedLoot.isEmpty());
+                    int effectiveDelve = currentDelveNumber > 0 ? currentDelveNumber : lastVisibleDelveNumber;
+
+                    if (hasLoot && effectiveDelve > 0) {
+                        // If we lost visibility before death (e.g., interface closed), fall back to the
+                        // last captured state so we still record the loss.
+                        if (currentLootValue == 0) {
+                            if (lastVisibleLootValue > 0) {
+                                currentLootValue = lastVisibleLootValue;
+                                if (currentUnclaimedLoot.isEmpty() && lastVisibleLootItems != null) {
+                                    currentUnclaimedLoot = new ArrayList<>(lastVisibleLootItems);
+                                }
+                                if (currentDelveNumber == 0) {
+                                    currentDelveNumber = lastVisibleDelveNumber;
+                                }
+                            } else if (!currentUnclaimedLoot.isEmpty()) {
+                                currentLootValue = getTotalLootValue(currentUnclaimedLoot);
+                            }
+                        }
+
                         recordLostLoot();
-                        resetCurrentLoot();
                     } else {
                         // Count death even without loot
                         incrementDeathCounter();
                     }
+
+                    // Always clear run state on death so the panel doesn't show stale loot
+                    resetCurrentLoot();
                 }
             } else if (!currentlyDead && isDead) {
                 // Player respawned
@@ -262,8 +284,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     public void onConfigChanged(ConfigChanged configChanged) {
         if (configChanged.getGroup().equals("mokhaloot")) {
             if (configChanged.getKey().equals("excludeSunKissedBonesValue") ||
-                    configChanged.getKey().equals("minItemValueThreshold")) {
-                // Refresh panel when filter settings change
+                    configChanged.getKey().equals("minItemValueThreshold") ||
+                    configChanged.getKey().equals("showSuppliesUsedBeta")) {
+                // Refresh panel when display-related settings change
                 clientThread.invokeLater(() -> panel.updateStats());
             }
         }
