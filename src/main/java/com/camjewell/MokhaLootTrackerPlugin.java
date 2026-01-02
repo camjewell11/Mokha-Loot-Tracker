@@ -327,6 +327,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     @Subscribe
     public void onItemContainerChanged(ItemContainerChanged event) {
+        // Ignore supplies tracking while dead to avoid counting the gravestone emptying
+        if (isDead) {
+            return;
+        }
+
         // Only track inventory changes in Mokha arena. If we haven't marked entry yet,
         // do a lightweight widget check to avoid missing the first sip before the
         // tick-based arena detection flips the flag.
