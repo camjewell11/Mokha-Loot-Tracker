@@ -1,6 +1,6 @@
 # Mokha Loot Tracker
 
-A RuneLite plugin that tracks lost loot, claimed loot, and deaths during Doom of Mokhaiotl encounters in Old School RuneScape.
+A RuneLite plugin that tracks lost loot, claimed loot, supplies, and deaths during Doom of Mokhaiotl encounters in Old School RuneScape.
 
 ## Features
 
@@ -8,11 +8,12 @@ A RuneLite plugin that tracks lost loot, claimed loot, and deaths during Doom of
 - **Lost Loot Monitoring**: Records the value of unclaimed loot when you die
 - **Claimed Loot Tracking**: Tracks loot successfully claimed via "Claim and Leave" button
 - **Per-Wave Breakdown**: View both lost and claimed loot organized by wave
+- **Supplies Tracking (beta)**: Tracks supplies consumed per run (live) and across runs (historical), including potions/runes with dose normalization; paused while dead to avoid gravestone wipes
 - **Sun-kissed Bones Exclusion**: Optional toggle to exclude Sun-kissed Bones value from totals
 - **Death Cost Tracking**: Records GP spent on death reclaim costs
 - **Real-time Overlay**: Shows potential loot loss during active runs
 - **Persistent Statistics**: All data is saved per-account and persists across sessions
-- **Side Panel**: Detailed view of total lost value, total claimed value, death count, and itemized loot per wave
+- **Side Panel**: Detailed view of total lost value, total claimed value, death count, supplies, and itemized loot per wave
 
 ## How It Works
 
@@ -24,7 +25,8 @@ The plugin automatically detects when you're in the Mokha arena and monitors you
 2. Calculates the total value of your unclaimed loot
 3. Saves individual items with quantities per wave
 4. Tracks death reclaim costs from chat messages
-5. Updates your statistics in the side panel
+5. Pauses supplies tracking while you are dead so gravestone empties are not counted
+6. Updates your statistics in the side panel
 
 **When you claim loot:**
 
@@ -46,6 +48,7 @@ Click the Mokha Loot icon in the RuneLite sidebar to view:
 - **Death Costs**: Collapsible section with individual death reclaim costs
 - **Claimed Loot by Wave**: Expandable sections showing GP claimed and itemized list per wave
 - **Current Run**: Real-time view of unclaimed loot value during active runs
+- **Supplies Used (beta)**: Live supplies consumed this run and historical totals across runs (visible when enabled)
 
 ### In-Game Overlay
 
@@ -60,11 +63,14 @@ Use the "Reset Stats" button in the side panel to clear all tracked data for the
 
 ## Configuration
 
-The plugin offers three settings:
+The plugin offers several settings:
 
 - **Show Overlay**: Toggle the in-game overlay during runs (default: enabled)
 - **Show Chat Notifications**: Display messages in chat when loot is lost (default: enabled)
 - **Exclude Sun-kissed Bones Value**: Removes 8,000 GP per bone from loot calculations (default: enabled)
+- **Exclude Items Under Value**: Filter out items below the configured GP threshold from panel lists (default: 0 = show all)
+- **Show Supplies Used (beta)**: Show supplies used (live run + all time) in the panel; tracking still occurs even when hidden (default: disabled)
+- **Debug: Log Item Values**: Logs item prices used for calculations when refreshing the panel (default: disabled)
 
 Access settings via the RuneLite Configuration panel → Mokha Loot Tracker
 
@@ -104,6 +110,12 @@ For bugs, feature requests, or questions:
 This plugin is open source and available under standard RuneLite plugin licensing.
 
 ## Changelog
+
+### Unreleased / Latest
+
+- Added supplies tracking (live run + historical), with rune pouch and potion dose normalization, hidden behind a beta toggle; tracking pauses while dead to avoid gravestone wipes
+- Added per-item value threshold filter for panel display
+- Refactored panel rendering into sections for stability and faster updates
 
 ### Version 1.0.0
 
