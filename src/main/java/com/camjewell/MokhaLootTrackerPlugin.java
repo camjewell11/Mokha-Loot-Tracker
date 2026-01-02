@@ -257,8 +257,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
                         }
 
                         recordLostLoot();
-                    } else {
+                    } else if (effectiveDelve > 0) {
+                        // No loot but died in a wave: still save supplies used
+                        recordSuppliesUsed();
                         // Count death even without loot
+                        incrementDeathCounter();
+                    } else {
+                        // Count death even without loot or wave info
                         incrementDeathCounter();
                     }
 
@@ -583,6 +588,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 for (LootItem item : currentUnclaimedLoot) {
                     currentLootValue += getItemValue(item.getId(), item.getQuantity());
                 }
+
+                // Apply exclusion adjustments at tracking time (so config changes mid-wave
+                // don't affect already-tracked loot)
+                currentLootValue = getAdjustedLootValue(currentLootValue, currentUnclaimedLoot);
             }
 
             // Save the current state while interface is visible (before it gets cleared)
@@ -826,8 +835,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Save each wave's incremental loot value and items
         for (int wave = 1; wave <= MAX_TRACKED_WAVES; wave++) {
             if (waveLootValues[wave] > 0) {
-                // Apply adjustment for Sun-kissed Bones if enabled
-                long adjustedWaveValue = getAdjustedLootValue(waveLootValues[wave], waveItemStacks[wave]);
+                // Adjustment already applied at tracking time, use stored value directly
+                long adjustedWaveValue = waveLootValues[wave];
 
                 String waveKey = CONFIG_KEY_WAVE_PREFIX + wave;
                 long existingWaveLost = getLongConfig(configGroup, waveKey);
@@ -880,7 +889,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Get current total lost value
         long totalLost = getLongConfig(configGroup, CONFIG_KEY_TOTAL_LOST);
-        long adjustedTotalValue = getAdjustedLootValue(currentLootValue, currentUnclaimedLoot);
+        // Adjustment already applied at tracking time, use stored value directly
+        long adjustedTotalValue = currentLootValue;
         totalLost += adjustedTotalValue;
 
         // Get current death count
@@ -941,8 +951,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
             int waveIndex = wave;
             long incrementalLoot = waveLootValues[wave];
 
-            // Apply adjustment for Sun-kissed Bones if enabled
-            long adjustedIncrementalLoot = getAdjustedLootValue(incrementalLoot, waveItemStacks[waveIndex]);
+            // Adjustment already applied at tracking time, use stored value directly
+            long adjustedIncrementalLoot = incrementalLoot;
 
             // Save claimed loot for this wave
             String waveKey = CONFIG_KEY_WAVE_CLAIMED_PREFIX + waveIndex;
@@ -1017,7 +1027,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Send chat notification
         if (config.showChatNotifications()) {
-            long adjustedTotalValue = getAdjustedLootValue(lastVisibleLootValue, lastVisibleLootItems);
+            // Adjustment already applied at tracking time, use stored value directly
+            long adjustedTotalValue = lastVisibleLootValue;
             client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
                     "<col=00ff00>Mokha loot claimed!</col> " + QuantityFormatter.quantityToStackSize(adjustedTotalValue)
                             + " gp (Wave " + lastVisibleDelveNumber + ")",
@@ -1044,6 +1055,32 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Update panel stats on client thread (ItemManager requires it)
         clientThread.invokeLater(() -> panel.updateStats());
+    }
+
+    private void recordSuppliesUsed() {
+        // Save supplies used for this run without loot tracking
+        long suppliesCost = getSuppliesUsedValue();
+        if (suppliesCost > 0) {
+            String accountHash = getAccountHash();
+            String configGroup = "mokhaloot." + accountHash;
+
+            long totalSupplies = getLongConfig(configGroup, CONFIG_KEY_TOTAL_SUPPLIES);
+            totalSupplies += suppliesCost;
+            configManager.setConfiguration(configGroup, CONFIG_KEY_TOTAL_SUPPLIES, totalSupplies);
+
+            // Save supplies items (normalize potions by total sips so doses combine)
+            List<LootItem> suppliesUsedItems = getSuppliesUsedItems();
+            if (!suppliesUsedItems.isEmpty()) {
+                String existingSuppliesItems = configManager.getConfiguration(configGroup,
+                        CONFIG_KEY_TOTAL_SUPPLIES_ITEMS);
+                String serializedSupplies = mergeSuppliesTotals(existingSuppliesItems, suppliesUsedItems);
+                configManager.setConfiguration(configGroup, CONFIG_KEY_TOTAL_SUPPLIES_ITEMS, serializedSupplies);
+            }
+            if (config.debugItemValueLogging()) {
+                log.info("[Supplies Debug] Saved supplies on death: value={} gp, items={}", suppliesCost,
+                        serializeItems(getSuppliesUsedItems()));
+            }
+        }
     }
 
     private void resetCurrentLoot() {
@@ -1223,7 +1260,28 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     if (parts.length == 2) {
                         int itemId = Integer.parseInt(parts[0]);
                         int qty = Integer.parseInt(parts[1]);
-                        LootItem li = new LootItem(itemId, qty, null);
+                        // Try to fetch the name to properly identify potions
+                        String itemName = null;
+                        try {
+                            if (client.isClientThread()) {
+                                ItemComposition comp = itemManager.getItemComposition(itemId);
+                                if (comp != null) {
+                                    itemName = comp.getName();
+                                }
+                            }
+                        } catch (Exception e) {
+                            // Ignore; leave name null if unavailable
+                        }
+                        LootItem li = new LootItem(itemId, qty, itemName);
+                        // For existing items, track the dose ID if it's a potion so we can reuse it
+                        if (itemName != null && isPotion(itemName)) {
+                            String base = getPotionBaseName(itemName);
+                            int dose = getPotionDose(itemName);
+                            if (dose > 0) {
+                                observedDoseIds.computeIfAbsent(base, k -> new java.util.HashMap<>())
+                                        .putIfAbsent(dose, itemId);
+                            }
+                        }
                         addItem.accept(li, false);
                     }
                 } catch (NumberFormatException e) {
@@ -1351,7 +1409,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     public long getCurrentLootValue() {
-        return getAdjustedLootValue(currentLootValue, currentUnclaimedLoot);
+        // Adjustment already applied at tracking time, return stored value directly
+        return currentLootValue;
     }
 
     public List<LootItem> getCurrentLootItems() {
@@ -1604,8 +1663,17 @@ public class MokhaLootTrackerPlugin extends Plugin {
             String doseName = base + " (1)";
             int potionId = resolvePotionId(base, 1, potionDoseIds, doseName);
             if (potionId == 0) {
+                // Fallback to livePotionDoseIds if the dose wasn't in initial inventory
+                potionId = resolvePotionId(base, 1, livePotionDoseIds, doseName);
+            }
+            if (potionId == 0) {
+                // Final fallback: use any observed dose id for this base
                 Integer observedAny = potionDoseIds.getOrDefault(base, java.util.Collections.emptyMap())
                         .values().stream().findFirst().orElse(0);
+                if (observedAny == 0) {
+                    observedAny = livePotionDoseIds.getOrDefault(base, java.util.Collections.emptyMap())
+                            .values().stream().findFirst().orElse(0);
+                }
                 potionId = observedAny;
             }
             supplies.add(new LootItem(potionId, totalDoses, doseName));
