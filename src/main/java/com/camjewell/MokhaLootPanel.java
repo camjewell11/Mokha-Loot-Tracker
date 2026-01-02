@@ -123,9 +123,17 @@ public class MokhaLootPanel extends PluginPanel {
         int deaths = plugin.getTimesDied();
         long totalClaimed = plugin.getTotalClaimedValue();
         long deathCosts = plugin.getTotalDeathCosts();
+        long totalSuppliesCost = plugin.getTotalSuppliesCost();
+        long liveSuppliesUsedValue = plugin.getLiveSuppliesUsedValue();
+        boolean showSuppliesUsed = plugin.config.showSuppliesUsedBeta();
         int minValue = plugin.config.minItemValueThreshold();
         long currentRunValue = plugin.getFilteredLootValue(plugin.getCurrentLootItems());
         long currentRunFullValue = plugin.getTotalLootValue(plugin.getCurrentLootItems());
+        // Use totalSuppliesCost (saved) instead of getSuppliesUsedValue() (from current
+        // snapshots)
+        long suppliesUsedValue = totalSuppliesCost;
+        List<com.camjewell.LootItem> liveSuppliesUsedItems = plugin.getLiveSuppliesUsedItems();
+        List<com.camjewell.LootItem> suppliesUsedItems = plugin.getTotalSuppliesItems();
         List<com.camjewell.LootItem> allCurrentRunItems = plugin.getCurrentLootItems();
         List<com.camjewell.LootItem> currentRunItems = (minValue > 0) ? plugin.filterItemsByValue(allCurrentRunItems)
                 : allCurrentRunItems;
@@ -171,44 +179,46 @@ public class MokhaLootPanel extends PluginPanel {
             }
         }
 
-        // Debug logging for item values if enabled
+        // Pre-cache prices for current run items before switching to Swing thread
+        if (currentRunItems != null) {
+            for (com.camjewell.LootItem item : currentRunItems) {
+                if (item.getId() > 0 && !itemPriceCache.containsKey(item.getId())) {
+                    itemPriceCache.put(item.getId(), plugin.getItemValue(item.getId(), 1));
+                }
+            }
+        }
+        // Pre-cache prices for supplies items before switching to Swing thread
+        if (suppliesUsedItems != null) {
+            for (com.camjewell.LootItem item : suppliesUsedItems) {
+                if (item.getId() > 0 && !itemPriceCache.containsKey(item.getId())) {
+                    itemPriceCache.put(item.getId(), plugin.getItemValue(item.getId(), 1));
+                }
+            }
+        }
+        if (liveSuppliesUsedItems != null) {
+            for (com.camjewell.LootItem item : liveSuppliesUsedItems) {
+                if (item.getId() > 0 && !itemPriceCache.containsKey(item.getId())) {
+                    itemPriceCache.put(item.getId(), plugin.getItemValue(item.getId(), 1));
+                }
+            }
+        }
         if (plugin.config.debugItemValueLogging()) {
             log.info("[MokhaLootTracker] Debug: Current Run Items (filtered):");
             for (com.camjewell.LootItem item : currentRunItems) {
-                long value = plugin.getItemValue(item.getId(), item.getQuantity());
+                long pricePerItem = itemPriceCache.getOrDefault(item.getId(), 0L);
+                long value = pricePerItem * item.getQuantity();
                 log.info("  " + (item.getName() != null ? item.getName() : ("Item " + item.getId())) +
-                        " x" + item.getQuantity() + " = " + value + " gp");
+                        " x" + item.getQuantity() + " @ " + pricePerItem + "ea = " + value + " gp");
             }
             // Log excluded items for current run
             if (minValue > 0) {
-                log.info("[MokhaLootTracker] Debug: Current Run Items (excluded by threshold):");
+                log.info("[MokhaLootTracker] Debug: Current Run Items (excluded by threshold < " + minValue + "):");
                 for (com.camjewell.LootItem item : allCurrentRunItems) {
-                    if (plugin.getItemValue(item.getId(), 1) < minValue) {
-                        long value = plugin.getItemValue(item.getId(), item.getQuantity());
+                    long pricePerItem = itemPriceCache.getOrDefault(item.getId(), 0L);
+                    if (pricePerItem < minValue) {
+                        long value = pricePerItem * item.getQuantity();
                         log.info("  " + (item.getName() != null ? item.getName() : ("Item " + item.getId())) +
-                                " x" + item.getQuantity() + " = " + value + " gp");
-                    }
-                }
-            }
-            // Log by wave
-            for (int wave = 1; wave <= 9; wave++) {
-                log.info("[MokhaLootTracker] Debug: Wave " + (wave == 9 ? "9+" : wave) + " Items (filtered):");
-                for (com.camjewell.LootItem item : waveLostItems[wave]) {
-                    long value = plugin.getItemValue(item.getId(), item.getQuantity());
-                    log.info("  " + (item.getName() != null ? item.getName() : ("Item " + item.getId())) +
-                            " x" + item.getQuantity() + " = " + value + " gp");
-                }
-                if (minValue > 0) {
-                    List<com.camjewell.LootItem> lostAll = plugin.getWaveLostItems(wave);
-                    log.info("[MokhaLootTracker] Debug: Wave " + (wave == 9 ? "9+" : wave)
-                            + " Items (excluded by threshold):");
-                    for (com.camjewell.LootItem item : lostAll) {
-                        if (plugin.getItemValue(item.getId(), 1) < minValue) {
-                            long value = plugin.getItemValue(item.getId(), item.getQuantity());
-                            log.info(
-                                    "  " + (item.getName() != null ? item.getName() : ("Item " + item.getId())) +
-                                            " x" + item.getQuantity() + " = " + value + " gp");
-                        }
+                                " x" + item.getQuantity() + " @ " + pricePerItem + "ea = " + value + " gp");
                     }
                 }
             }
@@ -230,14 +240,20 @@ public class MokhaLootPanel extends PluginPanel {
                 profitHeaderPanel.add(profitLossHeader, BorderLayout.WEST);
                 statsPanel.add(profitHeaderPanel);
 
-                // Add summary stats
-                totalLostLabel.setText(QuantityFormatter.quantityToStackSize(totalLost) + " gp");
-                totalLostLabel.setForeground(totalLost > 0 ? Color.RED : Color.WHITE);
-                statsPanel.add(createStatRow("  Total Lost:", totalLostLabel));
-
+                // Add summary stats in new order
                 totalClaimedLabel.setText(QuantityFormatter.quantityToStackSize(totalClaimed) + " gp");
                 totalClaimedLabel.setForeground(totalClaimed > 0 ? new Color(100, 255, 100) : Color.WHITE);
                 statsPanel.add(createStatRow("  Total Claimed:", totalClaimedLabel));
+
+                // Add supply costs (total historical) when enabled
+                if (showSuppliesUsed) {
+                    JLabel supplyCostsLabel = new JLabel();
+                    supplyCostsLabel.setFont(FontManager.getRunescapeFont());
+                    supplyCostsLabel.setText(QuantityFormatter.quantityToStackSize(totalSuppliesCost) + " gp");
+                    supplyCostsLabel
+                            .setForeground(totalSuppliesCost > 0 ? new Color(255, 165, 0) : Color.WHITE);
+                    statsPanel.add(createStatRow("  Supply Costs:", supplyCostsLabel));
+                }
 
                 // Add death costs to summary (always show)
                 JLabel deathCostsLabel = new JLabel();
@@ -245,6 +261,36 @@ public class MokhaLootPanel extends PluginPanel {
                 deathCostsLabel.setText(QuantityFormatter.quantityToStackSize(deathCosts) + " gp");
                 deathCostsLabel.setForeground(deathCosts > 0 ? new Color(255, 100, 100) : Color.WHITE);
                 statsPanel.add(createStatRow("  Death Costs:", deathCostsLabel));
+
+                if (showSuppliesUsed) {
+                    // Add summation line separator
+                    JSeparator summationLine = new JSeparator();
+                    summationLine.setForeground(Color.GRAY);
+                    JPanel summationPanel = new JPanel(new BorderLayout());
+                    summationPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                    summationPanel.setBorder(new EmptyBorder(5, 0, 5, 0));
+                    summationPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 11));
+                    summationPanel.add(summationLine, BorderLayout.CENTER);
+                    statsPanel.add(summationPanel);
+
+                    // Calculate and add Profit/Loss (Total Claimed - Supply Costs - Death Costs)
+                    long profitLoss = totalClaimed - totalSuppliesCost - deathCosts;
+                    JLabel profitLossLabel = new JLabel();
+                    profitLossLabel.setFont(FontManager.getRunescapeBoldFont());
+                    profitLossLabel.setText(QuantityFormatter.quantityToStackSize(profitLoss) + " gp");
+                    if (profitLoss > 0) {
+                        profitLossLabel.setForeground(new Color(100, 255, 100));
+                    } else if (profitLoss < 0) {
+                        profitLossLabel.setForeground(Color.RED);
+                    } else {
+                        profitLossLabel.setForeground(Color.WHITE);
+                    }
+                    statsPanel.add(createStatRow("  Profit/Loss:", profitLossLabel));
+                }
+
+                totalLostLabel.setText(QuantityFormatter.quantityToStackSize(totalLost) + " gp");
+                totalLostLabel.setForeground(totalLost > 0 ? Color.RED : Color.WHITE);
+                statsPanel.add(createStatRow("  Total Lost:", totalLostLabel));
 
                 deathCountLabel.setText(String.format("%s", QuantityFormatter.quantityToStackSize(deaths)));
                 deathCountLabel.setForeground(deaths > 0 ? Color.ORANGE : Color.WHITE);
@@ -344,7 +390,7 @@ public class MokhaLootPanel extends PluginPanel {
                 }
                 currentRunLabel.setText(currentRunText);
                 currentRunLabel.setForeground(currentRunValue > 0 ? Color.CYAN : Color.WHITE);
-                statsPanel.add(createStatRow("  Loss Value:", currentRunLabel));
+                statsPanel.add(createStatRow("  Potential Value:", currentRunLabel));
 
                 // Add current run items
                 if (currentRunItems != null && !currentRunItems.isEmpty()) {
@@ -359,7 +405,7 @@ public class MokhaLootPanel extends PluginPanel {
                                 isHighValue ? FontManager.getRunescapeBoldFont() : FontManager.getRunescapeSmallFont());
                         itemLabel.setText("    " + item.getName() + " x" + item.getQuantity());
                         itemLabel.setForeground(isHighValue ? new Color(255, 215, 0) : Color.LIGHT_GRAY);
-                        long priceEach = plugin.getItemValue(item.getId(), 1);
+                        long priceEach = itemPriceCache.getOrDefault(item.getId(), 0L);
                         itemLabel.setToolTipText(
                                 "Price per item: " + QuantityFormatter.quantityToStackSize(priceEach) + " gp");
 
@@ -371,6 +417,111 @@ public class MokhaLootPanel extends PluginPanel {
                     }
 
                     statsPanel.add(itemsPanel);
+                }
+
+                if (showSuppliesUsed) {
+                    // Add separator before supplies section
+                    JSeparator separator4 = new JSeparator();
+                    separator4.setForeground(Color.DARK_GRAY);
+                    JPanel separatorPanel4 = new JPanel(new BorderLayout());
+                    separatorPanel4.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                    separatorPanel4.setBorder(new EmptyBorder(10, 0, 10, 0));
+                    separatorPanel4.setMaximumSize(new Dimension(Integer.MAX_VALUE, 21));
+                    separatorPanel4.add(separator4, BorderLayout.CENTER);
+                    statsPanel.add(separatorPanel4);
+
+                    // Add supplies used (current run) header
+                    JLabel suppliesHeader = new JLabel("Supplies Used (Current Run):");
+                    suppliesHeader.setFont(FontManager.getRunescapeBoldFont());
+                    suppliesHeader.setForeground(new Color(255, 165, 0)); // Orange
+                    suppliesHeader.setToolTipText(
+                            "Live, monotonic view of supplies consumed during the ongoing run. Hover item names for price per item.");
+                    JPanel suppliesHeaderPanel = new JPanel(new BorderLayout());
+                    suppliesHeaderPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                    suppliesHeaderPanel.setBorder(new EmptyBorder(1, 0, 0, 0));
+                    suppliesHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
+                    suppliesHeaderPanel.add(suppliesHeader, BorderLayout.WEST);
+                    statsPanel.add(suppliesHeaderPanel);
+
+                    // Add supplies value row
+                    JLabel suppliesValueLabel = new JLabel();
+                    suppliesValueLabel.setFont(FontManager.getRunescapeFont());
+                    suppliesValueLabel.setText(QuantityFormatter.quantityToStackSize(liveSuppliesUsedValue) + " gp");
+                    suppliesValueLabel
+                            .setForeground(liveSuppliesUsedValue > 0 ? new Color(255, 165, 0) : Color.WHITE);
+                    statsPanel.add(createStatRow("  Total Value:", suppliesValueLabel));
+
+                    // Add supplies items
+                    if (liveSuppliesUsedItems != null && !liveSuppliesUsedItems.isEmpty()) {
+                        JPanel suppliesItemsPanel = new JPanel();
+                        suppliesItemsPanel.setLayout(new BoxLayout(suppliesItemsPanel, BoxLayout.Y_AXIS));
+                        suppliesItemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+                        for (com.camjewell.LootItem item : liveSuppliesUsedItems) {
+                            JLabel itemLabel = new JLabel();
+                            itemLabel.setFont(FontManager.getRunescapeSmallFont());
+                            itemLabel.setText("    " + item.getName() + " x" + item.getQuantity());
+                            itemLabel.setForeground(Color.LIGHT_GRAY);
+                            long priceEach = itemPriceCache.getOrDefault(item.getId(), 0L);
+                            itemLabel.setToolTipText(
+                                    "Price per item: " + QuantityFormatter.quantityToStackSize(priceEach) + " gp");
+
+                            JPanel itemContainer = new JPanel(new BorderLayout());
+                            itemContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                            itemContainer.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+                            itemContainer.add(itemLabel, BorderLayout.WEST);
+                            suppliesItemsPanel.add(itemContainer);
+                        }
+
+                        statsPanel.add(suppliesItemsPanel);
+                    }
+
+                    // Add historical supplies header
+                    JLabel suppliesAllTimeHeader = new JLabel("Supplies Used (All Time):");
+                    suppliesAllTimeHeader.setFont(FontManager.getRunescapeBoldFont());
+                    suppliesAllTimeHeader.setForeground(new Color(255, 165, 0));
+                    suppliesAllTimeHeader.setToolTipText(
+                            "Total supplies consumed across all runs. Hover item names for price per item.");
+                    JPanel suppliesAllTimeHeaderPanel = new JPanel(new BorderLayout());
+                    suppliesAllTimeHeaderPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                    suppliesAllTimeHeaderPanel.setBorder(new EmptyBorder(6, 0, 0, 0));
+                    suppliesAllTimeHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
+                    suppliesAllTimeHeaderPanel.add(suppliesAllTimeHeader, BorderLayout.WEST);
+                    statsPanel.add(suppliesAllTimeHeaderPanel);
+
+                    // Add historical supplies value row
+                    JLabel suppliesAllTimeValueLabel = new JLabel();
+                    suppliesAllTimeValueLabel.setFont(FontManager.getRunescapeFont());
+                    suppliesAllTimeValueLabel
+                            .setText(QuantityFormatter.quantityToStackSize(suppliesUsedValue) + " gp");
+                    suppliesAllTimeValueLabel
+                            .setForeground(suppliesUsedValue > 0 ? new Color(255, 165, 0) : Color.WHITE);
+                    statsPanel.add(createStatRow("  Total Value:", suppliesAllTimeValueLabel));
+
+                    // Add historical supplies items
+                    if (suppliesUsedItems != null && !suppliesUsedItems.isEmpty()) {
+                        JPanel suppliesItemsPanel = new JPanel();
+                        suppliesItemsPanel.setLayout(new BoxLayout(suppliesItemsPanel, BoxLayout.Y_AXIS));
+                        suppliesItemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+                        for (com.camjewell.LootItem item : suppliesUsedItems) {
+                            JLabel itemLabel = new JLabel();
+                            itemLabel.setFont(FontManager.getRunescapeSmallFont());
+                            itemLabel.setText("    " + item.getName() + " x" + item.getQuantity());
+                            itemLabel.setForeground(Color.LIGHT_GRAY);
+                            long priceEach = itemPriceCache.getOrDefault(item.getId(), 0L);
+                            itemLabel.setToolTipText(
+                                    "Price per item: " + QuantityFormatter.quantityToStackSize(priceEach) + " gp");
+
+                            JPanel itemContainer = new JPanel(new BorderLayout());
+                            itemContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                            itemContainer.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+                            itemContainer.add(itemLabel, BorderLayout.WEST);
+                            suppliesItemsPanel.add(itemContainer);
+                        }
+
+                        statsPanel.add(suppliesItemsPanel);
+                    }
                 }
 
                 statsPanel.revalidate();

@@ -1,26 +1,44 @@
 package com.camjewell;
 
-import com.google.inject.Provides;
-import javax.inject.Inject;
 import java.awt.image.BufferedImage;
-import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.*;
-import net.runelite.api.events.*;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.inject.Inject;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.inject.Provides;
+
+import net.runelite.api.ChatMessageType;
+import net.runelite.api.Client;
+import net.runelite.api.GameState;
+import net.runelite.api.InventoryID;
+import net.runelite.api.Item;
+import net.runelite.api.ItemComposition;
+import net.runelite.api.ItemContainer;
+import net.runelite.api.ItemID;
+import net.runelite.api.Varbits;
+import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.GameTick;
+import net.runelite.api.events.ItemContainerChanged;
+import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.widgets.Widget;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
-import net.runelite.client.game.ItemManager;
-import net.runelite.client.callback.ClientThread;
+import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.QuantityFormatter;
-import java.util.ArrayList;
-import java.util.List;
 
 // Simple class to hold item data for serialization
 class LootItem {
@@ -47,10 +65,10 @@ class LootItem {
     }
 }
 
-@Slf4j
 @PluginDescriptor(name = "Mokha Loot Tracker", description = "Tracks loot lost and claimed at the Doom of Mokhaiotl boss", tags = {
         "mokha", "loot", "boss", "death", "tracking" })
 public class MokhaLootTrackerPlugin extends Plugin {
+    private static final Logger log = LoggerFactory.getLogger(MokhaLootTrackerPlugin.class);
     // High-value items to highlight
     private static final int AVERNIC_TREADS_ID = 33209;
     private static final int MOKHAIOTL_CLOTH_ID = 33210;
@@ -63,9 +81,40 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     private static final int SUN_KISSED_BONES_ID = 29378;
     private static final int SUN_KISSED_BONES_VALUE = 8000;
+    // Mapping of rune pouch varbit values (enum 982) to rune item IDs.
+    // Varbits are 1-based (0 = empty), so index 0 is unused for direct lookup.
+    @SuppressWarnings("deprecation")
+    private static final int[] RUNE_POUCH_ITEM_IDS = new int[] {
+            0, // 0 unused / empty
+            ItemID.AIR_RUNE, // 1
+            ItemID.WATER_RUNE, // 2
+            ItemID.EARTH_RUNE, // 3
+            ItemID.FIRE_RUNE, // 4
+            ItemID.MIND_RUNE, // 5
+            ItemID.CHAOS_RUNE, // 6
+            ItemID.DEATH_RUNE, // 7
+            ItemID.BLOOD_RUNE, // 8
+            ItemID.COSMIC_RUNE, // 9
+            ItemID.NATURE_RUNE, // 10
+            ItemID.LAW_RUNE, // 11
+            ItemID.BODY_RUNE, // 12
+            ItemID.SOUL_RUNE, // 13
+            ItemID.ASTRAL_RUNE, // 14
+            ItemID.MIST_RUNE, // 15
+            ItemID.MUD_RUNE, // 16
+            ItemID.DUST_RUNE, // 17
+            ItemID.LAVA_RUNE, // 18
+            ItemID.STEAM_RUNE, // 19
+            ItemID.SMOKE_RUNE, // 20
+            ItemID.WRATH_RUNE, // 21
+            ItemID.SUNFIRE_RUNE, // 22
+            ItemID.AETHER_RUNE // 23
+    };
     private static final String CONFIG_KEY_TOTAL_LOST = "totalLostValue";
     private static final String CONFIG_KEY_TIMES_DIED = "timesDied";
     private static final String CONFIG_KEY_DEATH_COSTS = "totalDeathCosts";
+    private static final String CONFIG_KEY_TOTAL_SUPPLIES = "totalSuppliesCost";
+    private static final String CONFIG_KEY_TOTAL_SUPPLIES_ITEMS = "totalSuppliesItems";
     private static final String CONFIG_KEY_WAVE_PREFIX = "wave";
     private static final String CONFIG_KEY_WAVE_ITEMS_PREFIX = "waveItems";
     private static final String CONFIG_KEY_WAVE_CLAIMED_PREFIX = "waveClaimed";
@@ -121,6 +170,24 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private long lastVisibleLootValue = 0;
     private List<LootItem> lastVisibleLootItems = new ArrayList<>();
     private int lastVisibleDelveNumber = 0;
+
+    // Track last panel update value to avoid excessive updates
+    private long lastPanelUpdateValue = -1;
+
+    // Supply tracking for current run
+    private java.util.Map<Integer, Integer> initialInventory = new java.util.HashMap<>();
+    private java.util.Map<Integer, Integer> currentInventory = new java.util.HashMap<>();
+    // Monotonic max-consumed tracker for live supplies display
+    private java.util.Map<Integer, Integer> maxConsumedThisRun = new java.util.HashMap<>();
+    // Track potion sips for live tracking
+    private java.util.Map<String, Integer> initialPotionSips = new java.util.HashMap<>();
+    private java.util.Map<String, Integer> maxConsumedPotionSips = new java.util.HashMap<>();
+    private java.util.Map<String, java.util.Map<Integer, Integer>> livePotionDoseIds = new java.util.HashMap<>();
+    // Rune pouch tracking (itemId -> quantity)
+    private java.util.Map<Integer, Integer> initialRunePouch = new java.util.HashMap<>();
+    private java.util.Map<Integer, Integer> currentRunePouch = new java.util.HashMap<>();
+    private java.util.Map<Integer, Integer> maxConsumedRunes = new java.util.HashMap<>();
+    private boolean hasInitialInventory = false;
 
     // Flag to trigger panel refresh after login when account hash becomes available
     private boolean needsPanelRefresh = false;
@@ -196,6 +263,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
             // We're in Mokha arena if either the arena widget or delve widget is present
             inMokhaArena = hasArenaWidget || hasDelveWidget;
+        }
+
+        // Capture initial supplies snapshot immediately on entering the arena so the
+        // first
+        // sip/consumption is recorded (avoids missing the first change-driven event)
+        if (inMokhaArena && !wasInMokhaArena && !hasInitialInventory) {
+            captureInitialSuppliesSnapshot(client.getItemContainer(InventoryID.INVENTORY));
         }
 
         // Note: Claim detection is now handled by onMenuOptionClicked tracking button
@@ -278,6 +352,164 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 lastVisibleLootValue = 0;
                 lastVisibleLootItems.clear();
                 lastVisibleDelveNumber = 0;
+            }
+        }
+    }
+
+    @Subscribe
+    public void onItemContainerChanged(ItemContainerChanged event) {
+        // Only track inventory changes in Mokha arena. If we haven't marked entry yet,
+        // do a lightweight widget check to avoid missing the first sip before the
+        // tick-based arena detection flips the flag.
+        if (!inMokhaArena) {
+            if (!hasInitialInventory) {
+                Widget mokhaWidget = client.getWidget(303, 9);
+                Widget delveWidget = client.getWidget(919, 2);
+                boolean hasArenaWidget = mokhaWidget != null && !mokhaWidget.isHidden()
+                        && mokhaWidget.getText() != null
+                        && mokhaWidget.getText().contains("Mokha");
+                boolean hasDelveWidget = delveWidget != null && !delveWidget.isHidden();
+                if (hasArenaWidget || hasDelveWidget) {
+                    inMokhaArena = true;
+                }
+            }
+            if (!inMokhaArena) {
+                return;
+            }
+        }
+
+        if (event.getContainerId() == InventoryID.INVENTORY.getId()) {
+            ItemContainer container = event.getItemContainer();
+            if (container != null) {
+                // Capture initial snapshot if not yet captured (typically happens on arena
+                // entry)
+                if (!hasInitialInventory) {
+                    captureInitialSuppliesSnapshot(container);
+                }
+
+                // Update current inventory
+                currentInventory.clear();
+                for (Item item : container.getItems()) {
+                    if (item != null && item.getId() > 0) {
+                        currentInventory.put(item.getId(),
+                                currentInventory.getOrDefault(item.getId(), 0) + item.getQuantity());
+                        String itemName = itemManager.getItemComposition(item.getId()).getName();
+                        if (isPotion(itemName)) {
+                            String base = getPotionBaseName(itemName);
+                            int dose = getPotionDose(itemName);
+                            int sips = dose * item.getQuantity();
+                            livePotionDoseIds.computeIfAbsent(base, k -> new java.util.HashMap<>())
+                                    .putIfAbsent(dose, item.getId());
+                        }
+                    }
+                }
+                // Also include currently equipped items
+                ItemContainer equipmentContainer = client.getItemContainer(InventoryID.EQUIPMENT);
+                if (equipmentContainer != null) {
+                    for (Item item : equipmentContainer.getItems()) {
+                        if (item != null && item.getId() > 0) {
+                            currentInventory.put(item.getId(),
+                                    currentInventory.getOrDefault(item.getId(), 0) + item.getQuantity());
+                            String itemName = itemManager.getItemComposition(item.getId()).getName();
+                            if (isPotion(itemName)) {
+                                String base = getPotionBaseName(itemName);
+                                int dose = getPotionDose(itemName);
+                                int sips = dose * item.getQuantity();
+                                livePotionDoseIds.computeIfAbsent(base, k -> new java.util.HashMap<>())
+                                        .putIfAbsent(dose, item.getId());
+                            }
+                        }
+                    }
+                }
+
+                // Update rune pouch tracking
+                currentRunePouch = readRunePouch();
+                for (java.util.Map.Entry<Integer, Integer> entry : currentRunePouch.entrySet()) {
+                    initialRunePouch.putIfAbsent(entry.getKey(), 0);
+                }
+                for (java.util.Map.Entry<Integer, Integer> entry : initialRunePouch.entrySet()) {
+                    int itemId = entry.getKey();
+                    int initialQty = entry.getValue();
+                    int currentQty = currentRunePouch.getOrDefault(itemId, 0);
+                    int usedNow = initialQty - currentQty;
+                    if (usedNow > 0) {
+                        int prevMax = maxConsumedRunes.getOrDefault(itemId, 0);
+                        if (usedNow > prevMax) {
+                            maxConsumedRunes.put(itemId, usedNow);
+                        }
+                    }
+                }
+
+                // Update monotonic consumed tracker based on new snapshot
+                for (java.util.Map.Entry<Integer, Integer> entry : initialInventory.entrySet()) {
+                    int itemId = entry.getKey();
+                    int initialQty = entry.getValue();
+                    int currentQty = currentInventory.getOrDefault(itemId, 0);
+                    int usedNow = initialQty - currentQty;
+
+                    if (usedNow > 0) {
+                        int prevMax = maxConsumedThisRun.getOrDefault(itemId, 0);
+                        if (usedNow > prevMax) {
+                            maxConsumedThisRun.put(itemId, usedNow);
+                        }
+                    }
+                }
+
+                // Potion sip tracking (dose changes do not reduce quantity, so track sips)
+                java.util.Map<String, Integer> currentPotionSips = new java.util.HashMap<>();
+                for (java.util.Map.Entry<Integer, Integer> entry : currentInventory.entrySet()) {
+                    int itemId = entry.getKey();
+                    int qty = entry.getValue();
+                    String itemName = itemManager.getItemComposition(itemId).getName();
+                    if (isPotion(itemName)) {
+                        String base = getPotionBaseName(itemName);
+                        int dose = getPotionDose(itemName);
+                        int sips = dose * qty;
+                        currentPotionSips.put(base, currentPotionSips.getOrDefault(base, 0) + sips);
+                        livePotionDoseIds.computeIfAbsent(base, k -> new java.util.HashMap<>())
+                                .putIfAbsent(dose, itemId);
+                    }
+                }
+                for (java.util.Map.Entry<String, Integer> entry : initialPotionSips.entrySet()) {
+                    String base = entry.getKey();
+                    int initialSips = entry.getValue();
+                    int currentSips = currentPotionSips.getOrDefault(base, 0);
+                    int consumed = initialSips - currentSips;
+                    if (consumed > 0) {
+                        int prevMax = maxConsumedPotionSips.getOrDefault(base, 0);
+                        if (consumed > prevMax) {
+                            maxConsumedPotionSips.put(base, consumed);
+                        }
+                    }
+                }
+
+                if (config.debugItemValueLogging()) {
+                    int invCount = container.getItems().length;
+                    int equipCount = equipmentContainer != null ? equipmentContainer.getItems().length : 0;
+                    log.info(
+                            "[Supplies Debug] Current snapshot (inventory {} slots, equipment {} slots, merged {} entries)",
+                            invCount, equipCount, currentInventory.size());
+                    // Inventory items
+                    log.info("[Supplies Debug]   Inventory items:");
+                    for (Item item : container.getItems()) {
+                        if (item != null && item.getId() > 0) {
+                            String itemName = itemManager.getItemComposition(item.getId()).getName();
+                            log.info("    {} x{}", itemName, item.getQuantity());
+                        }
+                    }
+                    // Equipment items
+                    log.info("[Supplies Debug]   Equipment items:");
+                    if (equipmentContainer != null) {
+                        for (Item item : equipmentContainer.getItems()) {
+                            if (item != null && item.getId() > 0) {
+                                String itemName = itemManager.getItemComposition(item.getId()).getName();
+                                log.info("    {} x{}", itemName, item.getQuantity());
+                            }
+                        }
+                    } else {
+                        log.info("    (none)");
+                    }
+                }
             }
         }
     }
@@ -378,6 +610,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
             // Save the current state while interface is visible (before it gets cleared)
             if (currentLootValue > 0) {
+                // Track if we need to update the panel
+                boolean shouldUpdatePanel = false;
+
                 lastVisibleLootValue = currentLootValue;
                 lastVisibleLootItems = new ArrayList<>(currentUnclaimedLoot);
                 lastVisibleDelveNumber = currentDelveNumber;
@@ -421,9 +656,16 @@ public class MokhaLootTrackerPlugin extends Plugin {
                         previousWaveLootValue = currentLootValue;
                         previousWaveItems = new ArrayList<>(currentUnclaimedLoot);
 
-                        // Update panel to show current run value
-                        panel.updateStats();
+                        shouldUpdatePanel = true;
                     }
+                }
+
+                // Update panel if wave data changed, or if current value changed since last
+                // update
+                // This ensures the panel stays in sync with the overlay during the run
+                if (shouldUpdatePanel || currentLootValue != lastPanelUpdateValue) {
+                    panel.updateStats();
+                    lastPanelUpdateValue = currentLootValue;
                 }
             }
         } else {
@@ -484,6 +726,86 @@ public class MokhaLootTrackerPlugin extends Plugin {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // Capture the initial supplies snapshot (inventory + equipment + rune pouch +
+    // potion doses)
+    private void captureInitialSuppliesSnapshot(ItemContainer inventoryContainer) {
+        if (inventoryContainer == null || hasInitialInventory) {
+            return;
+        }
+
+        initialInventory.clear();
+        initialPotionSips.clear();
+        maxConsumedThisRun.clear();
+        maxConsumedPotionSips.clear();
+        livePotionDoseIds.clear();
+        initialRunePouch = readRunePouch();
+        currentRunePouch = new java.util.HashMap<>(initialRunePouch);
+        maxConsumedRunes.clear();
+
+        for (Item item : inventoryContainer.getItems()) {
+            if (item == null || item.getId() <= 0) {
+                continue;
+            }
+            initialInventory.put(item.getId(), initialInventory.getOrDefault(item.getId(), 0) + item.getQuantity());
+            String itemName = itemManager.getItemComposition(item.getId()).getName();
+            if (isPotion(itemName)) {
+                String base = getPotionBaseName(itemName);
+                int dose = getPotionDose(itemName);
+                int sips = dose * item.getQuantity();
+                initialPotionSips.put(base, initialPotionSips.getOrDefault(base, 0) + sips);
+                livePotionDoseIds.computeIfAbsent(base, k -> new java.util.HashMap<>()).putIfAbsent(dose,
+                        item.getId());
+            }
+        }
+
+        ItemContainer equipmentContainer = client.getItemContainer(InventoryID.EQUIPMENT);
+        if (equipmentContainer != null) {
+            for (Item item : equipmentContainer.getItems()) {
+                if (item == null || item.getId() <= 0) {
+                    continue;
+                }
+                initialInventory.put(item.getId(), initialInventory.getOrDefault(item.getId(), 0) + item.getQuantity());
+                String itemName = itemManager.getItemComposition(item.getId()).getName();
+                if (isPotion(itemName)) {
+                    String base = getPotionBaseName(itemName);
+                    int dose = getPotionDose(itemName);
+                    int sips = dose * item.getQuantity();
+                    initialPotionSips.put(base, initialPotionSips.getOrDefault(base, 0) + sips);
+                    livePotionDoseIds.computeIfAbsent(base, k -> new java.util.HashMap<>()).putIfAbsent(dose,
+                            item.getId());
+                }
+            }
+        }
+
+        hasInitialInventory = true;
+
+        if (config.debugItemValueLogging()) {
+            int invCount = inventoryContainer.getItems().length;
+            int equipCount = equipmentContainer != null ? equipmentContainer.getItems().length : 0;
+            log.info(
+                    "[Supplies Debug] Captured initial snapshot (inventory {} slots, equipment {} slots, merged {} entries)",
+                    invCount, equipCount, initialInventory.size());
+            log.info("[Supplies Debug]   Inventory items:");
+            for (Item item : inventoryContainer.getItems()) {
+                if (item != null && item.getId() > 0) {
+                    String itemName = itemManager.getItemComposition(item.getId()).getName();
+                    log.info("    {} x{}", itemName, item.getQuantity());
+                }
+            }
+            log.info("[Supplies Debug]   Equipment items:");
+            if (equipmentContainer != null) {
+                for (Item item : equipmentContainer.getItems()) {
+                    if (item != null && item.getId() > 0) {
+                        String itemName = itemManager.getItemComposition(item.getId()).getName();
+                        log.info("    {} x{}", itemName, item.getQuantity());
+                    }
+                }
+            } else {
+                log.info("    (none)");
             }
         }
     }
@@ -592,6 +914,27 @@ public class MokhaLootTrackerPlugin extends Plugin {
         configManager.setConfiguration(configGroup, CONFIG_KEY_TOTAL_LOST, totalLost);
         configManager.setConfiguration(configGroup, CONFIG_KEY_TIMES_DIED, timesDied);
 
+        // Save supplies used for this run
+        long suppliesCost = getSuppliesUsedValue();
+        if (suppliesCost > 0) {
+            long totalSupplies = getLongConfig(configGroup, CONFIG_KEY_TOTAL_SUPPLIES);
+            totalSupplies += suppliesCost;
+            configManager.setConfiguration(configGroup, CONFIG_KEY_TOTAL_SUPPLIES, totalSupplies);
+
+            // Save supplies items (normalize potions by total sips so doses combine)
+            List<LootItem> suppliesUsedItems = getSuppliesUsedItems();
+            if (!suppliesUsedItems.isEmpty()) {
+                String existingSuppliesItems = configManager.getConfiguration(configGroup,
+                        CONFIG_KEY_TOTAL_SUPPLIES_ITEMS);
+                String serializedSupplies = mergeSuppliesTotals(existingSuppliesItems, suppliesUsedItems);
+                configManager.setConfiguration(configGroup, CONFIG_KEY_TOTAL_SUPPLIES_ITEMS, serializedSupplies);
+            }
+            if (config.debugItemValueLogging()) {
+                log.info("[Supplies Debug] Saved supplies: value={} gp, items={}", suppliesCost,
+                        serializeItems(getSuppliesUsedItems()));
+            }
+        }
+
         // Send chat notification
         if (config.showChatNotifications()) {
             client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
@@ -600,10 +943,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     null);
         }
 
-        // Update panel stats on Swing thread (data fetched on this client thread)
-        javax.swing.SwingUtilities.invokeLater(() -> {
-            panel.updateStats();
-        });
+        // Update panel stats on client thread (ItemManager requires it)
+        clientThread.invokeLater(() -> panel.updateStats());
     }
 
     private void recordClaimedLoot() {
@@ -676,6 +1017,27 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
         }
 
+        // Save supplies used for this run
+        long suppliesCost = getSuppliesUsedValue();
+        if (suppliesCost > 0) {
+            long totalSupplies = getLongConfig(configGroup, CONFIG_KEY_TOTAL_SUPPLIES);
+            totalSupplies += suppliesCost;
+            configManager.setConfiguration(configGroup, CONFIG_KEY_TOTAL_SUPPLIES, totalSupplies);
+
+            // Save supplies items (normalize potions by total sips so doses combine)
+            List<LootItem> suppliesUsedItems = getSuppliesUsedItems();
+            if (!suppliesUsedItems.isEmpty()) {
+                String existingSuppliesItems = configManager.getConfiguration(configGroup,
+                        CONFIG_KEY_TOTAL_SUPPLIES_ITEMS);
+                String serializedSupplies = mergeSuppliesTotals(existingSuppliesItems, suppliesUsedItems);
+                configManager.setConfiguration(configGroup, CONFIG_KEY_TOTAL_SUPPLIES_ITEMS, serializedSupplies);
+            }
+            if (config.debugItemValueLogging()) {
+                log.info("[Supplies Debug] Saved supplies: value={} gp, items={}", suppliesCost,
+                        serializeItems(getSuppliesUsedItems()));
+            }
+        }
+
         // Send chat notification
         if (config.showChatNotifications()) {
             long adjustedTotalValue = getAdjustedLootValue(lastVisibleLootValue, lastVisibleLootItems);
@@ -685,8 +1047,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     null);
         }
 
-        // Update panel stats
-        panel.updateStats();
+        // Update panel stats on client thread (ItemManager requires it)
+        clientThread.invokeLater(() -> panel.updateStats());
 
         // Reset tracking after claiming
         resetCurrentLoot();
@@ -703,8 +1065,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Save new value
         configManager.setConfiguration(configGroup, CONFIG_KEY_TIMES_DIED, timesDied);
 
-        // Update panel stats
-        panel.updateStats();
+        // Update panel stats on client thread (ItemManager requires it)
+        clientThread.invokeLater(() -> panel.updateStats());
     }
 
     private void resetCurrentLoot() {
@@ -719,6 +1081,19 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
         currentDelveNumber = 0;
         previousDelveNumber = 0;
+        lastPanelUpdateValue = -1; // Reset panel update tracking
+
+        // Reset supply tracking
+        initialInventory.clear();
+        currentInventory.clear();
+        maxConsumedThisRun.clear();
+        initialPotionSips.clear();
+        maxConsumedPotionSips.clear();
+        livePotionDoseIds.clear();
+        initialRunePouch.clear();
+        currentRunePouch.clear();
+        maxConsumedRunes.clear();
+        hasInitialInventory = false;
     }
 
     // Calculate incremental items by comparing current items to previous wave items
@@ -814,6 +1189,97 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return sb.toString();
     }
 
+    // Merge existing serialized supplies totals with new supplies, combining potion
+    // doses (stored as total doses using the (1)-dose item for pricing).
+    private String mergeSuppliesTotals(String existingSerialized, List<LootItem> newItems) {
+        java.util.Map<String, Integer> potionSips = new java.util.HashMap<>(); // base -> total sips
+        java.util.Map<String, java.util.Map<Integer, Integer>> observedDoseIds = new java.util.HashMap<>(); // base ->
+                                                                                                            // (dose ->
+                                                                                                            // id)
+        java.util.Map<Integer, Integer> nonPotions = new java.util.HashMap<>(); // itemId -> qty
+
+        // Helper to process a single item
+        java.util.function.BiConsumer<LootItem, Boolean> addItem = (item, fromNew) -> {
+            if (item == null) {
+                return;
+            }
+            String name = item.getName();
+            // If name missing, try to fetch (we should be on client thread when saving
+            // supplies)
+            if (name == null) {
+                try {
+                    ItemComposition comp = itemManager.getItemComposition(item.getId());
+                    if (comp != null) {
+                        name = comp.getName();
+                    }
+                } catch (Exception e) {
+                    // Ignore; leave name null if unavailable
+                }
+            }
+
+            if (name != null && isPotion(name)) {
+                int dose = getPotionDose(name);
+                if (dose > 0) {
+                    String base = getPotionBaseName(name);
+                    int sips = dose * item.getQuantity();
+                    potionSips.put(base, potionSips.getOrDefault(base, 0) + sips);
+                    if (fromNew) {
+                        observedDoseIds.computeIfAbsent(base, k -> new java.util.HashMap<>())
+                                .putIfAbsent(dose, item.getId());
+                    }
+                    return;
+                }
+            }
+
+            // Non-potion or unknown dose: aggregate by id
+            nonPotions.put(item.getId(), nonPotions.getOrDefault(item.getId(), 0) + item.getQuantity());
+        };
+
+        // Parse existing serialized supplies
+        if (existingSerialized != null && !existingSerialized.isEmpty()) {
+            String[] pairs = existingSerialized.split(",");
+            for (String pair : pairs) {
+                try {
+                    String[] parts = pair.split(":");
+                    if (parts.length == 2) {
+                        int itemId = Integer.parseInt(parts[0]);
+                        int qty = Integer.parseInt(parts[1]);
+                        LootItem li = new LootItem(itemId, qty, null);
+                        addItem.accept(li, false);
+                    }
+                } catch (NumberFormatException e) {
+                    log.error("Error parsing supplies item pair: {}", pair, e);
+                }
+            }
+        }
+
+        // Add new items
+        for (LootItem li : newItems) {
+            addItem.accept(li, true);
+        }
+
+        // Rebuild normalized list using total doses (1-dose item as unit)
+        List<LootItem> normalized = new ArrayList<>();
+
+        for (java.util.Map.Entry<String, Integer> entry : potionSips.entrySet()) {
+            String base = entry.getKey();
+            int totalDoses = entry.getValue();
+            if (totalDoses <= 0) {
+                continue;
+            }
+            String name = base + " (1)";
+            int id = resolvePotionId(base, 1, observedDoseIds, name);
+            normalized.add(new LootItem(id, totalDoses, name));
+        }
+
+        // Non-potions
+        for (java.util.Map.Entry<Integer, Integer> entry : nonPotions.entrySet()) {
+            normalized.add(new LootItem(entry.getKey(), entry.getValue(), null));
+        }
+
+        return serializeItems(normalized);
+    }
+
     // Deserialize items from string and merge with existing items
     private List<LootItem> deserializeAndMergeItems(String serialized) {
         java.util.Map<Integer, Integer> itemMap = new java.util.HashMap<>();
@@ -876,6 +1342,19 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return getLongConfig(configGroup, CONFIG_KEY_DEATH_COSTS);
     }
 
+    public long getTotalSuppliesCost() {
+        String accountHash = getAccountHash();
+        String configGroup = "mokhaloot." + accountHash;
+        return getLongConfig(configGroup, CONFIG_KEY_TOTAL_SUPPLIES);
+    }
+
+    public List<LootItem> getTotalSuppliesItems() {
+        String accountHash = getAccountHash();
+        String configGroup = "mokhaloot." + accountHash;
+        String serialized = configManager.getConfiguration(configGroup, CONFIG_KEY_TOTAL_SUPPLIES_ITEMS);
+        return deserializeAndMergeItems(serialized);
+    }
+
     public long getTotalClaimedValue() {
         String accountHash = getAccountHash();
         String configGroup = "mokhaloot." + accountHash;
@@ -897,6 +1376,359 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Removed testMode and test item injection
 
         return items;
+    }
+
+    // Helper methods for potion handling
+    private boolean isPotion(String itemName) {
+        if (itemName == null) {
+            return false;
+        }
+
+        // Treat any item with a (1-4) dose suffix as a potion for sip tracking
+        int dose = getPotionDose(itemName);
+        return dose >= 1 && dose <= 4;
+    }
+
+    private String getPotionBaseName(String itemName) {
+        // Extract base name by removing the dose indicator e.g. "Prayer Potion (4)" ->
+        // "Prayer Potion"
+        if (itemName == null || !itemName.contains("(")) {
+            return itemName;
+        }
+        return itemName.substring(0, itemName.lastIndexOf("(")).trim();
+    }
+
+    // Resolve a potion item id for a base name and dose. Prefer observed ids;
+    // fallback to search on client thread; else 0.
+    private int resolvePotionId(String baseName, int dose,
+            java.util.Map<String, java.util.Map<Integer, Integer>> doseMap,
+            String displayName) {
+        try {
+            Integer observed = doseMap.getOrDefault(baseName, java.util.Collections.emptyMap()).get(dose);
+            if (observed != null) {
+                return observed;
+            }
+            if (client.isClientThread()) {
+                // Attempt to find matching item by exact name "Base (dose)"
+                String searchName = baseName + " (" + dose + ")";
+                java.util.List<net.runelite.http.api.item.ItemPrice> results = itemManager.search(searchName);
+                if (results != null) {
+                    for (net.runelite.http.api.item.ItemPrice ip : results) {
+                        if (ip.getName().equalsIgnoreCase(searchName)) {
+                            return ip.getId();
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[Supplies Debug] Failed to resolve potion id for {}: {}", displayName, e.getMessage());
+        }
+        return 0; // Fallback; will display name but price 0
+    }
+
+    private int getPotionDose(String itemName) {
+        // Extract dose from name e.g. "Prayer Potion (4)" -> 4
+        if (itemName == null || !itemName.contains("(")) {
+            return 0;
+        }
+        try {
+            String doseStr = itemName.substring(itemName.lastIndexOf("(") + 1, itemName.lastIndexOf(")"));
+            return Integer.parseInt(doseStr);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private long computeSuppliesValue(java.util.Map<Integer, Integer> usageMap, boolean logItems) {
+        long totalValue = 0;
+        for (java.util.Map.Entry<Integer, Integer> entry : usageMap.entrySet()) {
+            int itemId = entry.getKey();
+            int used = entry.getValue();
+
+            if (used > 0) {
+                if (logItems && config.debugItemValueLogging()) {
+                    int currentQty = currentInventory.getOrDefault(itemId, 0);
+                    int initialQty = initialInventory.getOrDefault(itemId, 0);
+                    log.info("[Supplies Debug] Item ID {}: initial={}, current={}, used={}",
+                            itemId, initialQty, currentQty, used);
+                }
+                long itemValue = getItemValue(itemId, used);
+                totalValue += itemValue;
+                if (logItems && config.debugItemValueLogging()) {
+                    log.info("[Supplies Debug]   Item {} value: {} gp", itemId, itemValue);
+                }
+            }
+        }
+        if (logItems && config.debugItemValueLogging()) {
+            log.info("[Supplies Debug] Total supplies value: {} gp", totalValue);
+        }
+        return totalValue;
+    }
+
+    private java.util.Map<String, Integer> computePotionSips(java.util.Map<Integer, Integer> inv) {
+        java.util.Map<String, Integer> sips = new java.util.HashMap<>();
+        for (java.util.Map.Entry<Integer, Integer> entry : inv.entrySet()) {
+            int itemId = entry.getKey();
+            int qty = entry.getValue();
+            String itemName = itemManager.getItemComposition(itemId).getName();
+            if (isPotion(itemName)) {
+                String base = getPotionBaseName(itemName);
+                int dose = getPotionDose(itemName);
+                int total = dose * qty;
+                sips.put(base, sips.getOrDefault(base, 0) + total);
+            }
+        }
+        return sips;
+    }
+
+    // Read rune pouch contents (including divine rune pouch 4th slot) into itemId
+    // -> quantity map
+    private java.util.Map<Integer, Integer> readRunePouch() {
+        java.util.Map<Integer, Integer> map = new java.util.HashMap<>();
+        int[] runeVarbits = new int[] { Varbits.RUNE_POUCH_RUNE1, Varbits.RUNE_POUCH_RUNE2, Varbits.RUNE_POUCH_RUNE3,
+                Varbits.RUNE_POUCH_RUNE4, Varbits.RUNE_POUCH_RUNE5, Varbits.RUNE_POUCH_RUNE6 };
+        int[] amtVarbits = new int[] { Varbits.RUNE_POUCH_AMOUNT1, Varbits.RUNE_POUCH_AMOUNT2,
+                Varbits.RUNE_POUCH_AMOUNT3,
+                Varbits.RUNE_POUCH_AMOUNT4, Varbits.RUNE_POUCH_AMOUNT5, Varbits.RUNE_POUCH_AMOUNT6 };
+
+        for (int i = 0; i < runeVarbits.length; i++) {
+            int runeVar = client.getVarbitValue(runeVarbits[i]);
+            int amt = client.getVarbitValue(amtVarbits[i]);
+            if (runeVar <= 0 || amt <= 0) {
+                continue; // 0 means empty slot
+            }
+            if (runeVar >= RUNE_POUCH_ITEM_IDS.length) {
+                continue; // Unknown rune index
+            }
+            int itemId = RUNE_POUCH_ITEM_IDS[runeVar];
+            if (itemId <= 0) {
+                continue;
+            }
+            map.put(itemId, map.getOrDefault(itemId, 0) + amt);
+        }
+        return map;
+    }
+
+    private List<LootItem> buildSuppliesFromUsage(java.util.Map<Integer, Integer> usageMap, boolean logItems) {
+        List<LootItem> supplies = new ArrayList<>();
+        java.util.Map<String, Integer> potionTotalSips = new java.util.HashMap<>();
+        java.util.Map<String, java.util.Map<Integer, Integer>> potionDoseIds = new java.util.HashMap<>();
+
+        if (logItems && config.debugItemValueLogging()) {
+            log.info("[Supplies Debug] Processing supplies used items...");
+        }
+
+        for (java.util.Map.Entry<Integer, Integer> entry : usageMap.entrySet()) {
+            int itemId = entry.getKey();
+            int used = entry.getValue();
+            if (used <= 0) {
+                continue;
+            }
+
+            String itemName = itemManager.getItemComposition(itemId).getName();
+            if (logItems && config.debugItemValueLogging()) {
+                log.info("[Supplies Debug] Processing item {} ({}): used={}", itemId, itemName, used);
+            }
+
+            if (isPotion(itemName)) {
+                String baseName = getPotionBaseName(itemName);
+                int dose = getPotionDose(itemName);
+                int totalSips = used * dose;
+                potionTotalSips.put(baseName, potionTotalSips.getOrDefault(baseName, 0) + totalSips);
+                potionDoseIds.computeIfAbsent(baseName, k -> new java.util.HashMap<>()).putIfAbsent(dose, itemId);
+                if (logItems && config.debugItemValueLogging()) {
+                    log.info("[Supplies Debug]   Potion: base={}, dose={}, sips added={}, total sips={}",
+                            baseName, dose, totalSips, potionTotalSips.get(baseName));
+                }
+            } else {
+                supplies.add(new LootItem(itemId, used, itemName));
+                if (logItems && config.debugItemValueLogging()) {
+                    log.info("[Supplies Debug]   Non-potion supply added: {} x{}", itemName, used);
+                }
+            }
+        }
+
+        for (java.util.Map.Entry<String, Integer> entry : potionTotalSips.entrySet()) {
+            String baseName = entry.getKey();
+            int totalDoses = entry.getValue();
+
+            if (logItems && config.debugItemValueLogging()) {
+                log.info("[Supplies Debug] Potion breakdown for {}: total doses={}", baseName, totalDoses);
+            }
+
+            if (totalDoses > 0) {
+                String doseName = baseName + " (1)";
+                int potionId = resolvePotionId(baseName, 1, potionDoseIds, doseName);
+                supplies.add(new LootItem(potionId, totalDoses, doseName));
+                if (logItems && config.debugItemValueLogging()) {
+                    log.info("[Supplies Debug]   Added {} x{} (id={})", doseName, totalDoses, potionId);
+                }
+            }
+        }
+
+        if (logItems && config.debugItemValueLogging()) {
+            log.info("[Supplies Debug] Final supplies list size: {}", supplies.size());
+        }
+
+        return supplies;
+    }
+
+    public long getSuppliesUsedValue() {
+        if (!hasInitialInventory) {
+            return 0;
+        }
+
+        long total = 0;
+        for (LootItem li : getSuppliesUsedItems()) {
+            if (li.getId() > 0) {
+                total += getItemValue(li.getId(), li.getQuantity());
+            }
+        }
+        return total;
+    }
+
+    public List<LootItem> getSuppliesUsedItems() {
+        if (!hasInitialInventory) {
+            return new ArrayList<>();
+        }
+
+        java.util.Map<Integer, Integer> usageMap = new java.util.HashMap<>();
+        java.util.Map<String, Integer> potionSipsUsed = new java.util.HashMap<>();
+        java.util.Map<String, java.util.Map<Integer, Integer>> potionDoseIds = new java.util.HashMap<>();
+
+        // Non-potion delta by quantity; collect potion IDs for lookup only
+        for (java.util.Map.Entry<Integer, Integer> entry : initialInventory.entrySet()) {
+            int itemId = entry.getKey();
+            int used = entry.getValue() - currentInventory.getOrDefault(itemId, 0);
+            if (used <= 0) {
+                continue;
+            }
+            String name = itemManager.getItemComposition(itemId).getName();
+            if (isPotion(name)) {
+                String base = getPotionBaseName(name);
+                int dose = getPotionDose(name);
+                potionDoseIds.computeIfAbsent(base, k -> new java.util.HashMap<>()).putIfAbsent(dose, itemId);
+            } else {
+                usageMap.put(itemId, used);
+            }
+        }
+
+        // Rune pouch consumption (non-potion)
+        for (java.util.Map.Entry<Integer, Integer> entry : initialRunePouch.entrySet()) {
+            int itemId = entry.getKey();
+            int initialQty = entry.getValue();
+            int currentQty = currentRunePouch.getOrDefault(itemId, 0);
+            int netUsed = initialQty - currentQty;
+            int trackedMax = maxConsumedRunes.getOrDefault(itemId, 0);
+            int used = Math.max(netUsed, trackedMax);
+            if (used > 0) {
+                usageMap.put(itemId, usageMap.getOrDefault(itemId, 0) + used);
+            }
+        }
+
+        // Potion consumption by sips (handles dose changes)
+        if (initialPotionSips.isEmpty()) {
+            initialPotionSips.putAll(computePotionSips(initialInventory));
+        }
+        java.util.Map<String, Integer> currentPotionSips = computePotionSips(currentInventory);
+        for (java.util.Map.Entry<String, Integer> entry : initialPotionSips.entrySet()) {
+            String base = entry.getKey();
+            int initialSips = entry.getValue();
+            int currentSips = currentPotionSips.getOrDefault(base, 0);
+            int consumed = initialSips - currentSips;
+            if (consumed > 0) {
+                potionSipsUsed.put(base, consumed);
+            }
+        }
+
+        // Build non-potion supplies
+        List<LootItem> supplies = buildSuppliesFromUsage(usageMap, true);
+
+        // Build potion supplies from total dose counts
+        for (java.util.Map.Entry<String, Integer> entry : potionSipsUsed.entrySet()) {
+            String base = entry.getKey();
+            int totalDoses = entry.getValue();
+            if (totalDoses <= 0) {
+                continue;
+            }
+
+            String doseName = base + " (1)";
+            int potionId = resolvePotionId(base, 1, potionDoseIds, doseName);
+            supplies.add(new LootItem(potionId, totalDoses, doseName));
+            if (config.debugItemValueLogging()) {
+                log.info("[Supplies Debug]   Added {} x{} (id={})", doseName, totalDoses, potionId);
+            }
+        }
+
+        if (config.debugItemValueLogging()) {
+            log.info("[Supplies Debug] Final supplies list size: {}", supplies.size());
+        }
+
+        return supplies;
+    }
+
+    public long getLiveSuppliesUsedValue() {
+        if (!hasInitialInventory) {
+            return 0;
+        }
+
+        long total = 0;
+        for (LootItem li : getLiveSuppliesUsedItems()) {
+            if (li.getId() > 0) {
+                total += getItemValue(li.getId(), li.getQuantity());
+            }
+        }
+        return total;
+    }
+
+    public List<LootItem> getLiveSuppliesUsedItems() {
+        if (!hasInitialInventory) {
+            return new ArrayList<>();
+        }
+
+        java.util.Map<Integer, Integer> usageMap = new java.util.HashMap<>();
+        for (java.util.Map.Entry<Integer, Integer> entry : maxConsumedThisRun.entrySet()) {
+            if (entry.getValue() <= 0) {
+                continue;
+            }
+            int itemId = entry.getKey();
+            String name = itemManager.getItemComposition(itemId).getName();
+            if (isPotion(name)) {
+                // Track via dose-based map instead
+                continue;
+            }
+            usageMap.put(itemId, entry.getValue());
+        }
+
+        // Include rune pouch consumption in live view
+        for (java.util.Map.Entry<Integer, Integer> entry : maxConsumedRunes.entrySet()) {
+            int used = entry.getValue();
+            if (used > 0) {
+                int itemId = entry.getKey();
+                usageMap.put(itemId, usageMap.getOrDefault(itemId, 0) + used);
+            }
+        }
+
+        List<LootItem> nonPotion = buildSuppliesFromUsage(usageMap, false);
+
+        // Build potion items from total dose counts
+        List<LootItem> potions = new ArrayList<>();
+        for (java.util.Map.Entry<String, Integer> entry : maxConsumedPotionSips.entrySet()) {
+            String base = entry.getKey();
+            int totalDoses = entry.getValue();
+            if (totalDoses <= 0) {
+                continue;
+            }
+
+            String name = base + " (1)";
+            int id = resolvePotionId(base, 1, livePotionDoseIds, name);
+            potions.add(new LootItem(id, totalDoses, name));
+        }
+
+        List<LootItem> combined = new ArrayList<>(nonPotion.size() + potions.size());
+        combined.addAll(nonPotion);
+        combined.addAll(potions);
+        return combined;
     }
 
     public boolean isHighValueItem(int itemId) {
@@ -1113,13 +1945,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Reset death costs
         configManager.unsetConfiguration(configGroup, CONFIG_KEY_DEATH_COSTS);
 
-        // Update panel stats on client thread (to fetch item names), then refresh UI
+        // Reset supplies costs
+        configManager.unsetConfiguration(configGroup, CONFIG_KEY_TOTAL_SUPPLIES);
+        configManager.unsetConfiguration(configGroup, CONFIG_KEY_TOTAL_SUPPLIES_ITEMS);
+
+        // Update panel stats on client thread (to fetch item names and prices)
         clientThread.invokeLater(() -> {
-            javax.swing.SwingUtilities.invokeLater(() -> {
-                panel.updateStats();
-                panel.revalidate();
-                panel.repaint();
-            });
+            panel.updateStats();
         });
     }
 

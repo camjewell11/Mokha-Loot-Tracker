@@ -27,6 +27,11 @@ public interface MokhaLootTrackerConfig extends Config {
 		return true;
 	}
 
+	@ConfigItem(keyName = "showSuppliesUsedBeta", name = "Show Supplies Used (beta)", description = "Enable supplies-used summary and item breakdown. Beta feature: tracking still occurs even when disabled.", position = 4)
+	default boolean showSuppliesUsedBeta() {
+		return false;
+	}
+
 	@ConfigItem(keyName = "debugItemValueLogging", name = "Debug: Log Item Values", description = "If enabled, logs the value of all earned and excluded items for each wave and current run when the panel is refreshed.", position = 99)
 	default boolean debugItemValueLogging() {
 		return false;
