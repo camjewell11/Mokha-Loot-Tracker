@@ -1243,6 +1243,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
             String name = base + " (1)";
             int id = resolvePotionId(base, 1, observedDoseIds, name);
+            if (id == 0) {
+                // Fallback to the most recently observed dose id if we can't resolve a (1)
+                Integer observedAny = observedDoseIds.getOrDefault(base, java.util.Collections.emptyMap())
+                        .values().stream().findFirst().orElse(0);
+                id = observedAny;
+            }
             normalized.add(new LootItem(id, totalDoses, name));
         }
 
@@ -1385,6 +1391,16 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
         } catch (Exception e) {
             log.warn("[Supplies Debug] Failed to resolve potion id for {}: {}", displayName, e.getMessage());
+        }
+        // Final fallback: return any observed id for this base, any dose
+        try {
+            if (doseMap != null && doseMap.containsKey(baseName)) {
+                java.util.Map<Integer, Integer> observed = doseMap.get(baseName);
+                if (observed != null && !observed.isEmpty()) {
+                    return observed.values().iterator().next();
+                }
+            }
+        } catch (Exception ignored) {
         }
         return 0; // Fallback; will display name but price 0
     }
@@ -1580,6 +1596,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
             String doseName = base + " (1)";
             int potionId = resolvePotionId(base, 1, potionDoseIds, doseName);
+            if (potionId == 0) {
+                Integer observedAny = potionDoseIds.getOrDefault(base, java.util.Collections.emptyMap())
+                        .values().stream().findFirst().orElse(0);
+                potionId = observedAny;
+            }
             supplies.add(new LootItem(potionId, totalDoses, doseName));
             if (config.debugItemValueLogging()) {
                 log.info("[Supplies Debug]   Added {} x{} (id={})", doseName, totalDoses, potionId);
