@@ -56,6 +56,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     private static final int SUN_KISSED_BONES_ID = 29378;
     private static final int SUN_KISSED_BONES_VALUE = 8000;
+
+    private static final int SPIRIT_SEEDS_ID = 5317;
+    private static final int SPIRIT_SEED_VALUE = 140000;
+
     private static final String CONFIG_KEY_TOTAL_LOST = "totalLostValue";
     private static final String CONFIG_KEY_TIMES_DIED = "timesDied";
     private static final String CONFIG_KEY_DEATH_COSTS = "totalDeathCosts";
@@ -285,6 +289,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (configChanged.getGroup().equals("mokhaloot")) {
             if (configChanged.getKey().equals("excludeSunKissedBonesValue") ||
                     configChanged.getKey().equals("minItemValueThreshold") ||
+                    configChanged.getKey().equals("excludeSpiritSeedsValue") ||
                     configChanged.getKey().equals("showSuppliesUsedBeta")) {
                 // Refresh panel when display-related settings change
                 clientThread.invokeLater(() -> panel.updateStats());
@@ -1120,9 +1125,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return 0;
     }
 
-    // Calculate loot value with optional Sun-kissed Bones exclusion
+    // Calculate loot value with optional Sun-kissed Bones or Spirit Seeds exclusion
     private long getAdjustedLootValue(long baseValue, List<LootItem> items) {
-        boolean excludeEnabled = config.excludeSunKissedBonesValue();
+        boolean excludeEnabled = config.excludeSunKissedBonesValue() || config.excludeSpiritSeedValue();
 
         if (!excludeEnabled) {
             return baseValue;
@@ -1134,9 +1139,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         long adjustment = 0;
         for (LootItem item : items) {
-            if (item.getId() == SUN_KISSED_BONES_ID) {
-                adjustment = (long) item.getQuantity() * SUN_KISSED_BONES_VALUE;
-                break;
+            if (item.getId() == SUN_KISSED_BONES_ID && config.excludeSunKissedBonesValue()) {
+                adjustment += (long) item.getQuantity() * SUN_KISSED_BONES_VALUE;
+            }
+            if (item.getId() == SPIRIT_SEEDS_ID && config.excludeSpiritSeedValue()) {
+                adjustment += (long) item.getQuantity() * SPIRIT_SEED_VALUE;
             }
         }
 

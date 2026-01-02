@@ -7,7 +7,7 @@ import net.runelite.client.config.ConfigItem;
 @ConfigGroup("mokhaloot")
 public interface MokhaLootTrackerConfig extends Config {
 
-	@ConfigItem(keyName = "minItemValueThreshold", name = "Exclude Items Under Value", description = "Items individually valued under this amount will be excluded from wave value and item lists. Set to 0 to show all items. The panel will show both filtered and full values.", position = 3)
+	@ConfigItem(keyName = "minItemValueThreshold", name = "Exclude Items Under Value", description = "Items individually valued under this amount will be excluded from wave value and item lists. Set to 0 to show all items. The panel will show both filtered and full values.", position = 4)
 	default int minItemValueThreshold() {
 		return 0;
 	}
@@ -27,7 +27,12 @@ public interface MokhaLootTrackerConfig extends Config {
 		return true;
 	}
 
-	@ConfigItem(keyName = "showSuppliesUsedBeta", name = "Show Supplies Used (beta)", description = "Enable supplies-used summary and item breakdown. Beta feature: tracking still occurs even when disabled.", position = 4)
+	@ConfigItem(keyName = "excludeSpiritSeedValue", name = "Exclude Spirit Seeds Value", description = "Exclude Spirit Seeds value from loot tracking. If enabled, seeds are not counted in lost/claimed values.", position = 3)
+	default boolean excludeSpiritSeedValue() {
+		return false;
+	}
+
+	@ConfigItem(keyName = "showSuppliesUsedBeta", name = "Show Supplies Used (beta)", description = "Enable supplies-used summary and item breakdown. Beta feature: tracking still occurs even when disabled.", position = 5)
 	default boolean showSuppliesUsedBeta() {
 		return false;
 	}
