@@ -11,6 +11,8 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 
+import com.camjewell.util.PotionUtil;
+
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.util.QuantityFormatter;
@@ -27,7 +29,7 @@ class SuppliesSectionRenderer {
         suppliesHeader.setFont(FontManager.getRunescapeBoldFont());
         suppliesHeader.setForeground(new Color(255, 165, 0));
         suppliesHeader.setToolTipText(
-                "Live, monotonic view of supplies consumed during the ongoing run. Hover item names for price per item.");
+                "Monotonic view of supplies consumed during the ongoing run. Hover item names for price per item.");
         JPanel suppliesHeaderPanel = new JPanel(new BorderLayout());
         suppliesHeaderPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         suppliesHeaderPanel.setBorder(new EmptyBorder(1, 0, 0, 0));
@@ -41,7 +43,7 @@ class SuppliesSectionRenderer {
         suppliesValueLabel.setForeground(supplies.getLiveValue() > 0 ? new Color(255, 165, 0) : Color.WHITE);
         statsPanel.add(rowFactory.apply("  Total Value:", suppliesValueLabel));
 
-        addSuppliesList(statsPanel, supplies.getLiveItems(), priceCache, "Live");
+        addSuppliesList(statsPanel, supplies.getLiveItems(), priceCache, "");
 
         JLabel suppliesAllTimeHeader = new JLabel("Supplies Used:");
         suppliesAllTimeHeader.setFont(FontManager.getRunescapeBoldFont());
@@ -97,11 +99,16 @@ class SuppliesSectionRenderer {
 
             for (LootItem item : groupItems) {
                 String itemName = item.getName() != null ? item.getName() : "Item " + item.getId();
+                String displayName = stripTrailingDose(itemName);
                 JLabel itemLabel = new JLabel();
                 itemLabel.setFont(FontManager.getRunescapeSmallFont());
-                itemLabel.setText("    " + itemName + " x" + item.getQuantity());
+                itemLabel.setText("    " + displayName + " x" + item.getQuantity());
                 itemLabel.setForeground(Color.LIGHT_GRAY);
                 long priceEach = priceCache.getOrDefault(item.getId(), 0L);
+                int dose = PotionUtil.getPotionDose(itemName);
+                if (dose > 1 && priceEach > 0) {
+                    priceEach = priceEach / dose;
+                }
                 itemLabel.setToolTipText(
                         "Price per item: " + QuantityFormatter.quantityToStackSize(priceEach) + " gp");
 
@@ -118,10 +125,10 @@ class SuppliesSectionRenderer {
 
     private static java.util.LinkedHashMap<String, List<LootItem>> groupSupplies(List<LootItem> items) {
         java.util.LinkedHashMap<String, List<LootItem>> groups = new java.util.LinkedHashMap<>();
-        groups.put("Runes", new java.util.ArrayList<>());
         groups.put("Potions", new java.util.ArrayList<>());
         groups.put("Food", new java.util.ArrayList<>());
         groups.put("Ammo", new java.util.ArrayList<>());
+        groups.put("Runes", new java.util.ArrayList<>());
         groups.put("Other", new java.util.ArrayList<>());
 
         for (LootItem item : items) {
@@ -159,5 +166,21 @@ class SuppliesSectionRenderer {
         return lower.contains("arrow") || lower.contains("bolt") || lower.contains("dart")
                 || lower.contains("knife") || lower.contains("javelin") || lower.contains("chinchompa")
                 || lower.contains("cannonball") || lower.contains("throwing");
+    }
+
+    private static String stripTrailingDose(String name) {
+        if (name == null) {
+            return "";
+        }
+        int open = name.lastIndexOf('(');
+        int close = name.lastIndexOf(')');
+        if (open > 0 && close > open && close == name.length() - 1) {
+            String inner = name.substring(open + 1, close).trim();
+            boolean numeric = inner.chars().allMatch(Character::isDigit);
+            if (numeric) {
+                return name.substring(0, open).trim();
+            }
+        }
+        return name;
     }
 }
