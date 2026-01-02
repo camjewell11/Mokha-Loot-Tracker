@@ -124,10 +124,12 @@ public class MokhaLootPanel extends PluginPanel {
                 statsPanel.removeAll();
                 SummarySectionRenderer.render(statsPanel, data.getSummary(), data.isShowSuppliesUsed(),
                         createRowFactory());
-                WaveSectionRenderer.renderLost(statsPanel, data.getLostWaves(), data.getItemPriceCache(), plugin);
-                WaveSectionRenderer.renderClaimed(statsPanel, data.getClaimedWaves(), data.getItemPriceCache(), plugin);
                 CurrentRunSectionRenderer.render(statsPanel, data.getCurrentRun(), data.getItemPriceCache(), plugin,
                         createRowFactory());
+                statsPanel.add(PanelSectionUtil.createSeparator(10));
+                WaveSectionRenderer.renderClaimed(statsPanel, data.getClaimedWaves(), data.getItemPriceCache(), plugin);
+                statsPanel.add(PanelSectionUtil.createSeparator(10));
+                WaveSectionRenderer.renderLost(statsPanel, data.getLostWaves(), data.getItemPriceCache(), plugin);
                 if (data.isShowSuppliesUsed() && data.getSupplies() != null) {
                     SuppliesSectionRenderer.render(statsPanel, data.getSupplies(), data.getItemPriceCache(),
                             createRowFactory());

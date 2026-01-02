@@ -35,8 +35,6 @@ class WaveSectionRenderer {
         for (WaveData wave : waves) {
             addLostWaveSection(statsPanel, wave, priceCache, plugin);
         }
-
-        statsPanel.add(PanelSectionUtil.createSeparator(10));
     }
 
     static void renderClaimed(JPanel statsPanel, List<WaveData> waves, Map<Integer, Long> priceCache,
@@ -56,8 +54,6 @@ class WaveSectionRenderer {
         for (WaveData wave : waves) {
             addClaimedWaveSection(statsPanel, wave, priceCache, plugin);
         }
-
-        statsPanel.add(PanelSectionUtil.createSeparator(10));
     }
 
     private static void addLostWaveSection(JPanel statsPanel, WaveData wave, Map<Integer, Long> priceCache,
