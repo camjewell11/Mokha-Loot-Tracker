@@ -14,8 +14,6 @@ import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.border.EmptyBorder;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;
@@ -27,7 +25,6 @@ import net.runelite.client.util.QuantityFormatter;
 public class MokhaLootPanel extends PluginPanel {
     private final MokhaLootTrackerPlugin plugin;
     private final ItemManager itemManager;
-    private static final Logger log = LoggerFactory.getLogger(MokhaLootPanel.class);
 
     private final JPanel statsPanel = new JPanel();
     private final JLabel totalLostLabel = new JLabel();

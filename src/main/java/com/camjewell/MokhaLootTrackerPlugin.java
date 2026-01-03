@@ -551,7 +551,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         configPersistence.incrementTotalLost(adjustedTotalValue);
         configPersistence.incrementTimesDied();
 
-        // Save supplies used for this run
+        // Save supplies used for this run (items actually consumed before death)
         long suppliesCost = getSuppliesUsedValue();
         if (suppliesCost > 0) {
             List<LootItem> suppliesUsedItems = getSuppliesUsedItems();
@@ -580,6 +580,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Update panel stats on client thread (ItemManager requires it)
         clientThread.invokeLater(() -> panel.updateStats());
+
+        // Reset tracking after death
+        trackingState.reset();
+        // Don't reset supplies tracker here - it needs to continue tracking
+        // to properly account for items retrieved from gravestone
+        resetCurrentLoot();
     }
 
     private void recordClaimedLoot() {
@@ -663,6 +669,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Reset tracking after claiming
         trackingState.reset();
+        if (suppliesTracker != null) {
+            suppliesTracker.reset();
+        }
         resetCurrentLoot();
     }
 
