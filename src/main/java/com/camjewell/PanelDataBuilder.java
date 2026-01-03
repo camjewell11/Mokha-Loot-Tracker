@@ -49,8 +49,8 @@ class PanelDataBuilder {
         }
 
         List<LootItem> allCurrentRunItems = plugin.getCurrentLootItems();
-        List<LootItem> currentRunItems = (minValue > 0) ? plugin.filterItemsByValue(allCurrentRunItems)
-                : allCurrentRunItems;
+        // Filter by both threshold AND exclusions
+        List<LootItem> currentRunItems = filterCurrentRunItems(allCurrentRunItems, minValue, plugin);
         cachePrices(itemPriceCache, plugin, currentRunItems);
         long currentRunValue = plugin.getFilteredLootValue(allCurrentRunItems);
         long currentRunFullValue = plugin.getTotalLootValue(allCurrentRunItems);
@@ -99,5 +99,25 @@ class PanelDataBuilder {
                 cache.put(item.getId(), plugin.getItemValue(item.getId(), 1));
             }
         }
+    }
+
+    private static List<LootItem> filterCurrentRunItems(List<LootItem> allItems, int minValue,
+            MokhaLootTrackerPlugin plugin) {
+        if (allItems == null || allItems.isEmpty()) {
+            return allItems;
+        }
+
+        // Only filter by value threshold, NOT by exclusions
+        // Excluded items (Spirit Seed, Sun-kissed Bones) should still be displayed,
+        // just with their value excluded from calculations
+        List<LootItem> filtered = new ArrayList<>();
+        for (LootItem item : allItems) {
+            // Apply value threshold filter if set
+            if (minValue > 0 && plugin.getItemValue(item.getId(), 1) < minValue) {
+                continue;
+            }
+            filtered.add(item);
+        }
+        return filtered;
     }
 }

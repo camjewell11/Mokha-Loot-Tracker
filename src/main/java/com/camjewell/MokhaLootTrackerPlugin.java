@@ -281,12 +281,30 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Confirm -> Leave)
         if (menuOption != null && menuOption.contains("Leave")) {
             // Player is claiming - record the loot immediately
-            if (trackingState.getLastVisibleLootValue() > 0 && trackingState.getLastVisibleDelveNumber() > 0) {
+            // Check for any value OR any items (even if value=0 due to exclusions)
+            boolean hasLoot = trackingState.getLastVisibleLootValue() > 0
+                    || !trackingState.getLastVisibleLootItems().isEmpty();
+
+            log.info("[MokhaLoot] Leave clicked: Wave={}, value={}, items={}, hasLoot={}",
+                    trackingState.getLastVisibleDelveNumber(),
+                    trackingState.getLastVisibleLootValue(),
+                    trackingState.getLastVisibleLootItems().size(),
+                    hasLoot);
+
+            if (!trackingState.getLastVisibleLootItems().isEmpty()) {
+                log.info("[MokhaLoot] Items at Leave:");
+                for (LootItem item : trackingState.getLastVisibleLootItems()) {
+                    log.info("[MokhaLoot]   - {} x{}", item.getName(), item.getQuantity());
+                }
+            }
+
+            if (hasLoot && trackingState.getLastVisibleDelveNumber() > 0) {
                 // Ensure current wave data is populated before claiming
                 int waveIndex = Math.min(trackingState.getLastVisibleDelveNumber(), MAX_TRACKED_WAVES);
                 if (trackingState.getWaveItems(waveIndex).isEmpty()) {
                     long incrementalLoot = trackingState.getLastVisibleLootValue()
                             - trackingState.getPreviousWaveLootValue();
+                    log.info("[MokhaLoot] Updating Wave {} tracking: incrementalLoot={}", waveIndex, incrementalLoot);
                     trackingState.updateWaveTracking(waveIndex, incrementalLoot,
                             trackingState.getLastVisibleLootItems());
                 }
@@ -428,37 +446,36 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     currentLootValue += getItemValue(item.getId(), item.getQuantity());
                 }
 
+                // Save the current state BEFORE applying exclusions (so we can still save
+                // excluded items like Spirit Seed or Sun-kissed Bones)
+                boolean shouldUpdatePanel = false;
+                if (currentLootValue > 0 || !currentUnclaimedLoot.isEmpty()) {
+                    trackingState.setLastVisibleLootValue(currentLootValue);
+                    trackingState.setLastVisibleLootItems(new ArrayList<>(currentUnclaimedLoot));
+                    trackingState.setLastVisibleDelveNumber(currentDelveNumber);
+
+                    // Calculate and save incremental loot for THIS wave
+                    // The interface shows cumulative rewards, so we subtract previous total
+                    if (currentDelveNumber > 0) {
+                        int waveIndex = currentDelveNumber > MAX_TRACKED_WAVES ? MAX_TRACKED_WAVES : currentDelveNumber;
+                        long incrementalValue = currentLootValue - previousWaveLootValue;
+                        if (incrementalValue > 0) {
+                            List<LootItem> incrementalItems = trackingState.calculateIncrementalItems(
+                                    currentUnclaimedLoot, previousWaveItems);
+                            trackingState.updateWaveTracking(waveIndex, incrementalValue, incrementalItems);
+
+                            // Update previous wave tracking
+                            previousWaveLootValue = currentLootValue;
+                            previousWaveItems = new ArrayList<>(currentUnclaimedLoot);
+
+                            shouldUpdatePanel = true;
+                        }
+                    }
+                }
+
                 // Apply exclusion adjustments at tracking time (so config changes mid-wave
                 // don't affect already-tracked loot)
                 currentLootValue = lootValueService.getAdjustedLootValue(currentLootValue, currentUnclaimedLoot);
-            }
-
-            // Save the current state while interface is visible (before it gets cleared)
-            if (currentLootValue > 0) {
-                // Track if we need to update the panel
-                boolean shouldUpdatePanel = false;
-
-                lastVisibleLootValue = currentLootValue;
-                lastVisibleLootItems = new ArrayList<>(currentUnclaimedLoot);
-                lastVisibleDelveNumber = currentDelveNumber;
-
-                // Calculate and save incremental loot for THIS wave
-                // The interface shows cumulative rewards, so we subtract previous total
-                if (currentDelveNumber > 0) {
-                    int waveIndex = currentDelveNumber > MAX_TRACKED_WAVES ? MAX_TRACKED_WAVES : currentDelveNumber;
-                    long incrementalValue = currentLootValue - previousWaveLootValue;
-                    if (incrementalValue > 0) {
-                        List<LootItem> incrementalItems = trackingState.calculateIncrementalItems(
-                                currentUnclaimedLoot, previousWaveItems);
-                        trackingState.updateWaveTracking(waveIndex, incrementalValue, incrementalItems);
-
-                        // Update previous wave tracking
-                        previousWaveLootValue = currentLootValue;
-                        previousWaveItems = new ArrayList<>(currentUnclaimedLoot);
-
-                        shouldUpdatePanel = true;
-                    }
-                }
 
                 // Update panel if wave data changed, or if current value changed since last
                 // update
@@ -487,8 +504,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
             // If delve number reset to 1, clear tracking (loot was either claimed or
             // already recorded on death)
             if (currentDelveNumber == 1 && previousDelveNumber > 1) {
-                // Clear current tracking
-                trackingState.reset();
+                // Clear current tracking BUT preserve lastVisibleDelveNumber/value/items
+                // They might still be needed by the claim handler if this is transitioning
+                // to a new run after claiming
+                // Only clear these after the claim is actually recorded
                 if (suppliesTracker != null) {
                     suppliesTracker.reset();
                 }
@@ -564,7 +583,28 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private void recordClaimedLoot() {
-        if (lastVisibleLootValue == 0) {
+        // Check if there's any loot or items to save, even if adjusted value is 0
+        // (e.g., all items are excluded by config)
+        boolean hasAnyLoot = trackingState.getLastVisibleLootValue() > 0;
+        if (!hasAnyLoot && !trackingState.getLastVisibleLootItems().isEmpty()) {
+            hasAnyLoot = true;
+        }
+
+        if (!hasAnyLoot) {
+            // Check if any wave has items
+            for (int wave = 1; wave <= MAX_TRACKED_WAVES; wave++) {
+                List<LootItem> waveItems = trackingState.getWaveItems(wave);
+                if (waveItems != null && !waveItems.isEmpty()) {
+                    hasAnyLoot = true;
+                    break;
+                }
+            }
+        }
+
+        log.info("[MokhaLoot] recordClaimedLoot() called: hasAnyLoot={}", hasAnyLoot);
+
+        if (!hasAnyLoot) {
+            log.info("[MokhaLoot] No loot to record, returning early");
             return;
         }
 
@@ -575,6 +615,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
             boolean hasItems = waveItems != null && !waveItems.isEmpty();
             if (waveValue <= 0 && !hasItems) {
                 continue; // Skip waves with no loot or items
+            }
+
+            log.info("[MokhaLoot] Saving Wave {}: value={} gp, items count={}", wave, waveValue,
+                    waveItems != null ? waveItems.size() : 0);
+            if (waveItems != null && !waveItems.isEmpty()) {
+                for (LootItem item : waveItems) {
+                    log.info("[MokhaLoot]   - {} x{}", item.getName(), item.getQuantity());
+                }
             }
 
             // Adjustment already applied at tracking time, use stored value directly
@@ -603,10 +651,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Send chat notification
         if (config.showChatNotifications()) {
             // Adjustment already applied at tracking time, use stored value directly
-            long adjustedTotalValue = lastVisibleLootValue;
+            long adjustedTotalValue = trackingState.getLastVisibleLootValue();
             client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
                     "<col=00ff00>Mokha loot claimed!</col> " + QuantityFormatter.quantityToStackSize(adjustedTotalValue)
-                            + " gp (Wave " + lastVisibleDelveNumber + ")",
+                            + " gp (Wave " + trackingState.getLastVisibleDelveNumber() + ")",
                     null);
         }
 
