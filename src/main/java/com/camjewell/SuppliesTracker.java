@@ -39,6 +39,9 @@ class SuppliesTracker {
     private final Map<Integer, Integer> maxConsumedRunes = new HashMap<>();
 
     private boolean hasInitialInventory = false;
+    private boolean gravestonePhase = false;
+    private boolean deathRecoveryActive = false;
+    private boolean trackingFrozen = false;
 
     SuppliesTracker(Client client, ItemManager itemManager, MokhaLootTrackerConfig config,
             LootValueService lootValueService) {
@@ -50,6 +53,23 @@ class SuppliesTracker {
 
     boolean hasInitialInventory() {
         return hasInitialInventory;
+    }
+
+    boolean isDeathRecoveryActive() {
+        return deathRecoveryActive;
+    }
+
+    boolean isTrackingFrozen() {
+        return trackingFrozen;
+    }
+
+    void beginDeathRecovery() {
+        // Freeze tracking on death so reclaim snapshots cannot affect supplies.
+        // Do NOT reset here; we need the captured run state to save supplies used on
+        // death.
+        deathRecoveryActive = true;
+        gravestonePhase = false;
+        trackingFrozen = true;
     }
 
     void reset() {
@@ -65,6 +85,9 @@ class SuppliesTracker {
         currentRunePouch.clear();
         maxConsumedRunes.clear();
         hasInitialInventory = false;
+        gravestonePhase = false;
+        deathRecoveryActive = false;
+        trackingFrozen = false;
     }
 
     void captureInitialSuppliesSnapshot(ItemContainer inventoryContainer, ItemContainer equipmentContainer) {
@@ -85,6 +108,10 @@ class SuppliesTracker {
 
         initialRunePouch.putAll(RunePouchUtil.readRunePouch(client));
         currentRunePouch.putAll(initialRunePouch);
+
+        gravestonePhase = false;
+        deathRecoveryActive = false;
+        trackingFrozen = false;
 
         for (Item item : inventoryContainer.getItems()) {
             if (item == null || item.getId() <= 0) {
@@ -133,12 +160,32 @@ class SuppliesTracker {
         }
     }
 
-    void handleItemContainerChange(ItemContainer inventoryContainer, ItemContainer equipmentContainer) {
+    void handleItemContainerChange(ItemContainer inventoryContainer, ItemContainer equipmentContainer,
+            boolean inArena) {
         if (inventoryContainer == null) {
             return;
         }
 
+        // Once frozen post-death, ignore all snapshots until reset
+        if (trackingFrozen) {
+            if (config.debugItemValueLogging()) {
+                log.info("[Supplies Debug] Skipping snapshot: trackingFrozen=true (waiting for reset/new run)");
+            }
+            return;
+        }
+
+        // Ignore updates outside arena unless we're in death recovery
+        if (!inArena && !deathRecoveryActive) {
+            if (config.debugItemValueLogging()) {
+                log.info("[Supplies Debug] Skipping snapshot: outside arena and not in death recovery");
+            }
+            return;
+        }
+
         if (!hasInitialInventory) {
+            if (config.debugItemValueLogging()) {
+                log.info("[Supplies Debug] Capturing initial supplies snapshot (hasInitialInventory=false)");
+            }
             captureInitialSuppliesSnapshot(inventoryContainer, equipmentContainer);
         }
 
@@ -172,10 +219,31 @@ class SuppliesTracker {
         }
 
         // If everything vanished (e.g., gravestone wipe), skip consumption updates for
-        // this tick
+        // this tick and mark gravestone phase
         if (currentInventory.isEmpty()) {
             if (config.debugItemValueLogging()) {
                 log.info("[Supplies Debug] Inventory/equipment empty snapshot detected; skipping consumption update");
+            }
+            gravestonePhase = true;
+            return;
+        }
+
+        // If we were in gravestone phase and now inventory is back, exit the phase
+        if (gravestonePhase) {
+            gravestonePhase = false;
+            if (config.debugItemValueLogging()) {
+                log.info("[Supplies Debug] Reclaim snapshot detected; resuming consumption tracking");
+            }
+        }
+
+        // If we're outside the arena during death recovery, only refresh snapshots and
+        // do not update consumption state; then stop tracking further outside snapshots
+        if (!inArena && deathRecoveryActive) {
+            deathRecoveryActive = false;
+            trackingFrozen = true;
+            if (config.debugItemValueLogging()) {
+                log.info(
+                        "[Supplies Debug] Death recovery snapshot applied; freezing further outside updates (trackingFrozen=true)");
             }
             return;
         }
@@ -216,8 +284,7 @@ class SuppliesTracker {
             int usedNow = initialQty - currentQty;
 
             // Don't flag gear that has been equipped during the run as consumed when it
-            // disappears
-            // (e.g., death wipe or reclaim differences)
+            // disappears (e.g., death wipe or reclaim differences)
             if (initialEquipmentIds.contains(itemId) || equipmentSeenIds.contains(itemId)) {
                 continue;
             }
@@ -305,13 +372,13 @@ class SuppliesTracker {
                     continue;
                 }
             } else {
-                int used = trackedMax;
-                // If we never observed consumption, don't count gravestone depletion
+                int used = Math.max(usedDelta, trackedMax);
+                // If we never observed consumption and no final delta, skip
                 if (used <= 0) {
                     continue;
                 }
-                // Skip gear that was equipped at run start (death reclaim should not count it)
-                if (initialEquipmentIds.contains(itemId)) {
+                // Skip anything that was ever equipped during the run
+                if (initialEquipmentIds.contains(itemId) || equipmentSeenIds.contains(itemId)) {
                     continue;
                 }
                 usageMap.put(itemId, used);

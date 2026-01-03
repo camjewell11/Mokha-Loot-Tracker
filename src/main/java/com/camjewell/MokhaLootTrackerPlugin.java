@@ -198,6 +198,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
                 // Only track deaths in Mokha arena
                 if (inMokhaArena) {
+                    if (suppliesTracker != null) {
+                        // Freeze supplies tracking immediately on death so reclaim snapshots cannot be
+                        // added until a new run starts
+                        suppliesTracker.beginDeathRecovery();
+                    }
+
                     boolean hasLoot = trackingState.getCurrentLootValue() > 0
                             || trackingState.getLastVisibleLootValue() > 0
                             || (trackingState.getCurrentUnclaimedLoot() != null
@@ -326,31 +332,52 @@ public class MokhaLootTrackerPlugin extends Plugin {
             return;
         }
 
-        // Only track inventory changes in Mokha arena. If we haven't marked entry yet,
-        // do a lightweight widget check to avoid missing the first sip before the
-        // tick-based arena detection flips the flag.
-        if (!inMokhaArena) {
-            if (suppliesTracker != null && !suppliesTracker.hasInitialInventory()) {
-                Widget mokhaWidget = client.getWidget(303, 9);
-                Widget delveWidget = client.getWidget(919, 2);
-                boolean hasArenaWidget = mokhaWidget != null && !mokhaWidget.isHidden()
-                        && mokhaWidget.getText() != null
-                        && mokhaWidget.getText().contains("Mokha");
-                boolean hasDelveWidget = delveWidget != null && !delveWidget.isHidden();
-                if (hasArenaWidget || hasDelveWidget) {
-                    inMokhaArena = true;
+        // Track whether we're currently in arena; if we leave, drop the flag so
+        // outside snapshots don't update supplies unless in death recovery.
+        Widget mokhaWidget = client.getWidget(303, 9);
+        Widget delveWidget = client.getWidget(919, 2);
+        boolean hasArenaWidget = mokhaWidget != null && !mokhaWidget.isHidden()
+                && mokhaWidget.getText() != null
+                && mokhaWidget.getText().contains("Mokha");
+        boolean hasDelveWidget = delveWidget != null && !delveWidget.isHidden();
+        boolean arenaNow = hasArenaWidget || hasDelveWidget;
+        inMokhaArena = arenaNow;
+
+        // If tracking is frozen from a prior death, skip updates outside the arena but
+        // reset as soon as we re-enter so a new run can capture a fresh baseline.
+        if (suppliesTracker != null && suppliesTracker.isTrackingFrozen()) {
+            if (!arenaNow) {
+                if (config.debugItemValueLogging()) {
+                    log.info(
+                            "[Supplies Debug] Ignoring container change: trackingFrozen=true and outside arena (awaiting re-entry)");
                 }
-            }
-            if (!inMokhaArena) {
                 return;
             }
+
+            // We are back inside the arena: clear the freeze and wipe old state so the
+            // next snapshot becomes the new baseline for this run.
+            suppliesTracker.reset();
+            if (config.debugItemValueLogging()) {
+                log.info("[Supplies Debug] Tracking unfrozen on arena re-entry; resetting supplies tracker");
+            }
+        }
+
+        boolean allowSupplies = arenaNow
+                || (suppliesTracker != null && suppliesTracker.isDeathRecoveryActive());
+        if (!allowSupplies) {
+            if (config.debugItemValueLogging()) {
+                log.info(
+                        "[Supplies Debug] Ignoring container change: arenaNow={} deathRecoveryActive={} trackingFrozen={}",
+                        arenaNow, suppliesTracker != null && suppliesTracker.isDeathRecoveryActive(), false);
+            }
+            return;
         }
 
         if (event.getContainerId() == InventoryID.INVENTORY.getId() && suppliesTracker != null) {
             ItemContainer container = event.getItemContainer();
             if (container != null) {
                 ItemContainer equipmentContainer = client.getItemContainer(InventoryID.EQUIPMENT);
-                suppliesTracker.handleItemContainerChange(container, equipmentContainer);
+                suppliesTracker.handleItemContainerChange(container, equipmentContainer, arenaNow);
             }
         }
     }
@@ -368,11 +395,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // x Coins left in Death's Coffer."
         String lowerMessage = message.toLowerCase();
         if (lowerMessage.contains("death") && lowerMessage.contains("charges you") && lowerMessage.contains("coins")) {
-            // Only track death costs if in Mokha arena
-            if (!inMokhaArena) {
-                return;
-            }
-
             try {
                 // Try to extract number from the message using regex
                 String cleanMessage = message.replaceAll("<[^>]*>", ""); // Strip HTML tags
@@ -517,8 +539,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private void recordLostLoot() {
-        if (currentLootValue == 0) {
-            return;
+        // Save supplies used for this run BEFORE freezing so state is still fresh
+        long suppliesCost = getSuppliesUsedValue();
+        List<LootItem> suppliesUsedItems = getSuppliesUsedItems();
+
+        // Now freeze tracking so reclaim snapshots cannot be added
+        if (suppliesTracker != null) {
+            suppliesTracker.beginDeathRecovery();
         }
 
         // Note: Wave data should already be stored from checkDelveWidget()
@@ -548,13 +575,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Adjustment already applied at tracking time, use stored value directly
         long adjustedTotalValue = currentLootValue;
-        configPersistence.incrementTotalLost(adjustedTotalValue);
+        if (adjustedTotalValue > 0) {
+            configPersistence.incrementTotalLost(adjustedTotalValue);
+        }
         configPersistence.incrementTimesDied();
 
-        // Save supplies used for this run (items actually consumed before death)
-        long suppliesCost = getSuppliesUsedValue();
+        // Add supplies to historical total (pre-captured before freeze)
         if (suppliesCost > 0) {
-            List<LootItem> suppliesUsedItems = getSuppliesUsedItems();
             if (!suppliesUsedItems.isEmpty()) {
                 String existingSuppliesItems = configPersistence.getStringConfig(
                         "totalSuppliesItems");
@@ -566,8 +593,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
             if (config.debugItemValueLogging()) {
                 log.info("[Supplies Debug] Saved supplies: value={} gp, items={}", suppliesCost,
-                        configPersistence.serializeItems(getSuppliesUsedItems()));
+                        configPersistence.serializeItems(suppliesUsedItems));
             }
+
+            // Refresh panel to reflect updated historical totals (supplies cost)
+            clientThread.invokeLater(() -> panel.updateStats());
         }
 
         // Send chat notification
@@ -700,6 +730,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 log.info("[Supplies Debug] Saved supplies on death: value={} gp, items={}", suppliesCost,
                         configPersistence.serializeItems(getSuppliesUsedItems()));
             }
+
+            // Ensure panel reflects updated historical totals
+            clientThread.invokeLater(() -> panel.updateStats());
         }
     }
 
