@@ -259,6 +259,7 @@ class SuppliesTracker {
                 continue;
             }
             String name = itemManager.getItemComposition(itemId).getName();
+
             if (PotionUtil.isPotion(name)) {
                 String base = PotionUtil.getPotionBaseName(name);
                 int dose = PotionUtil.getPotionDose(name);
@@ -628,4 +629,5 @@ class SuppliesTracker {
             }
         }
     }
+
 }

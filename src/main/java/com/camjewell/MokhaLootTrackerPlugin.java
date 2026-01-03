@@ -897,6 +897,17 @@ public class MokhaLootTrackerPlugin extends Plugin {
     public void resetStats() {
         configPersistence.resetAllStats();
 
+        // Clear runtime tracking state
+        if (trackingState != null) {
+            trackingState.reset();
+            resetCurrentLoot();
+        }
+
+        // Clear supplies tracker
+        if (suppliesTracker != null) {
+            suppliesTracker.reset();
+        }
+
         // Update panel stats on client thread (to fetch item names and prices)
         clientThread.invokeLater(() -> {
             panel.updateStats();
