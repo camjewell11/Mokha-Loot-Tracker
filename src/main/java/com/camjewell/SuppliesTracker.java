@@ -2,8 +2,10 @@ package com.camjewell;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +29,8 @@ class SuppliesTracker {
     private final Map<Integer, Integer> initialInventory = new HashMap<>();
     private final Map<Integer, Integer> currentInventory = new HashMap<>();
     private final Map<Integer, Integer> maxConsumedThisRun = new HashMap<>();
+    private final Set<Integer> initialEquipmentIds = new HashSet<>();
+    private final Set<Integer> equipmentSeenIds = new HashSet<>();
     private final Map<String, Integer> initialPotionSips = new HashMap<>();
     private final Map<String, Integer> maxConsumedPotionSips = new HashMap<>();
     private final Map<String, Map<Integer, Integer>> livePotionDoseIds = new HashMap<>();
@@ -52,6 +56,8 @@ class SuppliesTracker {
         initialInventory.clear();
         currentInventory.clear();
         maxConsumedThisRun.clear();
+        initialEquipmentIds.clear();
+        equipmentSeenIds.clear();
         initialPotionSips.clear();
         maxConsumedPotionSips.clear();
         livePotionDoseIds.clear();
@@ -69,6 +75,8 @@ class SuppliesTracker {
         initialInventory.clear();
         initialPotionSips.clear();
         maxConsumedThisRun.clear();
+        initialEquipmentIds.clear();
+        equipmentSeenIds.clear();
         maxConsumedPotionSips.clear();
         livePotionDoseIds.clear();
         initialRunePouch.clear();
@@ -98,6 +106,8 @@ class SuppliesTracker {
                 if (item == null || item.getId() <= 0) {
                     continue;
                 }
+                initialEquipmentIds.add(item.getId());
+                equipmentSeenIds.add(item.getId());
                 initialInventory.put(item.getId(), initialInventory.getOrDefault(item.getId(), 0) + item.getQuantity());
                 String itemName = itemManager.getItemComposition(item.getId()).getName();
                 if (PotionUtil.isPotion(itemName)) {
@@ -148,6 +158,7 @@ class SuppliesTracker {
         if (equipmentContainer != null) {
             for (Item item : equipmentContainer.getItems()) {
                 if (item != null && item.getId() > 0) {
+                    equipmentSeenIds.add(item.getId());
                     currentInventory.put(item.getId(),
                             currentInventory.getOrDefault(item.getId(), 0) + item.getQuantity());
                     String itemName = itemManager.getItemComposition(item.getId()).getName();
@@ -156,6 +167,26 @@ class SuppliesTracker {
                         int dose = PotionUtil.getPotionDose(itemName);
                         livePotionDoseIds.computeIfAbsent(base, k -> new HashMap<>()).putIfAbsent(dose, item.getId());
                     }
+                }
+            }
+        }
+
+        // If everything vanished (e.g., gravestone wipe), skip consumption updates for
+        // this tick
+        if (currentInventory.isEmpty()) {
+            if (config.debugItemValueLogging()) {
+                log.info("[Supplies Debug] Inventory/equipment empty snapshot detected; skipping consumption update");
+            }
+            return;
+        }
+
+        // If the initial capture missed equipment (null container at that time),
+        // backfill
+        if (hasInitialInventory && initialEquipmentIds.isEmpty() && equipmentContainer != null) {
+            for (Item item : equipmentContainer.getItems()) {
+                if (item != null && item.getId() > 0) {
+                    initialEquipmentIds.add(item.getId());
+                    equipmentSeenIds.add(item.getId());
                 }
             }
         }
@@ -183,6 +214,13 @@ class SuppliesTracker {
             int initialQty = entry.getValue();
             int currentQty = currentInventory.getOrDefault(itemId, 0);
             int usedNow = initialQty - currentQty;
+
+            // Don't flag gear that has been equipped during the run as consumed when it
+            // disappears
+            // (e.g., death wipe or reclaim differences)
+            if (initialEquipmentIds.contains(itemId) || equipmentSeenIds.contains(itemId)) {
+                continue;
+            }
 
             if (usedNow > 0) {
                 int prevMax = maxConsumedThisRun.getOrDefault(itemId, 0);
@@ -254,17 +292,28 @@ class SuppliesTracker {
 
         for (Map.Entry<Integer, Integer> entry : initialInventory.entrySet()) {
             int itemId = entry.getKey();
-            int used = entry.getValue() - currentInventory.getOrDefault(itemId, 0);
-            if (used <= 0) {
-                continue;
-            }
+            int usedDelta = entry.getValue() - currentInventory.getOrDefault(itemId, 0);
+            int trackedMax = maxConsumedThisRun.getOrDefault(itemId, 0);
             String name = itemManager.getItemComposition(itemId).getName();
 
             if (PotionUtil.isPotion(name)) {
                 String base = PotionUtil.getPotionBaseName(name);
                 int dose = PotionUtil.getPotionDose(name);
                 potionDoseIds.computeIfAbsent(base, k -> new HashMap<>()).putIfAbsent(dose, itemId);
+                // Potions are handled via sip diffs below; we don't rely on trackedMax for them
+                if (usedDelta <= 0 && trackedMax <= 0) {
+                    continue;
+                }
             } else {
+                int used = trackedMax;
+                // If we never observed consumption, don't count gravestone depletion
+                if (used <= 0) {
+                    continue;
+                }
+                // Skip gear that was equipped at run start (death reclaim should not count it)
+                if (initialEquipmentIds.contains(itemId)) {
+                    continue;
+                }
                 usageMap.put(itemId, used);
             }
         }
@@ -358,6 +407,9 @@ class SuppliesTracker {
             }
             int itemId = entry.getKey();
             String name = itemManager.getItemComposition(itemId).getName();
+            if (initialEquipmentIds.contains(itemId) || equipmentSeenIds.contains(itemId)) {
+                continue;
+            }
             if (PotionUtil.isPotion(name)) {
                 continue;
             }
