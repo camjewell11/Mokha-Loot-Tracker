@@ -118,6 +118,7 @@ This plugin is open source and available under standard RuneLite plugin licensin
 - Added supplies tracking (live run + historical), with rune pouch and potion dose normalization, hidden behind a beta toggle; tracking pauses while dead to avoid gravestone wipes
 - Added per-item value threshold filter for panel display
 - Refactored panel rendering into sections for stability and faster updates
+- Fixed supplies valuation to price potion doses (e.g., Prayer potion(4) counts per dose, not per full potion)
 
 ### Version 1.0.0
 
