@@ -137,8 +137,6 @@ public class MokhaLootPanel extends PluginPanel {
         });
         debugButton.setAlignmentX(JButton.CENTER_ALIGNMENT);
         statsPanel.add(debugButton);
-
-        add(statsPanel, BorderLayout.NORTH);
     }
 
     private JPanel createProfitLossSection() {
@@ -146,11 +144,15 @@ public class MokhaLootPanel extends PluginPanel {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-        JLabel title = new JLabel("Profit/Loss");
+        JLabel title = new JLabel("Profit/Loss:");
         title.setFont(FontManager.getRunescapeBoldFont());
-        title.setForeground(Color.WHITE);
-        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-        panel.add(title);
+        title.setForeground(Color.LIGHT_GRAY);
+        JPanel titleRow = new JPanel(new BorderLayout());
+        titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        titleRow.setBorder(new EmptyBorder(1, 0, 0, 0));
+        titleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
+        titleRow.add(title, BorderLayout.WEST);
+        panel.add(titleRow);
 
         totalClaimedLabel = new JLabel("Total Claimed: 0 gp");
         totalClaimedLabel.setFont(FontManager.getRunescapeFont());
@@ -182,11 +184,13 @@ public class MokhaLootPanel extends PluginPanel {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
+        JPanel titleRow = new JPanel(new BorderLayout());
+        titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
         JLabel title = new JLabel("Current Run");
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(new Color(0, 200, 255)); // Cyan
-        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-        panel.add(title);
+        titleRow.add(title, BorderLayout.WEST);
+        panel.add(titleRow);
 
         potentialValueLabel = new JLabel("0 gp");
         potentialValueLabel.setFont(FontManager.getRunescapeFont());
@@ -201,11 +205,13 @@ public class MokhaLootPanel extends PluginPanel {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
+        JPanel titleRow = new JPanel(new BorderLayout());
+        titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
         JLabel title = new JLabel("Claimed Loot by Wave");
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(new Color(0, 200, 0)); // Green
-        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-        panel.add(title);
+        titleRow.add(title, BorderLayout.WEST);
+        panel.add(titleRow);
 
         for (int i = 0; i < 10; i++) {
             claimedWavePanels[i] = createWavePanel("Wave " + (i == 9 ? "9+" : i + 1));
@@ -220,11 +226,13 @@ public class MokhaLootPanel extends PluginPanel {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
+        JPanel titleRow = new JPanel(new BorderLayout());
+        titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
         JLabel title = new JLabel("Unclaimed Loot by Wave");
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(new Color(200, 0, 0)); // Red
-        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-        panel.add(title);
+        titleRow.add(title, BorderLayout.WEST);
+        panel.add(titleRow);
 
         for (int i = 0; i < 10; i++) {
             unclaimedWavePanels[i] = createWavePanel("Wave " + (i == 9 ? "9+" : i + 1));
@@ -239,11 +247,13 @@ public class MokhaLootPanel extends PluginPanel {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
+        JPanel titleRow = new JPanel(new BorderLayout());
+        titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
         JLabel title = new JLabel("Supplies Used (Current Run)");
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(new Color(255, 165, 0)); // Orange
-        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-        panel.add(title);
+        titleRow.add(title, BorderLayout.WEST);
+        panel.add(titleRow);
 
         JLabel totalLabel = new JLabel("0 gp");
         totalLabel.setFont(FontManager.getRunescapeFont());
@@ -263,11 +273,13 @@ public class MokhaLootPanel extends PluginPanel {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
+        JPanel titleRow = new JPanel(new BorderLayout());
+        titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
         JLabel title = new JLabel("Supplies Used");
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(new Color(255, 165, 0)); // Orange
-        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-        panel.add(title);
+        titleRow.add(title, BorderLayout.WEST);
+        panel.add(titleRow);
 
         suppliesTotalValueLabel = new JLabel("0 gp");
         suppliesTotalValueLabel.setFont(FontManager.getRunescapeFont());
