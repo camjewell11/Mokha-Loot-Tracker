@@ -1,7 +1,9 @@
 package com.camjewell;
 
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.inject.Inject;
@@ -15,8 +17,10 @@ import net.runelite.api.Client;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
+import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -51,9 +55,39 @@ public class MokhaLootTrackerPlugin extends Plugin {
     // Arena state tracking
     private boolean inMokhaArena = false;
     private boolean isDead = false;
+    private boolean lootWindowWasVisible = false;
+    private int currentWaveNumber = 0;
+
+    // Entrance coordinates (for future use)
+    private int entrance_centerX = 1311;
+    private int entrance_centerY = 9555;
+    private int entrance_radius = 25;
 
     // Combined item tracking (inventory + equipment)
     private final Map<Integer, Integer> lastCombinedSnapshot = new HashMap<>();
+
+    // Loot tracking by wave
+    private final Map<Integer, List<LootItem>> lootByWave = new HashMap<>();
+    private final Map<Integer, Integer> previousLootSnapshot = new HashMap<>();
+
+    // Supply consumption tracking
+    private final Map<Integer, Integer> initialSupplySnapshot = new HashMap<>();
+    private final Map<Integer, Integer> totalSuppliesConsumed = new HashMap<>();
+
+    /**
+     * Represents a single loot item with name, quantity, and value
+     */
+    private static class LootItem {
+        String name;
+        int quantity;
+        int value;
+
+        LootItem(String name, int quantity, int value) {
+            this.name = name;
+            this.quantity = quantity;
+            this.value = value;
+        }
+    }
 
     @Provides
     MokhaLootTrackerConfig provideConfig(ConfigManager configManager) {
@@ -62,7 +96,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     @Override
     protected void startUp() throws Exception {
-        panel = new MokhaLootPanel(config);
+        panel = new MokhaLootPanel(config, this::debugLocation);
 
         final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/48icon.png");
 
@@ -84,32 +118,72 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     @Subscribe
-    public void onGameTick(GameTick event) {
-        // Check if we're in the Mokha arena using widget detection
-        // Widget [303:9] contains "Doom of Mokhaiotl" when in arena
-        boolean wasInArena = inMokhaArena;
-        inMokhaArena = false;
+    public void onMenuOptionClicked(MenuOptionClicked event) {
+        String option = event.getMenuOption();
+        String target = event.getMenuTarget();
 
-        if (client.getLocalPlayer() != null) {
-            Widget mokhaWidget = client.getWidget(303, 9);
-            if (mokhaWidget != null && !mokhaWidget.isHidden()
-                    && mokhaWidget.getText() != null
-                    && mokhaWidget.getText().contains("Mokha")) {
+        // Detect entering arena via "Jump over gap"
+        if (option != null && option.contains("Jump-over")) {
+            if (!inMokhaArena) {
                 inMokhaArena = true;
-            }
-        }
-
-        // Log when entering/exiting arena (debug only)
-        if (config.debugLogging() && wasInArena != inMokhaArena) {
-            if (inMokhaArena) {
-                log.info("[Mokha Debug] Entered Mokha arena");
+                currentWaveNumber = 1; // Start at wave 1
+                lootByWave.clear();
+                previousLootSnapshot.clear();
+                totalSuppliesConsumed.clear();
+                log.info("[Mokha Debug] Entered Mokha arena (jumped over gap)");
                 // Take initial snapshot when entering arena
                 lastCombinedSnapshot.clear();
                 lastCombinedSnapshot.putAll(buildCombinedSnapshot());
-            } else {
-                log.info("[Mokha Debug] Exited Mokha arena");
+                // Take initial supply snapshot
+                initialSupplySnapshot.clear();
+                initialSupplySnapshot.putAll(buildCombinedSnapshot());
+                if (config.debugLogging()) {
+                    log.info("[Mokha Debug] Initial snapshot taken with {} unique items", lastCombinedSnapshot.size());
+                }
             }
         }
+
+        // Detect "Descend" button - continues to next wave without claiming loot
+        if (option != null && option.equalsIgnoreCase("Descend")) {
+            log.info("[Mokha] Pressed DESCEND button - continuing to wave {} (loot unclaimed, will accumulate)",
+                    currentWaveNumber + 1);
+            printSuppliesConsumed();
+            printAccumulatedLoot();
+        }
+
+        // Detect "Claim and leave" button - shows confirmation dialog
+        if (option != null && option.contains("Claim and leave")) {
+            log.info("[Mokha] Pressed CLAIM AND LEAVE button - claiming loot");
+            printSuppliesConsumed();
+            printAccumulatedLoot();
+            // Don't clear arena state yet - wait for Confirm button
+        }
+
+        // Detect "Confirm" button - appears after "Claim and leave"
+        if (option != null && option.equalsIgnoreCase("Confirm")) {
+            log.info("[Mokha] Pressed CONFIRM button - exiting to leave screen");
+            // Don't clear state yet - Leave button will clear it
+        }
+
+        // Detect "Leave" button - returns to entrance (only available after confirming)
+        if (option != null && option.equals("Leave") && !option.contains("Claim")) {
+            log.info("[Mokha] Pressed LEAVE button - returning to entrance");
+            if (inMokhaArena) {
+                inMokhaArena = false;
+                isDead = false;
+                currentWaveNumber = 1;
+                lastCombinedSnapshot.clear();
+                lootByWave.clear();
+                previousLootSnapshot.clear();
+                totalSuppliesConsumed.clear();
+                initialSupplySnapshot.clear();
+            }
+        }
+    }
+
+    @Subscribe
+    public void onGameTick(GameTick event) {
+        boolean wasInArena = inMokhaArena;
 
         // Check for player death
         if (client.getLocalPlayer() != null) {
@@ -117,15 +191,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
             if (currentlyDead && !isDead && inMokhaArena) {
                 isDead = true;
+                inMokhaArena = false; // Exit arena on death
                 // Clear snapshot immediately when death is detected
                 lastCombinedSnapshot.clear();
-                if (config.debugLogging()) {
-                    log.info("[Mokha Debug] Player died in arena");
-                }
-            } else if (!currentlyDead && isDead && inMokhaArena) {
+                log.info("[Mokha Debug] Player died in arena - exited arena");
+            } else if (!currentlyDead && isDead) {
                 isDead = false;
-                // Clear snapshot on respawn to start fresh only if still in arena
-                lastCombinedSnapshot.clear();
                 if (config.debugLogging()) {
                     log.info("[Mokha Debug] Player respawned");
                 }
@@ -136,6 +207,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (!inMokhaArena && wasInArena) {
             lastCombinedSnapshot.clear();
         }
+
+        // Check for loot window and capture loot
+        checkForLootWindow();
     }
 
     @Subscribe
@@ -198,6 +272,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     String itemName = itemManager.getItemComposition(itemId).getName();
                     consumed.append(
                             String.format("%s: %d → %d (-%d), ", itemName, previousQty, currentQty, consumedQty));
+
+                    // Accumulate total supplies consumed
+                    totalSuppliesConsumed.put(itemId, totalSuppliesConsumed.getOrDefault(itemId, 0) + consumedQty);
                 }
             }
 
@@ -214,5 +291,291 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Update combined snapshot
         lastCombinedSnapshot.clear();
         lastCombinedSnapshot.putAll(currentCombined);
+    }
+
+    private void checkForLootWindow() {
+        // Widget Group 919 is the Mokhaiotl delve interface
+        Widget mainWidget = client.getWidget(919, 2);
+        boolean lootWindowVisible = mainWidget != null && !mainWidget.isHidden();
+
+        if (lootWindowVisible) {
+            // Only log loot once when window first becomes visible
+            if (!lootWindowWasVisible) {
+                // Try to extract wave number from widget text
+                int detectedWave = extractWaveNumber(mainWidget);
+                if (detectedWave > 0) {
+                    currentWaveNumber = detectedWave;
+                } else if (currentWaveNumber == 0) {
+                    // Fallback: if we couldn't detect wave and it's still 0, assume wave 1
+                    currentWaveNumber = 1;
+                }
+
+                if (config.debugLogging()) {
+                    log.info("[Mokha Debug] Loot window detected - Wave {}", currentWaveNumber);
+                }
+
+                // Parse loot value from widget [919:20]
+                Widget valueWidget = client.getWidget(919, 20);
+                if (valueWidget != null) {
+                    String valueText = valueWidget.getText();
+                    if (valueText != null && valueText.contains("Value:")) {
+                        // Extract value from "Value: 3,636 GP"
+                        try {
+                            String numStr = valueText.replaceAll("[^0-9]", "");
+                            if (!numStr.isEmpty()) {
+                                long totalValue = Long.parseLong(numStr);
+                                log.info("[Mokha] Wave {} completed - Total loot value: {} gp", currentWaveNumber,
+                                        totalValue);
+                            }
+                        } catch (Exception e) {
+                            log.error("[Mokha] Error parsing loot value", e);
+                        }
+                    }
+                }
+
+                // Parse loot items from widget [919:19] children
+                Widget lootContainerWidget = client.getWidget(919, 19);
+                if (lootContainerWidget != null) {
+                    parseLootItems(lootContainerWidget);
+                }
+            }
+        }
+
+        // Update window visibility state
+        lootWindowWasVisible = lootWindowVisible;
+    }
+
+    private void parseLootItems(Widget containerWidget) {
+        if (containerWidget == null) {
+            return;
+        }
+
+        Widget[] children = containerWidget.getChildren();
+        if (children == null) {
+            return;
+        }
+
+        // Build current loot snapshot
+        Map<Integer, Integer> currentLoot = new HashMap<>();
+        for (Widget child : children) {
+            if (child == null || child.isHidden()) {
+                continue;
+            }
+
+            int itemId = child.getItemId();
+            int itemQuantity = child.getItemQuantity();
+
+            if (itemId > 0 && itemQuantity > 0) {
+                String itemName = itemManager.getItemComposition(itemId).getName();
+                // Filter out null, empty, or "null" items
+                if (itemName != null && !itemName.isEmpty() && !itemName.equalsIgnoreCase("null")) {
+                    currentLoot.put(itemId, itemQuantity);
+                }
+            }
+        }
+
+        // Determine NEW loot items for this wave by comparing with previous snapshot
+        List<LootItem> newLootThisWave = new ArrayList<>();
+        for (Map.Entry<Integer, Integer> entry : currentLoot.entrySet()) {
+            int itemId = entry.getKey();
+            int currentQty = entry.getValue();
+            int previousQty = previousLootSnapshot.getOrDefault(itemId, 0);
+
+            if (currentQty > previousQty) {
+                int newQty = currentQty - previousQty;
+                String itemName = itemManager.getItemComposition(itemId).getName();
+                int itemValue = itemManager.getItemPrice(itemId) * newQty;
+                newLootThisWave.add(new LootItem(itemName, newQty, itemValue));
+                log.info("[Mokha] Wave {} NEW Loot: {} x{} (value: {} gp)", currentWaveNumber, itemName, newQty,
+                        itemValue);
+            }
+        }
+
+        // Store new loot for this wave
+        if (!newLootThisWave.isEmpty()) {
+            lootByWave.put(currentWaveNumber, newLootThisWave);
+        }
+
+        // Update previous loot snapshot
+        previousLootSnapshot.clear();
+        previousLootSnapshot.putAll(currentLoot);
+    }
+
+    /**
+     * Extract wave number from the loot window widget
+     * Searches through widget text for patterns like "Wave 1", "Wave 2", etc.
+     */
+    private int extractWaveNumber(Widget mainWidget) {
+        if (mainWidget == null) {
+            return 0;
+        }
+
+        // Check main widget text
+        String text = mainWidget.getText();
+        if (text != null && text.toLowerCase().contains("wave")) {
+            try {
+                // Extract number after "Wave"
+                String[] parts = text.split("\\s+");
+                for (int i = 0; i < parts.length - 1; i++) {
+                    if (parts[i].equalsIgnoreCase("wave")) {
+                        return Integer.parseInt(parts[i + 1].replaceAll("[^0-9]", ""));
+                    }
+                }
+            } catch (Exception e) {
+                // Ignore parsing errors
+            }
+        }
+
+        // Check children widgets
+        Widget[] children = mainWidget.getChildren();
+        if (children != null) {
+            for (Widget child : children) {
+                if (child != null) {
+                    String childText = child.getText();
+                    if (childText != null && childText.toLowerCase().contains("wave")) {
+                        try {
+                            String[] parts = childText.split("\\s+");
+                            for (int i = 0; i < parts.length - 1; i++) {
+                                if (parts[i].equalsIgnoreCase("wave")) {
+                                    return Integer.parseInt(parts[i + 1].replaceAll("[^0-9]", ""));
+                                }
+                            }
+                        } catch (Exception e) {
+                            // Ignore parsing errors
+                        }
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    private void debugLocation() {
+        if (client.getLocalPlayer() == null) {
+            log.info("[Mokha Debug] No player location available");
+            return;
+        }
+
+        net.runelite.api.coords.WorldPoint location = client.getLocalPlayer().getWorldLocation();
+        if (location == null) {
+            log.info("[Mokha Debug] No player location available");
+            return;
+        }
+
+        // Check if at entrance
+        boolean atEntrance = isAtEntrance(location);
+
+        log.info("[Mokha Debug] ==================== DEBUG LOCATION ====================");
+        log.info("[Mokha Debug] Current coordinates: X={}, Y={}, Plane={}", location.getX(), location.getY(),
+                location.getPlane());
+        log.info("[Mokha Debug] At entrance: {}", atEntrance);
+        log.info("[Mokha Debug] In arena: {}", inMokhaArena);
+        log.info("[Mokha Debug] Is dead: {}", isDead);
+        log.info("[Mokha Debug] ======================================================");
+    }
+
+    /**
+     * Print supplies consumed during the run
+     * Groups potions by base name (e.g., all Prayer potion doses together)
+     */
+    private void printSuppliesConsumed() {
+        if (totalSuppliesConsumed.isEmpty()) {
+            log.info("[Mokha] ===== NO SUPPLIES CONSUMED =====");
+            return;
+        }
+
+        log.info("[Mokha] ===== SUPPLIES CONSUMED =====");
+        long totalValue = 0;
+
+        // Group items by base name (for potions, remove dose numbers)
+        Map<String, Integer> groupedSupplies = new HashMap<>();
+        Map<String, Integer> groupedValues = new HashMap<>();
+
+        for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
+            int itemId = entry.getKey();
+            int quantity = entry.getValue();
+            String itemName = itemManager.getItemComposition(itemId).getName();
+            int itemValue = itemManager.getItemPrice(itemId) * quantity;
+
+            // Extract base name (remove dose numbers like (1), (2), (3), (4))
+            String baseName = getBasePotionName(itemName);
+
+            // Accumulate quantities and values by base name
+            groupedSupplies.put(baseName, groupedSupplies.getOrDefault(baseName, 0) + quantity);
+            groupedValues.put(baseName, groupedValues.getOrDefault(baseName, 0) + itemValue);
+        }
+
+        // Print grouped supplies
+        for (Map.Entry<String, Integer> entry : groupedSupplies.entrySet()) {
+            String baseName = entry.getKey();
+            int quantity = entry.getValue();
+            int value = groupedValues.get(baseName);
+
+            // For potions, show as doses
+            if (baseName.endsWith(" potion") || baseName.contains("potion")) {
+                log.info("[Mokha]   - {} x{} doses (value: {} gp)", baseName, quantity, value);
+            } else {
+                log.info("[Mokha]   - {} x{} (value: {} gp)", baseName, quantity, value);
+            }
+            totalValue += value;
+        }
+
+        log.info("[Mokha] ===== TOTAL SUPPLIES VALUE: {} gp =====", totalValue);
+    }
+
+    /**
+     * Extract base potion name by removing dose numbers
+     * E.g., "Prayer potion(4)" -> "Prayer potion"
+     * E.g., "Super combat potion(2)" -> "Super combat potion"
+     */
+    private String getBasePotionName(String itemName) {
+        // Remove dose indicators like (1), (2), (3), (4)
+        if (itemName.matches(".*\\(\\d+\\)$")) {
+            return itemName.replaceAll("\\(\\d+\\)$", "").trim();
+        }
+        return itemName;
+    }
+
+    /**
+     * Print accumulated loot by wave
+     */
+    private void printAccumulatedLoot() {
+        if (lootByWave.isEmpty()) {
+            log.info("[Mokha] ===== NO LOOT COLLECTED =====");
+            return;
+        }
+
+        log.info("[Mokha] ===== ACCUMULATED LOOT BY WAVE =====");
+        long totalValue = 0;
+
+        // Iterate through all waves that have loot
+        for (Map.Entry<Integer, List<LootItem>> entry : lootByWave.entrySet()) {
+            int wave = entry.getKey();
+            List<LootItem> waveLoot = entry.getValue();
+            if (waveLoot != null && !waveLoot.isEmpty()) {
+                long waveValue = 0;
+                log.info("[Mokha] Wave {}:", wave);
+                for (LootItem item : waveLoot) {
+                    log.info("[Mokha]   - {} x{} (value: {} gp)", item.name, item.quantity, item.value);
+                    waveValue += item.value;
+                    totalValue += item.value;
+                }
+                log.info("[Mokha]   Wave {} Total: {} gp", wave, waveValue);
+            }
+        }
+
+        log.info("[Mokha] ===== TOTAL LOOT VALUE: {} gp =====", totalValue);
+    }
+
+    /**
+     * Check if player is at the arena entrance
+     */
+    private boolean isAtEntrance(WorldPoint location) {
+        int dx = location.getX() - entrance_centerX;
+        int dy = location.getY() - entrance_centerY;
+        int distanceSquared = dx * dx + dy * dy;
+        int radiusSquared = entrance_radius * entrance_radius;
+        return distanceSquared <= radiusSquared;
     }
 }
