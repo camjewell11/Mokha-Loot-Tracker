@@ -177,28 +177,35 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (option != null && option.equalsIgnoreCase("Descend")) {
             log.info("[Mokha] Pressed DESCEND button - continuing to wave {} (loot unclaimed, will accumulate)",
                     currentWaveNumber + 1);
+            // Print accumulated loot so far (not claimed yet, could still be lost)
             printSuppliesConsumed();
             printAccumulatedLoot();
+            // Increment wave number since we're moving to the next wave
+            currentWaveNumber++;
         }
 
         // Detect "Claim and leave" button - shows confirmation dialog
         if (option != null && option.contains("Claim and leave")) {
-            log.info("[Mokha] Pressed CLAIM AND LEAVE button - claiming loot");
-            printSuppliesConsumed();
-            printAccumulatedLoot();
-            // Don't clear arena state yet - wait for Confirm button
+            log.info("[Mokha] Pressed CLAIM AND LEAVE button - confirming exit");
+            // Don't print yet - wait for full sequence completion
         }
 
         // Detect "Confirm" button - appears after "Claim and leave"
         if (option != null && option.equalsIgnoreCase("Confirm")) {
             log.info("[Mokha] Pressed CONFIRM button - exiting to leave screen");
-            // Don't clear state yet - Leave button will clear it
+            // Don't print yet - wait for Leave button
         }
 
-        // Detect "Leave" button - returns to entrance (only available after confirming)
+        // Detect "Leave" button - returns to entrance (only available after confirming
+        // claim)
         if (option != null && option.equals("Leave") && !option.contains("Claim")) {
-            log.info("[Mokha] Pressed LEAVE button - returning to entrance");
+            log.info("[Mokha] Pressed LEAVE button - claiming loot and returning to entrance");
             if (inMokhaArena) {
+                // Print supplies consumed and claimed loot before clearing state
+                printSuppliesConsumed();
+                printAccumulatedLoot();
+
+                // Clear all tracking state
                 inMokhaArena = false;
                 isDead = false;
                 currentWaveNumber = 1;
@@ -221,10 +228,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
             if (currentlyDead && !isDead && inMokhaArena) {
                 isDead = true;
+                log.info("[Mokha] ===== PLAYER DIED ON WAVE {} =====", currentWaveNumber);
+
+                // Print supplies consumed before death
+                printSuppliesConsumed();
+
+                // Print lost loot from previous waves (couldn't claim because of death)
+                printLostLoot();
+
                 inMokhaArena = false; // Exit arena on death
-                // Clear snapshot immediately when death is detected
+                // Clear all tracking data
                 lastCombinedSnapshot.clear();
-                log.info("[Mokha Debug] Player died in arena - exited arena");
+                lootByWave.clear();
+                previousLootSnapshot.clear();
+                totalSuppliesConsumed.clear();
+                initialSupplySnapshot.clear();
             } else if (!currentlyDead && isDead) {
                 isDead = false;
                 if (config.debugLogging()) {
@@ -451,6 +469,15 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 int newQty = currentQty - previousQty;
                 String itemName = itemManager.getItemComposition(itemId).getName();
                 int itemValue = itemManager.getItemPrice(itemId) * newQty;
+
+                // Override value to 0 if config toggle is enabled for specific items
+                if (config.ignoreSunKissedBonesValue() && itemName.equals("Sun-kissed bones")) {
+                    itemValue = 0;
+                }
+                if (config.ignoreSpiritSeedsValue() && itemName.equals("Spirit seed")) {
+                    itemValue = 0;
+                }
+
                 newLootThisWave.add(new LootItem(itemName, newQty, itemValue));
                 log.info("[Mokha] Wave {} NEW Loot: {} x{} (value: {} gp)", currentWaveNumber, itemName, newQty,
                         itemValue);
@@ -632,6 +659,47 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
 
         log.info("[Mokha] ===== TOTAL LOOT VALUE: {} gp =====", totalValue);
+    }
+
+    /**
+     * Print loot lost from death (loot that could have been claimed but wasn't)
+     * This includes all loot from completed waves up to the wave they died on
+     */
+    private void printLostLoot() {
+        // Calculate which waves had claimable loot (all waves before the death wave)
+        // If died on wave 1, there's no lost loot
+        // If died on wave 2+, we lost loot from all previous waves
+
+        if (currentWaveNumber <= 1 || lootByWave.isEmpty()) {
+            log.info("[Mokha] ===== NO LOOT LOST (died on wave 1) =====");
+            return;
+        }
+
+        log.info("[Mokha] ===== LOOT LOST FROM DEATH =====");
+        long totalValue = 0;
+        int lostWaves = 0;
+
+        // Only count loot from waves BEFORE the current wave (the one they died on)
+        for (int wave = 1; wave < currentWaveNumber; wave++) {
+            List<LootItem> waveLoot = lootByWave.get(wave);
+            if (waveLoot != null && !waveLoot.isEmpty()) {
+                lostWaves++;
+                long waveValue = 0;
+                log.info("[Mokha] Wave {} (lost):", wave);
+                for (LootItem item : waveLoot) {
+                    log.info("[Mokha]   - {} x{} (value: {} gp)", item.name, item.quantity, item.value);
+                    waveValue += item.value;
+                    totalValue += item.value;
+                }
+                log.info("[Mokha]   Wave {} Total: {} gp", wave, waveValue);
+            }
+        }
+
+        if (lostWaves == 0) {
+            log.info("[Mokha] ===== NO LOOT LOST (no loot from previous waves) =====");
+        } else {
+            log.info("[Mokha] ===== TOTAL LOST LOOT VALUE: {} gp ({} waves) =====", totalValue, lostWaves);
+        }
     }
 
     /**
