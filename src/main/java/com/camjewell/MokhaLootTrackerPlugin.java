@@ -59,7 +59,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private NavigationButton navButton;
     private MokhaLootPanel panel;
 
-    private final Gson gson = new Gson();
+    @Inject
+    private Gson gson;
 
     // Arena state tracking
     private boolean inMokhaArena = false;
