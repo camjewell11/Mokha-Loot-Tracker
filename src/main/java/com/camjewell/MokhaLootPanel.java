@@ -149,6 +149,7 @@ public class MokhaLootPanel extends PluginPanel {
         JLabel title = new JLabel("Profit/Loss");
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(Color.WHITE);
+        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         panel.add(title);
 
         totalClaimedLabel = new JLabel("Total Claimed: 0 gp");
@@ -183,7 +184,8 @@ public class MokhaLootPanel extends PluginPanel {
 
         JLabel title = new JLabel("Current Run");
         title.setFont(FontManager.getRunescapeBoldFont());
-        title.setForeground(Color.WHITE);
+        title.setForeground(new Color(0, 200, 255)); // Cyan
+        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         panel.add(title);
 
         potentialValueLabel = new JLabel("0 gp");
@@ -201,7 +203,8 @@ public class MokhaLootPanel extends PluginPanel {
 
         JLabel title = new JLabel("Claimed Loot by Wave");
         title.setFont(FontManager.getRunescapeBoldFont());
-        title.setForeground(Color.WHITE);
+        title.setForeground(new Color(0, 200, 0)); // Green
+        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         panel.add(title);
 
         for (int i = 0; i < 10; i++) {
@@ -219,7 +222,8 @@ public class MokhaLootPanel extends PluginPanel {
 
         JLabel title = new JLabel("Unclaimed Loot by Wave");
         title.setFont(FontManager.getRunescapeBoldFont());
-        title.setForeground(Color.WHITE);
+        title.setForeground(new Color(200, 0, 0)); // Red
+        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         panel.add(title);
 
         for (int i = 0; i < 10; i++) {
@@ -237,7 +241,8 @@ public class MokhaLootPanel extends PluginPanel {
 
         JLabel title = new JLabel("Supplies Used (Current Run)");
         title.setFont(FontManager.getRunescapeBoldFont());
-        title.setForeground(Color.WHITE);
+        title.setForeground(new Color(255, 165, 0)); // Orange
+        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         panel.add(title);
 
         JLabel totalLabel = new JLabel("0 gp");
@@ -260,7 +265,8 @@ public class MokhaLootPanel extends PluginPanel {
 
         JLabel title = new JLabel("Supplies Used");
         title.setFont(FontManager.getRunescapeBoldFont());
-        title.setForeground(Color.WHITE);
+        title.setForeground(new Color(255, 165, 0)); // Orange
+        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         panel.add(title);
 
         suppliesTotalValueLabel = new JLabel("0 gp");
@@ -330,13 +336,17 @@ public class MokhaLootPanel extends PluginPanel {
     // Update methods to be called from plugin
     public void updateProfitLoss(long totalClaimed, long supplyCost, long totalUnclaimed) {
         totalClaimedLabel.setText("Total Claimed: " + formatGp(totalClaimed));
+        totalClaimedLabel.setForeground(new Color(0, 200, 0)); // Green
+
         supplyCostLabel.setText("Supply Cost: " + formatGp(supplyCost));
+        supplyCostLabel.setForeground(new Color(255, 165, 0)); // Orange
 
         long profitLoss = totalClaimed - supplyCost;
         profitLossLabel.setText("Profit/Loss: " + formatGp(profitLoss));
         profitLossLabel.setForeground(profitLoss >= 0 ? new Color(0, 200, 0) : new Color(200, 0, 0));
 
         totalUnclaimedLabel.setText("Total Unclaimed: " + formatGp(totalUnclaimed));
+        totalUnclaimedLabel.setForeground(new Color(200, 0, 0)); // Red for unclaimed
     }
 
     public void updateCurrentRun(long potentialValue) {
