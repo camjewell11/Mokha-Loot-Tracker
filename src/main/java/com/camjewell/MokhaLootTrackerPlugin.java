@@ -981,12 +981,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Update Supplies Current Run - with items
         Map<String, MokhaLootPanel.ItemData> currentSuppliesData = new HashMap<>();
+        long currentSuppliesTotalValue = 0;
         for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
             int itemId = entry.getKey();
             int quantity = entry.getValue();
             String baseName = getBasePotionName(itemManager.getItemComposition(itemId).getName());
             int pricePerItem = itemManager.getItemPrice(itemId);
             long totalValue = (long) pricePerItem * quantity;
+            currentSuppliesTotalValue += totalValue;
 
             if (currentSuppliesData.containsKey(baseName)) {
                 MokhaLootPanel.ItemData existing = currentSuppliesData.get(baseName);
@@ -1000,14 +1002,16 @@ public class MokhaLootTrackerPlugin extends Plugin {
                         new MokhaLootPanel.ItemData(baseName, quantity, pricePerItem, totalValue));
             }
         }
-        panel.updateSuppliesCurrentRun(currentSuppliesData);
+        panel.updateSuppliesCurrentRun(currentSuppliesTotalValue, currentSuppliesData);
 
         // Update Supplies Total (historical) - with items
         Map<String, MokhaLootPanel.ItemData> historicalSuppliesData = new HashMap<>();
+        long historicalSuppliesTotalValue = 0;
         for (ItemAggregate agg : historicalSuppliesUsed.values()) {
             historicalSuppliesData.put(agg.name,
                     new MokhaLootPanel.ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue));
+            historicalSuppliesTotalValue += agg.totalValue;
         }
-        panel.updateSuppliesTotal(historicalSuppliesData);
+        panel.updateSuppliesTotal(historicalSuppliesTotalValue, historicalSuppliesData);
     }
 }
