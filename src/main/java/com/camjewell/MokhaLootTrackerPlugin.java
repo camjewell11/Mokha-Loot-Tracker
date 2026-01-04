@@ -28,6 +28,7 @@ import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -152,17 +153,20 @@ public class MokhaLootTrackerPlugin extends Plugin {
         int totalQuantity;
         int pricePerItem;
         long totalValue;
+        long originalTotalValue; // Store original value to restore when ignoring is toggled off
 
         ItemAggregate(String name, int quantity, int pricePerItem) {
             this.name = name;
             this.totalQuantity = quantity;
             this.pricePerItem = pricePerItem;
             this.totalValue = (long) pricePerItem * quantity;
+            this.originalTotalValue = this.totalValue; // Store original
         }
 
         void add(int quantity, int pricePerItem) {
             this.totalQuantity += quantity;
             this.totalValue += (long) pricePerItem * quantity;
+            this.originalTotalValue = this.totalValue; // Update original when new items are added
             // Update price per item to latest (could also average, but latest is simpler)
             this.pricePerItem = pricePerItem;
         }
@@ -397,6 +401,20 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
             // Always save data on logout/hopping
             saveHistoricalData();
+        }
+    }
+
+    @Subscribe
+    public void onConfigChanged(ConfigChanged event) {
+        // When ignore settings are toggled, update panel immediately
+        if (event.getGroup().equals("mokhaloot")) {
+            if (event.getKey().equals("ignoreSunKissedBonesValue") || event.getKey().equals("ignoreSpiritSeedsValue")) {
+                log.info("[Mokha] Config changed: {} = {}", event.getKey(), event.getNewValue());
+                // Trigger panel update with new config settings
+                updatePanelData();
+                // Save the updated state
+                saveHistoricalData();
+            }
         }
     }
 
@@ -1219,11 +1237,24 @@ public class MokhaLootTrackerPlugin extends Plugin {
             return;
         }
 
+        // Apply ignore settings to historical items before displaying
+        applyIgnoreSettingsToHistoricalItems(historicalClaimedItemsByWave);
+        applyIgnoreSettingsToHistoricalItems(historicalUnclaimedItemsByWave);
+
+        // Recalculate historical total with ignore settings applied
+        recalculateHistoricalTotalClaimed();
+
         // Calculate current run unclaimed value
         long currentRunValue = 0;
         for (List<LootItem> items : lootByWave.values()) {
             for (LootItem item : items) {
-                currentRunValue += item.value;
+                long itemValue = item.value;
+                // Apply ignore settings to current run loot as well
+                if ((config.ignoreSpiritSeedsValue() && item.name.equals("Spirit seed")) ||
+                        (config.ignoreSunKissedBonesValue() && item.name.equals("Sun-kissed bones"))) {
+                    itemValue = 0;
+                }
+                currentRunValue += itemValue;
             }
         }
 
@@ -1235,12 +1266,19 @@ public class MokhaLootTrackerPlugin extends Plugin {
         Map<String, MokhaLootPanel.ItemData> currentRunItems = new HashMap<>();
         for (List<LootItem> waveItems : lootByWave.values()) {
             for (LootItem item : waveItems) {
+                long itemValue = item.value;
+                // Apply ignore settings to current run loot as well
+                if ((config.ignoreSpiritSeedsValue() && item.name.equals("Spirit seed")) ||
+                        (config.ignoreSunKissedBonesValue() && item.name.equals("Sun-kissed bones"))) {
+                    itemValue = 0;
+                }
+
                 MokhaLootPanel.ItemData itemData = currentRunItems.getOrDefault(item.name,
                         new MokhaLootPanel.ItemData(item.name, 0, 0, 0));
                 itemData.quantity += item.quantity;
-                itemData.totalValue += item.value;
+                itemData.totalValue += itemValue;
                 if (item.quantity > 0) {
-                    itemData.pricePerItem = (int) (item.value / item.quantity);
+                    itemData.pricePerItem = (int) (itemValue / item.quantity);
                 }
                 currentRunItems.put(item.name, itemData);
             }
@@ -1337,16 +1375,30 @@ public class MokhaLootTrackerPlugin extends Plugin {
     /**
      * Apply ignore settings to historical item data
      * Zeros out the totalValue for Spirit Seeds and Sun-kissed Bones if the
-     * respective ignore settings are enabled
+     * respective ignore settings are enabled. Restores original value if setting is
+     * disabled.
      */
     private void applyIgnoreSettingsToHistoricalItems(Map<Integer, Map<String, ItemAggregate>> historicalItems) {
         for (Map<String, ItemAggregate> waveItems : historicalItems.values()) {
             for (ItemAggregate item : waveItems.values()) {
-                if (config.ignoreSpiritSeedsValue() && item.name.equals("Spirit seed")) {
-                    item.totalValue = 0;
+                // Ensure originalTotalValue is properly set - calculate if not set
+                if (item.originalTotalValue == 0 && item.totalQuantity > 0) {
+                    item.originalTotalValue = (long) item.pricePerItem * item.totalQuantity;
                 }
-                if (config.ignoreSunKissedBonesValue() && item.name.equals("Sun-kissed bones")) {
-                    item.totalValue = 0;
+
+                if (item.name.equals("Spirit seed")) {
+                    if (config.ignoreSpiritSeedsValue()) {
+                        item.totalValue = 0; // Zero out if ignoring
+                    } else {
+                        item.totalValue = item.originalTotalValue; // Restore original if not ignoring
+                    }
+                }
+                if (item.name.equals("Sun-kissed bones")) {
+                    if (config.ignoreSunKissedBonesValue()) {
+                        item.totalValue = 0; // Zero out if ignoring
+                    } else {
+                        item.totalValue = item.originalTotalValue; // Restore original if not ignoring
+                    }
                 }
             }
         }
