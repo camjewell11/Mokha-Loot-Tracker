@@ -51,12 +51,13 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel potentialValueLabel;
 
     // Claimed Loot by Wave - now stores panels for dynamic item lists
-    private JPanel[] claimedWavePanels = new JPanel[10]; // Wave 1-9+
+    private JPanel[] claimedWavePanels = new JPanel[9]; // Wave 1-8 and 9+
 
     // Unclaimed Loot by Wave - now stores panels for dynamic item lists
-    private JPanel[] unclaimedWavePanels = new JPanel[10]; // Wave 1-9+
+    private JPanel[] unclaimedWavePanels = new JPanel[9]; // Wave 1-8 and 9+
 
     // Supplies Used Current Run
+    private JLabel suppliesCurrentRunTotalLabel;
     private JPanel suppliesCurrentRunPanel;
 
     // Supplies Used (All Time)
@@ -154,7 +155,7 @@ public class MokhaLootPanel extends PluginPanel {
         titleRow.add(title, BorderLayout.WEST);
         panel.add(titleRow);
 
-        totalClaimedLabel = new JLabel("Total Claimed: 0 gp");
+        totalClaimedLabel = new JLabel("0 gp");
         totalClaimedLabel.setFont(FontManager.getRunescapeFont());
         totalClaimedLabel.setForeground(Color.WHITE);
         panel.add(createStatRow("Total Claimed:", totalClaimedLabel));
@@ -213,8 +214,8 @@ public class MokhaLootPanel extends PluginPanel {
         titleRow.add(title, BorderLayout.WEST);
         panel.add(titleRow);
 
-        for (int i = 0; i < 10; i++) {
-            claimedWavePanels[i] = createWavePanel("Wave " + (i == 9 ? "9+" : i + 1));
+        for (int i = 0; i < 9; i++) {
+            claimedWavePanels[i] = createWavePanel("Wave " + (i == 8 ? "9+" : i + 1));
             panel.add(claimedWavePanels[i]);
         }
 
@@ -234,8 +235,8 @@ public class MokhaLootPanel extends PluginPanel {
         titleRow.add(title, BorderLayout.WEST);
         panel.add(titleRow);
 
-        for (int i = 0; i < 10; i++) {
-            unclaimedWavePanels[i] = createWavePanel("Wave " + (i == 9 ? "9+" : i + 1));
+        for (int i = 0; i < 9; i++) {
+            unclaimedWavePanels[i] = createWavePanel("Wave " + (i == 8 ? "9+" : i + 1));
             panel.add(unclaimedWavePanels[i]);
         }
 
@@ -255,10 +256,10 @@ public class MokhaLootPanel extends PluginPanel {
         titleRow.add(title, BorderLayout.WEST);
         panel.add(titleRow);
 
-        JLabel totalLabel = new JLabel("0 gp");
-        totalLabel.setFont(FontManager.getRunescapeFont());
-        totalLabel.setForeground(Color.WHITE);
-        panel.add(createStatRow("Total Value:", totalLabel));
+        suppliesCurrentRunTotalLabel = new JLabel("0 gp");
+        suppliesCurrentRunTotalLabel.setFont(FontManager.getRunescapeFont());
+        suppliesCurrentRunTotalLabel.setForeground(Color.WHITE);
+        panel.add(createStatRow("Total Value:", suppliesCurrentRunTotalLabel));
 
         suppliesCurrentRunPanel = new JPanel();
         suppliesCurrentRunPanel.setLayout(new BoxLayout(suppliesCurrentRunPanel, BoxLayout.Y_AXIS));
@@ -318,10 +319,28 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     private JPanel createWavePanel(String waveTitle) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        // Header with wave title and value
         JLabel valueLabel = new JLabel("0 gp");
         valueLabel.setFont(FontManager.getRunescapeFont());
         valueLabel.setForeground(Color.WHITE);
-        return createStatRow(waveTitle + ":", valueLabel);
+
+        JPanel headerRow = new JPanel(new BorderLayout());
+        headerRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        headerRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+
+        JLabel labelComponent = new JLabel(waveTitle + ":");
+        labelComponent.setFont(FontManager.getRunescapeFont());
+        labelComponent.setForeground(Color.LIGHT_GRAY);
+
+        headerRow.add(labelComponent, BorderLayout.WEST);
+        headerRow.add(valueLabel, BorderLayout.EAST);
+
+        panel.add(headerRow);
+        return panel;
     }
 
     private JPanel createSeparator(int paddingTopBottom) {
@@ -347,60 +366,60 @@ public class MokhaLootPanel extends PluginPanel {
 
     // Update methods to be called from plugin
     public void updateProfitLoss(long totalClaimed, long supplyCost, long totalUnclaimed) {
-        totalClaimedLabel.setText("Total Claimed: " + formatGp(totalClaimed));
+        totalClaimedLabel.setText(formatGp(totalClaimed));
         totalClaimedLabel.setForeground(new Color(0, 200, 0)); // Green
 
-        supplyCostLabel.setText("Supply Cost: " + formatGp(supplyCost));
+        supplyCostLabel.setText(formatGp(supplyCost));
         supplyCostLabel.setForeground(new Color(255, 165, 0)); // Orange
 
         long profitLoss = totalClaimed - supplyCost;
-        profitLossLabel.setText("Profit/Loss: " + formatGp(profitLoss));
+        profitLossLabel.setText(formatGp(profitLoss));
         profitLossLabel.setForeground(profitLoss >= 0 ? new Color(0, 200, 0) : new Color(200, 0, 0));
 
-        totalUnclaimedLabel.setText("Total Unclaimed: " + formatGp(totalUnclaimed));
-        totalUnclaimedLabel.setForeground(new Color(200, 0, 0)); // Red for unclaimed
+        totalUnclaimedLabel.setText(formatGp(totalUnclaimed));
     }
 
     public void updateCurrentRun(long potentialValue) {
-        potentialValueLabel.setText("Potential Value: " + formatGp(potentialValue));
+        potentialValueLabel.setText(formatGp(potentialValue));
     }
 
     public void updateClaimedWave(int wave, Map<String, ItemData> itemData) {
-        int index = wave > 9 ? 9 : wave - 1;
+        int index = wave >= 9 ? 8 : wave - 1;
         if (index >= 0 && index < claimedWavePanels.length) {
             updateWavePanel(claimedWavePanels[index], wave, itemData);
         }
     }
 
     public void updateUnclaimedWave(int wave, Map<String, ItemData> itemData) {
-        int index = wave > 9 ? 9 : wave - 1;
+        int index = wave >= 9 ? 8 : wave - 1;
         if (index >= 0 && index < unclaimedWavePanels.length) {
             updateWavePanel(unclaimedWavePanels[index], wave, itemData);
         }
     }
 
     public void updateSuppliesCurrentRun(long totalValue, Map<String, ItemData> itemData) {
-        // Update total value in the section header (first label)
-        // itemData contains the supplies used in current run
+        // Update total value label
+        suppliesCurrentRunTotalLabel.setText(formatGp(totalValue));
+        // Update items
         updateSuppliesPanel(suppliesCurrentRunPanel, itemData);
     }
 
     public void updateSuppliesTotal(long totalValue, Map<String, ItemData> itemData) {
-        suppliesTotalValueLabel.setText("Total Value: " + formatGp(totalValue));
+        suppliesTotalValueLabel.setText(formatGp(totalValue));
         updateSuppliesPanel(suppliesTotalItemsPanel, itemData);
     }
 
     private void updateWavePanel(JPanel wavePanel, int wave, Map<String, ItemData> itemData) {
-        // Clear existing items from panel (keep only header label)
+        // Clear existing items from panel (keep only header panel)
         while (wavePanel.getComponentCount() > 1) {
             wavePanel.remove(1);
         }
 
         if (itemData == null || itemData.isEmpty()) {
             // Update header to show 0 gp
-            JLabel headerLabel = (JLabel) wavePanel.getComponent(0);
-            String waveStr = wave > 9 ? "Wave 9+" : "Wave " + wave;
-            headerLabel.setText(waveStr + ": 0 gp");
+            JPanel headerRow = (JPanel) wavePanel.getComponent(0);
+            JLabel valueLabel = (JLabel) headerRow.getComponent(1);
+            valueLabel.setText("0 gp");
             return;
         }
 
@@ -410,19 +429,35 @@ public class MokhaLootPanel extends PluginPanel {
             totalValue += item.totalValue;
         }
 
-        // Update header label with total
-        JLabel headerLabel = (JLabel) wavePanel.getComponent(0);
-        String waveStr = wave > 9 ? "Wave 9+" : "Wave " + wave;
-        headerLabel.setText(waveStr + ": " + formatGp(totalValue));
+        // Update header value label with total
+        JPanel headerRow = (JPanel) wavePanel.getComponent(0);
+        JLabel valueLabel = (JLabel) headerRow.getComponent(1);
+        valueLabel.setText(formatGp(totalValue));
 
-        // Add item entries
+        // Add item entries with spacing
         for (ItemData item : itemData.values()) {
-            JLabel itemLabel = new JLabel(item.name + " x" + item.quantity + " (" + formatGp(item.totalValue) + ")");
+            String pricePerItemText = item.pricePerItem > 0 ? (formatGp(item.pricePerItem) + "/ea") : "N/A";
+
+            // Create item row with BorderLayout for left/right alignment
+            JPanel itemRow = new JPanel(new BorderLayout());
+            itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+            itemRow.setBorder(new EmptyBorder(2, 25, 2, 0));
+            itemRow.setToolTipText("Price per item: " + pricePerItemText);
+
+            // Left side: item name and quantity
+            JLabel itemLabel = new JLabel("• " + item.name + " x" + item.quantity);
             itemLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
-            itemLabel.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-            itemLabel.setBorder(new EmptyBorder(0, 15, 0, 0)); // Indent items
-            wavePanel.add(itemLabel);
+            itemRow.add(itemLabel, BorderLayout.WEST);
+
+            // Right side: value
+            JLabel itemValueLabel = new JLabel(formatGp(item.totalValue));
+            itemValueLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+            itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
+            itemRow.add(itemValueLabel, BorderLayout.EAST);
+
+            wavePanel.add(itemRow);
         }
 
         wavePanel.revalidate();
@@ -439,12 +474,28 @@ public class MokhaLootPanel extends PluginPanel {
 
         // Add item entries
         for (ItemData item : itemData.values()) {
-            JLabel itemLabel = new JLabel(item.name + " x" + item.quantity + " (" + formatGp(item.totalValue) + ")");
+            String pricePerItemText = item.pricePerItem > 0 ? (formatGp(item.pricePerItem) + "/dose") : "N/A";
+
+            // Create item row with BorderLayout for left/right alignment
+            JPanel itemRow = new JPanel(new BorderLayout());
+            itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+            itemRow.setBorder(new EmptyBorder(2, 10, 2, 0));
+            itemRow.setToolTipText("Price per dose: " + pricePerItemText);
+
+            // Left side: item name and quantity
+            JLabel itemLabel = new JLabel("• " + item.name + " x" + item.quantity);
             itemLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
-            itemLabel.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-            itemLabel.setBorder(new EmptyBorder(0, 10, 0, 0)); // Indent items
-            suppliesPanel.add(itemLabel);
+            itemRow.add(itemLabel, BorderLayout.WEST);
+
+            // Right side: value
+            JLabel itemValueLabel = new JLabel(formatGp(item.totalValue));
+            itemValueLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+            itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
+            itemRow.add(itemValueLabel, BorderLayout.EAST);
+
+            suppliesPanel.add(itemRow);
         }
 
         suppliesPanel.revalidate();
