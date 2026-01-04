@@ -43,6 +43,13 @@ public interface MokhaLootTrackerConfig extends Config {
 
 	void setHistoricalClaimedByWaveJson(String value);
 
+	@ConfigItem(keyName = "historicalClaimedItemsByWaveJson", name = "Historical Claimed Items By Wave", description = "Persisted claimed item details by wave as JSON", position = 103)
+	default String historicalClaimedItemsByWaveJson() {
+		return "{}";
+	}
+
+	void setHistoricalClaimedItemsByWaveJson(String value);
+
 	@ConfigItem(keyName = "historicalSuppliesUsedJson", name = "Historical Supplies Used", description = "Persisted supplies used as JSON", position = 104)
 	default String historicalSuppliesUsedJson() {
 		return "{}";

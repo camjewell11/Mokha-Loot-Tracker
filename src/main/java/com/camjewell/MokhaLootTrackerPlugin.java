@@ -21,6 +21,7 @@ import net.runelite.api.ItemContainer;
 import net.runelite.api.ItemID;
 import net.runelite.api.Varbits;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
@@ -283,6 +284,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // Update historical data with claimed loot
                 updateHistoricalDataOnClaim();
 
+                // Save historical data immediately after claiming
+                saveHistoricalData();
+
                 // Clear all tracking state
                 inMokhaArena = false;
                 isDead = false;
@@ -377,6 +381,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // - When loot is captured (in checkForLootWindow via parseLootItems)
         // - When supplies are consumed (in checkForConsumption)
         // - When claiming/dying (already handled above)
+    }
+
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        // Save data immediately when logging out or leaving the game
+        net.runelite.api.GameState state = event.getGameState();
+        if (state == net.runelite.api.GameState.LOGIN_SCREEN ||
+                state == net.runelite.api.GameState.HOPPING) {
+            if (inMokhaArena && !lootByWave.isEmpty()) {
+                // If player is still in arena and has unclaimed loot, save it first
+                moveCurrentRunUnclaimedToHistorical();
+            }
+            // Always save data on logout/hopping
+            saveHistoricalData();
+        }
     }
 
     @Subscribe
@@ -857,6 +876,22 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 }
             }
 
+            // Load historical claimed items by wave
+            String claimedItemsJson = config.historicalClaimedItemsByWaveJson();
+            if (claimedItemsJson != null && !claimedItemsJson.isEmpty() && !claimedItemsJson.equals("{}")) {
+                try {
+                    java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<Map<Integer, Map<String, ItemAggregate>>>() {
+                    }.getType();
+                    Map<Integer, Map<String, ItemAggregate>> loaded = gson.fromJson(claimedItemsJson, type);
+                    if (loaded != null) {
+                        historicalClaimedItemsByWave.putAll(loaded);
+                        log.info("[Mokha] Loaded {} historical claimed wave item entries", loaded.size());
+                    }
+                } catch (Exception e) {
+                    log.warn("[Mokha] Failed to load historical claimed items by wave data", e);
+                }
+            }
+
             // Load supplies used
             String suppliesJson = config.historicalSuppliesUsedJson();
             if (suppliesJson != null && !suppliesJson.isEmpty() && !suppliesJson.equals("{}")) {
@@ -945,6 +980,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
             // Save claimed by wave
             String claimedJson = gson.toJson(historicalClaimedByWave);
             config.setHistoricalClaimedByWaveJson(claimedJson);
+
+            // Save claimed items by wave
+            String claimedItemsJson = gson.toJson(historicalClaimedItemsByWave);
+            config.setHistoricalClaimedItemsByWaveJson(claimedItemsJson);
 
             // Save supplies used
             String suppliesJson = gson.toJson(historicalSuppliesUsed);
@@ -1172,8 +1211,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
         long totalUnclaimed = currentRunValue; // Current run is unclaimed until Leave pressed
         panel.updateProfitLoss(historicalTotalClaimed, historicalSupplyCost, totalUnclaimed);
 
-        // Update Current Run section
-        panel.updateCurrentRun(currentRunValue);
+        // Update Current Run section with items
+        Map<String, MokhaLootPanel.ItemData> currentRunItems = new HashMap<>();
+        for (List<LootItem> waveItems : lootByWave.values()) {
+            for (LootItem item : waveItems) {
+                MokhaLootPanel.ItemData itemData = currentRunItems.getOrDefault(item.name,
+                        new MokhaLootPanel.ItemData(item.name, 0, 0, 0));
+                itemData.quantity += item.quantity;
+                itemData.totalValue += item.value;
+                if (item.quantity > 0) {
+                    itemData.pricePerItem = (int) (item.value / item.quantity);
+                }
+                currentRunItems.put(item.name, itemData);
+            }
+        }
+        panel.updateCurrentRun(currentRunValue, currentRunItems);
 
         // Update Claimed Loot by Wave (historical) - with items
         for (int wave = 1; wave <= 10; wave++) {

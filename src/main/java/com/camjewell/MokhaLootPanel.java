@@ -49,6 +49,7 @@ public class MokhaLootPanel extends PluginPanel {
 
     // Current Run section
     private JLabel potentialValueLabel;
+    private JPanel currentRunItemsPanel;
 
     // Claimed Loot by Wave - now stores panels for dynamic item lists
     private JPanel[] claimedWavePanels = new JPanel[9]; // Wave 1-8 and 9+
@@ -197,6 +198,12 @@ public class MokhaLootPanel extends PluginPanel {
         potentialValueLabel.setFont(FontManager.getRunescapeFont());
         potentialValueLabel.setForeground(Color.WHITE);
         panel.add(createStatRow("Potential Value:", potentialValueLabel));
+
+        // Current run items panel
+        currentRunItemsPanel = new JPanel();
+        currentRunItemsPanel.setLayout(new BoxLayout(currentRunItemsPanel, BoxLayout.Y_AXIS));
+        currentRunItemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        panel.add(currentRunItemsPanel);
 
         return panel;
     }
@@ -379,8 +386,9 @@ public class MokhaLootPanel extends PluginPanel {
         totalUnclaimedLabel.setText(formatGp(totalUnclaimed));
     }
 
-    public void updateCurrentRun(long potentialValue) {
+    public void updateCurrentRun(long potentialValue, Map<String, ItemData> itemData) {
         potentialValueLabel.setText(formatGp(potentialValue));
+        updateSuppliesPanel(currentRunItemsPanel, itemData);
     }
 
     public void updateClaimedWave(int wave, Map<String, ItemData> itemData) {
