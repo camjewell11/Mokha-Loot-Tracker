@@ -53,8 +53,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
     @Inject
     private ItemManager itemManager;
 
-    private MokhaLootPanel panel;
+    @Inject
+    private ConfigManager configManager;
     private NavigationButton navButton;
+    private MokhaLootPanel panel;
 
     private final Gson gson = new Gson();
 
@@ -857,11 +859,23 @@ public class MokhaLootTrackerPlugin extends Plugin {
      */
     private void loadHistoricalData() {
         try {
-            historicalTotalClaimed = config.historicalTotalClaimed();
-            historicalSupplyCost = config.historicalSupplyCost();
+            log.info("[Mokha] Starting to load historical data...");
+            // Get raw config values directly from ConfigManager since we removed
+            // @ConfigItem
+            String totalClaimedStr = configManager.getConfiguration("mokhaloot", "historicalTotalClaimed");
+            historicalTotalClaimed = totalClaimedStr != null && !totalClaimedStr.isEmpty()
+                    ? Long.parseLong(totalClaimedStr)
+                    : 0;
+
+            String supplyCostStr = configManager.getConfiguration("mokhaloot", "historicalSupplyCost");
+            historicalSupplyCost = supplyCostStr != null && !supplyCostStr.isEmpty() ? Long.parseLong(supplyCostStr)
+                    : 0;
+
+            log.info("[Mokha] Loaded historicalTotalClaimed={}, historicalSupplyCost={}", historicalTotalClaimed,
+                    historicalSupplyCost);
 
             // Load claimed by wave
-            String claimedJson = config.historicalClaimedByWaveJson();
+            String claimedJson = configManager.getConfiguration("mokhaloot", "historicalClaimedByWaveJson");
             if (claimedJson != null && !claimedJson.isEmpty() && !claimedJson.equals("{}")) {
                 try {
                     java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<Map<Integer, Long>>() {
@@ -877,7 +891,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
 
             // Load historical claimed items by wave
-            String claimedItemsJson = config.historicalClaimedItemsByWaveJson();
+            String claimedItemsJson = configManager.getConfiguration("mokhaloot", "historicalClaimedItemsByWaveJson");
+            log.info("[Mokha] claimedItemsJson={}", claimedItemsJson);
             if (claimedItemsJson != null && !claimedItemsJson.isEmpty() && !claimedItemsJson.equals("{}")) {
                 try {
                     java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<Map<Integer, Map<String, ItemAggregate>>>() {
@@ -885,6 +900,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     Map<Integer, Map<String, ItemAggregate>> loaded = gson.fromJson(claimedItemsJson, type);
                     if (loaded != null) {
                         historicalClaimedItemsByWave.putAll(loaded);
+                        applyIgnoreSettingsToHistoricalItems(historicalClaimedItemsByWave);
+                        recalculateHistoricalTotalClaimed();
                         log.info("[Mokha] Loaded {} historical claimed wave item entries", loaded.size());
                     }
                 } catch (Exception e) {
@@ -893,7 +910,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
 
             // Load supplies used
-            String suppliesJson = config.historicalSuppliesUsedJson();
+            String suppliesJson = configManager.getConfiguration("mokhaloot", "historicalSuppliesUsedJson");
             if (suppliesJson != null && !suppliesJson.isEmpty() && !suppliesJson.equals("{}")) {
                 try {
                     java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<Map<String, ItemAggregate>>() {
@@ -909,7 +926,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
 
             // Load historical unclaimed by wave
-            String unclaimedByWaveJson = config.historicalUnclaimedByWaveJson();
+            String unclaimedByWaveJson = configManager.getConfiguration("mokhaloot", "historicalUnclaimedByWaveJson");
             if (unclaimedByWaveJson != null && !unclaimedByWaveJson.isEmpty() && !unclaimedByWaveJson.equals("{}")) {
                 try {
                     java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<Map<Integer, Long>>() {
@@ -925,7 +942,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
 
             // Load historical unclaimed items by wave
-            String unclaimedItemsJson = config.historicalUnclaimedItemsByWaveJson();
+            String unclaimedItemsJson = configManager.getConfiguration("mokhaloot",
+                    "historicalUnclaimedItemsByWaveJson");
             if (unclaimedItemsJson != null && !unclaimedItemsJson.isEmpty() && !unclaimedItemsJson.equals("{}")) {
                 try {
                     java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<Map<Integer, Map<String, ItemAggregate>>>() {
@@ -933,6 +951,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     Map<Integer, Map<String, ItemAggregate>> loaded = gson.fromJson(unclaimedItemsJson, type);
                     if (loaded != null) {
                         historicalUnclaimedItemsByWave.putAll(loaded);
+                        applyIgnoreSettingsToHistoricalItems(historicalUnclaimedItemsByWave);
                         log.info("[Mokha] Loaded {} historical unclaimed wave item entries", loaded.size());
                     }
                 } catch (Exception e) {
@@ -941,7 +960,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
 
             // Load current run loot by wave
-            String currentRunJson = config.currentRunLootByWaveJson();
+            String currentRunJson = configManager.getConfiguration("mokhaloot", "currentRunLootByWaveJson");
             if (currentRunJson != null && !currentRunJson.isEmpty() && !currentRunJson.equals("{}")) {
                 try {
                     java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<Map<Integer, List<LootItem>>>() {
@@ -962,8 +981,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 }
             }
 
-            log.info("[Mokha] Historical data loaded - Claimed: {}, Supply Cost: {}",
-                    historicalTotalClaimed, historicalSupplyCost);
+            log.info("[Mokha] Historical data loaded - Claimed: {}, Supply Cost: {}", historicalTotalClaimed,
+                    historicalSupplyCost);
         } catch (Exception e) {
             log.error("[Mokha] Error loading historical data", e);
         }
@@ -974,32 +993,33 @@ public class MokhaLootTrackerPlugin extends Plugin {
      */
     private void saveHistoricalData() {
         try {
-            config.setHistoricalTotalClaimed(historicalTotalClaimed);
-            config.setHistoricalSupplyCost(historicalSupplyCost);
+            configManager.setConfiguration("mokhaloot", "historicalTotalClaimed",
+                    String.valueOf(historicalTotalClaimed));
+            configManager.setConfiguration("mokhaloot", "historicalSupplyCost", String.valueOf(historicalSupplyCost));
 
             // Save claimed by wave
             String claimedJson = gson.toJson(historicalClaimedByWave);
-            config.setHistoricalClaimedByWaveJson(claimedJson);
+            configManager.setConfiguration("mokhaloot", "historicalClaimedByWaveJson", claimedJson);
 
             // Save claimed items by wave
             String claimedItemsJson = gson.toJson(historicalClaimedItemsByWave);
-            config.setHistoricalClaimedItemsByWaveJson(claimedItemsJson);
+            configManager.setConfiguration("mokhaloot", "historicalClaimedItemsByWaveJson", claimedItemsJson);
 
             // Save supplies used
             String suppliesJson = gson.toJson(historicalSuppliesUsed);
-            config.setHistoricalSuppliesUsedJson(suppliesJson);
+            configManager.setConfiguration("mokhaloot", "historicalSuppliesUsedJson", suppliesJson);
 
             // Save unclaimed by wave
             String unclaimedByWaveJson = gson.toJson(historicalUnclaimedByWave);
-            config.setHistoricalUnclaimedByWaveJson(unclaimedByWaveJson);
+            configManager.setConfiguration("mokhaloot", "historicalUnclaimedByWaveJson", unclaimedByWaveJson);
 
             // Save unclaimed items by wave
             String unclaimedItemsJson = gson.toJson(historicalUnclaimedItemsByWave);
-            config.setHistoricalUnclaimedItemsByWaveJson(unclaimedItemsJson);
+            configManager.setConfiguration("mokhaloot", "historicalUnclaimedItemsByWaveJson", unclaimedItemsJson);
 
             // Save current run loot by wave
             String currentRunJson = gson.toJson(lootByWave);
-            config.setCurrentRunLootByWaveJson(currentRunJson);
+            configManager.setConfiguration("mokhaloot", "currentRunLootByWaveJson", currentRunJson);
 
             log.info("[Mokha] Historical data saved - Claimed: {}, Supply Cost: {}",
                     historicalTotalClaimed, historicalSupplyCost);
@@ -1312,5 +1332,36 @@ public class MokhaLootTrackerPlugin extends Plugin {
             historicalSuppliesTotalValue += agg.totalValue;
         }
         panel.updateSuppliesTotal(historicalSuppliesTotalValue, historicalSuppliesData);
+    }
+
+    /**
+     * Apply ignore settings to historical item data
+     * Zeros out the totalValue for Spirit Seeds and Sun-kissed Bones if the
+     * respective ignore settings are enabled
+     */
+    private void applyIgnoreSettingsToHistoricalItems(Map<Integer, Map<String, ItemAggregate>> historicalItems) {
+        for (Map<String, ItemAggregate> waveItems : historicalItems.values()) {
+            for (ItemAggregate item : waveItems.values()) {
+                if (config.ignoreSpiritSeedsValue() && item.name.equals("Spirit seed")) {
+                    item.totalValue = 0;
+                }
+                if (config.ignoreSunKissedBonesValue() && item.name.equals("Sun-kissed bones")) {
+                    item.totalValue = 0;
+                }
+            }
+        }
+    }
+
+    /**
+     * Recalculate historical claimed total based on actual item values after ignore
+     * settings applied
+     */
+    private void recalculateHistoricalTotalClaimed() {
+        historicalTotalClaimed = 0;
+        for (Map<String, ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
+            for (ItemAggregate item : waveItems.values()) {
+                historicalTotalClaimed += item.totalValue;
+            }
+        }
     }
 }

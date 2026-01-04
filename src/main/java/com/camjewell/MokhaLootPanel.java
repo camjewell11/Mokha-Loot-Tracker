@@ -129,16 +129,6 @@ public class MokhaLootPanel extends PluginPanel {
         // Supplies Used (All Time) Section
         statsPanel.add(createSuppliesTotalSection());
         statsPanel.add(createSeparator(5));
-
-        // Debug button at bottom
-        JButton debugButton = new JButton("Debug Location");
-        debugButton.addActionListener(e -> {
-            if (onDebugLocation != null) {
-                onDebugLocation.run();
-            }
-        });
-        debugButton.setAlignmentX(JButton.CENTER_ALIGNMENT);
-        statsPanel.add(debugButton);
     }
 
     private JPanel createProfitLossSection() {
