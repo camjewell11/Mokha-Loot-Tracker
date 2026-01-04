@@ -76,6 +76,15 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private final Map<Integer, Integer> initialSupplySnapshot = new HashMap<>();
     private final Map<Integer, Integer> totalSuppliesConsumed = new HashMap<>();
 
+    // Historical tracking (persisted across runs)
+    private long historicalTotalClaimed = 0;
+    private long historicalSupplyCost = 0;
+    private long historicalPotionsCost = 0;
+    private long historicalFoodCost = 0;
+    private long historicalRunesCost = 0;
+    private long historicalAmmoCost = 0;
+    private final Map<Integer, Long> historicalClaimedByWave = new HashMap<>(); // Wave -> Total GP claimed
+
     // Rune pouch mapping (varbit values to item IDs)
     private static final int[] RUNE_POUCH_ITEM_IDS = new int[] {
             0, // 0 unused / empty
@@ -205,6 +214,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 printSuppliesConsumed();
                 printAccumulatedLoot();
 
+                // Update historical data with claimed loot
+                updateHistoricalDataOnClaim();
+
                 // Clear all tracking state
                 inMokhaArena = false;
                 isDead = false;
@@ -214,6 +226,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
                 initialSupplySnapshot.clear();
+
+                // Update panel to show cleared current run data
+                updatePanelData();
             }
         }
     }
@@ -236,6 +251,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // Print lost loot from previous waves (couldn't claim because of death)
                 printLostLoot();
 
+                // Update historical supply costs (loot was lost, so don't count it)
+                calculateSuppliesCost(); // This updates historical category costs
+                long suppliesCost = 0;
+                for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
+                    suppliesCost += itemManager.getItemPrice(entry.getKey()) * entry.getValue();
+                }
+                historicalSupplyCost += suppliesCost;
+
                 inMokhaArena = false; // Exit arena on death
                 // Clear all tracking data
                 lastCombinedSnapshot.clear();
@@ -243,6 +266,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
                 initialSupplySnapshot.clear();
+
+                // Update panel to show cleared current run data and updated historical costs
+                updatePanelData();
             } else if (!currentlyDead && isDead) {
                 isDead = false;
                 if (config.debugLogging()) {
@@ -258,6 +284,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Check for loot window and capture loot
         checkForLootWindow();
+
+        // Update panel data with current run info
+        if (inMokhaArena) {
+            updatePanelData();
+        }
     }
 
     @Subscribe
@@ -711,5 +742,140 @@ public class MokhaLootTrackerPlugin extends Plugin {
         int distanceSquared = dx * dx + dy * dy;
         int radiusSquared = entrance_radius * entrance_radius;
         return distanceSquared <= radiusSquared;
+    }
+
+    /**
+     * Update historical data when loot is claimed
+     */
+    private void updateHistoricalDataOnClaim() {
+        // Add claimed loot to historical total
+        long claimedValue = 0;
+        for (Map.Entry<Integer, List<LootItem>> entry : lootByWave.entrySet()) {
+            int wave = entry.getKey();
+            long waveValue = 0;
+            for (LootItem item : entry.getValue()) {
+                waveValue += item.value;
+            }
+            claimedValue += waveValue;
+
+            // Update historical claimed by wave
+            int waveIndex = wave > 9 ? 9 : wave;
+            historicalClaimedByWave.put(waveIndex,
+                    historicalClaimedByWave.getOrDefault(waveIndex, 0L) + waveValue);
+        }
+        historicalTotalClaimed += claimedValue;
+
+        // Add supplies cost to historical total
+        long suppliesCost = calculateSuppliesCost();
+        historicalSupplyCost += suppliesCost;
+
+        // Update panel
+        updatePanelData();
+    }
+
+    /**
+     * Calculate total supplies cost and categorize by type
+     */
+    private long calculateSuppliesCost() {
+        long totalCost = 0;
+        long potionsCost = 0;
+        long foodCost = 0;
+        long runesCost = 0;
+        long ammoCost = 0;
+
+        for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
+            int itemId = entry.getKey();
+            int quantity = entry.getValue();
+            String itemName = itemManager.getItemComposition(itemId).getName().toLowerCase();
+            int itemValue = itemManager.getItemPrice(itemId) * quantity;
+
+            totalCost += itemValue;
+
+            // Categorize supplies
+            if (itemName.contains("potion") || itemName.contains("brew") || itemName.contains("mix")) {
+                potionsCost += itemValue;
+            } else if (itemName.contains("rune") || itemName.contains("dust") || itemName.contains("chaos")) {
+                runesCost += itemValue;
+            } else if (itemName.contains("arrow") || itemName.contains("bolt") || itemName.contains("dart")
+                    || itemName.contains("knife") || itemName.contains("javelin")) {
+                ammoCost += itemValue;
+            } else {
+                // Assume everything else is food
+                foodCost += itemValue;
+            }
+        }
+
+        // Update historical category costs
+        historicalPotionsCost += potionsCost;
+        historicalFoodCost += foodCost;
+        historicalRunesCost += runesCost;
+        historicalAmmoCost += ammoCost;
+
+        return totalCost;
+    }
+
+    /**
+     * Update all panel data
+     */
+    private void updatePanelData() {
+        if (panel == null) {
+            return;
+        }
+
+        // Calculate current run unclaimed value
+        long currentRunValue = 0;
+        for (List<LootItem> items : lootByWave.values()) {
+            for (LootItem item : items) {
+                currentRunValue += item.value;
+            }
+        }
+
+        // Update Profit/Loss section
+        long totalUnclaimed = currentRunValue; // Current run is unclaimed until Leave pressed
+        panel.updateProfitLoss(historicalTotalClaimed, historicalSupplyCost, totalUnclaimed);
+
+        // Update Current Run section
+        panel.updateCurrentRun(currentRunValue);
+
+        // Update Claimed Loot by Wave (historical)
+        for (int wave = 1; wave <= 10; wave++) {
+            int index = wave > 9 ? 9 : wave;
+            long value = historicalClaimedByWave.getOrDefault(index, 0L);
+            panel.updateClaimedWave(wave, value);
+        }
+
+        // Update Unclaimed Loot by Wave (current run)
+        for (int wave = 1; wave <= 10; wave++) {
+            long waveValue = 0;
+            List<LootItem> items = lootByWave.get(wave);
+            if (items != null) {
+                for (LootItem item : items) {
+                    waveValue += item.value;
+                }
+            }
+            // For wave 9+, aggregate all waves >= 9
+            if (wave > 9) {
+                for (int w = 9; w <= 20; w++) {
+                    List<LootItem> waveItems = lootByWave.get(w);
+                    if (waveItems != null) {
+                        for (LootItem item : waveItems) {
+                            waveValue += item.value;
+                        }
+                    }
+                }
+            }
+            panel.updateUnclaimedWave(wave, waveValue);
+        }
+
+        // Update Supplies Current Run
+        long currentSuppliesCost = 0;
+        for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
+            currentSuppliesCost += itemManager.getItemPrice(entry.getKey()) * entry.getValue();
+        }
+        panel.updateSuppliesCurrentRun(currentSuppliesCost);
+
+        // Update Supplies Total (historical)
+        panel.updateSuppliesTotal(historicalSupplyCost, historicalPotionsCost,
+                historicalFoodCost, historicalRunesCost, historicalAmmoCost);
     }
 }
