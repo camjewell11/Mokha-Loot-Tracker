@@ -84,6 +84,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private long historicalRunesCost = 0;
     private long historicalAmmoCost = 0;
     private final Map<Integer, Long> historicalClaimedByWave = new HashMap<>(); // Wave -> Total GP claimed
+    private final Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave = new HashMap<>(); // Wave ->
+                                                                                                           // Item
+                                                                                                           // aggregates
+    private final Map<String, ItemAggregate> historicalSuppliesUsed = new HashMap<>(); // Item name -> aggregate
 
     // Rune pouch mapping (varbit values to item IDs)
     private static final int[] RUNE_POUCH_ITEM_IDS = new int[] {
@@ -125,6 +129,30 @@ public class MokhaLootTrackerPlugin extends Plugin {
             this.name = name;
             this.quantity = quantity;
             this.value = value;
+        }
+    }
+
+    /**
+     * Aggregates items across multiple runs (for historical tracking)
+     */
+    private static class ItemAggregate {
+        String name;
+        int totalQuantity;
+        int pricePerItem;
+        long totalValue;
+
+        ItemAggregate(String name, int quantity, int pricePerItem) {
+            this.name = name;
+            this.totalQuantity = quantity;
+            this.pricePerItem = pricePerItem;
+            this.totalValue = (long) pricePerItem * quantity;
+        }
+
+        void add(int quantity, int pricePerItem) {
+            this.totalQuantity += quantity;
+            this.totalValue += (long) pricePerItem * quantity;
+            // Update price per item to latest (could also average, but latest is simpler)
+            this.pricePerItem = pricePerItem;
         }
     }
 
@@ -252,6 +280,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 printLostLoot();
 
                 // Update historical supply costs (loot was lost, so don't count it)
+                // But add supplies to historical tracking
+                for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
+                    int itemId = entry.getKey();
+                    int quantity = entry.getValue();
+                    String itemName = getBasePotionName(itemManager.getItemComposition(itemId).getName());
+                    int pricePerItem = itemManager.getItemPrice(itemId);
+
+                    // Update or add to historical supplies
+                    if (historicalSuppliesUsed.containsKey(itemName)) {
+                        historicalSuppliesUsed.get(itemName).add(quantity, pricePerItem);
+                    } else {
+                        historicalSuppliesUsed.put(itemName, new ItemAggregate(itemName, quantity, pricePerItem));
+                    }
+                }
+
                 calculateSuppliesCost(); // This updates historical category costs
                 long suppliesCost = 0;
                 for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
@@ -285,10 +328,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Check for loot window and capture loot
         checkForLootWindow();
 
-        // Update panel data with current run info
-        if (inMokhaArena) {
-            updatePanelData();
-        }
+        // Panel updates are now only triggered when data changes:
+        // - When loot is captured (in checkForLootWindow via parseLootItems)
+        // - When supplies are consumed (in checkForConsumption)
+        // - When claiming/dying (already handled above)
     }
 
     @Subscribe
@@ -375,6 +418,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Only log if we have a previous snapshot
         if (!lastCombinedSnapshot.isEmpty()) {
             StringBuilder consumed = new StringBuilder();
+            boolean hasConsumption = false;
 
             // Only check for items that DECREASED (completely left the player)
             for (Map.Entry<Integer, Integer> entry : lastCombinedSnapshot.entrySet()) {
@@ -390,6 +434,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
                     // Accumulate total supplies consumed
                     totalSuppliesConsumed.put(itemId, totalSuppliesConsumed.getOrDefault(itemId, 0) + consumedQty);
+                    hasConsumption = true;
                 }
             }
 
@@ -400,6 +445,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     logMsg = logMsg.substring(0, logMsg.length() - 2);
                 }
                 log.info("[Mokha Debug] Items consumed: {}", logMsg);
+            }
+
+            // Update panel when supplies are consumed
+            if (hasConsumption) {
+                updatePanelData();
             }
         }
 
@@ -518,6 +568,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Store new loot for this wave
         if (!newLootThisWave.isEmpty()) {
             lootByWave.put(currentWaveNumber, newLootThisWave);
+            // Update panel when new loot is captured
+            updatePanelData();
         }
 
         // Update previous loot snapshot
@@ -753,19 +805,46 @@ public class MokhaLootTrackerPlugin extends Plugin {
         for (Map.Entry<Integer, List<LootItem>> entry : lootByWave.entrySet()) {
             int wave = entry.getKey();
             long waveValue = 0;
+
+            // Track items by wave
+            int waveIndex = wave > 9 ? 9 : wave;
+            Map<String, ItemAggregate> waveItems = historicalClaimedItemsByWave.computeIfAbsent(waveIndex,
+                    k -> new HashMap<>());
+
             for (LootItem item : entry.getValue()) {
                 waveValue += item.value;
+                int pricePerItem = item.quantity > 0 ? item.value / item.quantity : 0;
+
+                // Update or add to historical items for this wave
+                if (waveItems.containsKey(item.name)) {
+                    waveItems.get(item.name).add(item.quantity, pricePerItem);
+                } else {
+                    waveItems.put(item.name, new ItemAggregate(item.name, item.quantity, pricePerItem));
+                }
             }
             claimedValue += waveValue;
 
             // Update historical claimed by wave
-            int waveIndex = wave > 9 ? 9 : wave;
             historicalClaimedByWave.put(waveIndex,
                     historicalClaimedByWave.getOrDefault(waveIndex, 0L) + waveValue);
         }
         historicalTotalClaimed += claimedValue;
 
-        // Add supplies cost to historical total
+        // Add supplies cost to historical total and track items
+        for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
+            int itemId = entry.getKey();
+            int quantity = entry.getValue();
+            String itemName = getBasePotionName(itemManager.getItemComposition(itemId).getName());
+            int pricePerItem = itemManager.getItemPrice(itemId);
+
+            // Update or add to historical supplies
+            if (historicalSuppliesUsed.containsKey(itemName)) {
+                historicalSuppliesUsed.get(itemName).add(quantity, pricePerItem);
+            } else {
+                historicalSuppliesUsed.put(itemName, new ItemAggregate(itemName, quantity, pricePerItem));
+            }
+        }
+
         long suppliesCost = calculateSuppliesCost();
         historicalSupplyCost += suppliesCost;
 
@@ -837,45 +916,98 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Update Current Run section
         panel.updateCurrentRun(currentRunValue);
 
-        // Update Claimed Loot by Wave (historical)
+        // Update Claimed Loot by Wave (historical) - with items
         for (int wave = 1; wave <= 10; wave++) {
             int index = wave > 9 ? 9 : wave;
-            long value = historicalClaimedByWave.getOrDefault(index, 0L);
-            panel.updateClaimedWave(wave, value);
+            Map<String, ItemAggregate> waveItems = historicalClaimedItemsByWave.getOrDefault(index, new HashMap<>());
+
+            // Convert to ItemData for panel
+            Map<String, MokhaLootPanel.ItemData> itemData = new HashMap<>();
+            for (ItemAggregate agg : waveItems.values()) {
+                itemData.put(agg.name,
+                        new MokhaLootPanel.ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue));
+            }
+
+            panel.updateClaimedWave(wave, itemData);
         }
 
-        // Update Unclaimed Loot by Wave (current run)
+        // Update Unclaimed Loot by Wave (current run) - with items
         for (int wave = 1; wave <= 10; wave++) {
-            long waveValue = 0;
-            List<LootItem> items = lootByWave.get(wave);
-            if (items != null) {
-                for (LootItem item : items) {
-                    waveValue += item.value;
+            Map<String, MokhaLootPanel.ItemData> itemData = new HashMap<>();
+
+            if (wave <= 9) {
+                List<LootItem> items = lootByWave.get(wave);
+                if (items != null) {
+                    for (LootItem item : items) {
+                        int pricePerItem = item.quantity > 0 ? item.value / item.quantity : 0;
+                        if (itemData.containsKey(item.name)) {
+                            MokhaLootPanel.ItemData existing = itemData.get(item.name);
+                            itemData.put(item.name, new MokhaLootPanel.ItemData(
+                                    item.name,
+                                    existing.quantity + item.quantity,
+                                    pricePerItem,
+                                    existing.totalValue + item.value));
+                        } else {
+                            itemData.put(item.name,
+                                    new MokhaLootPanel.ItemData(item.name, item.quantity, pricePerItem, item.value));
+                        }
+                    }
                 }
-            }
-            // For wave 9+, aggregate all waves >= 9
-            if (wave > 9) {
+            } else {
+                // For wave 9+, aggregate all waves >= 9
                 for (int w = 9; w <= 20; w++) {
                     List<LootItem> waveItems = lootByWave.get(w);
                     if (waveItems != null) {
                         for (LootItem item : waveItems) {
-                            waveValue += item.value;
+                            int pricePerItem = item.quantity > 0 ? item.value / item.quantity : 0;
+                            if (itemData.containsKey(item.name)) {
+                                MokhaLootPanel.ItemData existing = itemData.get(item.name);
+                                itemData.put(item.name, new MokhaLootPanel.ItemData(
+                                        item.name,
+                                        existing.quantity + item.quantity,
+                                        pricePerItem,
+                                        existing.totalValue + item.value));
+                            } else {
+                                itemData.put(item.name, new MokhaLootPanel.ItemData(item.name, item.quantity,
+                                        pricePerItem, item.value));
+                            }
                         }
                     }
                 }
             }
-            panel.updateUnclaimedWave(wave, waveValue);
+
+            panel.updateUnclaimedWave(wave, itemData);
         }
 
-        // Update Supplies Current Run
-        long currentSuppliesCost = 0;
+        // Update Supplies Current Run - with items
+        Map<String, MokhaLootPanel.ItemData> currentSuppliesData = new HashMap<>();
         for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
-            currentSuppliesCost += itemManager.getItemPrice(entry.getKey()) * entry.getValue();
-        }
-        panel.updateSuppliesCurrentRun(currentSuppliesCost);
+            int itemId = entry.getKey();
+            int quantity = entry.getValue();
+            String baseName = getBasePotionName(itemManager.getItemComposition(itemId).getName());
+            int pricePerItem = itemManager.getItemPrice(itemId);
+            long totalValue = (long) pricePerItem * quantity;
 
-        // Update Supplies Total (historical)
-        panel.updateSuppliesTotal(historicalSupplyCost, historicalPotionsCost,
-                historicalFoodCost, historicalRunesCost, historicalAmmoCost);
+            if (currentSuppliesData.containsKey(baseName)) {
+                MokhaLootPanel.ItemData existing = currentSuppliesData.get(baseName);
+                currentSuppliesData.put(baseName, new MokhaLootPanel.ItemData(
+                        baseName,
+                        existing.quantity + quantity,
+                        pricePerItem,
+                        existing.totalValue + totalValue));
+            } else {
+                currentSuppliesData.put(baseName,
+                        new MokhaLootPanel.ItemData(baseName, quantity, pricePerItem, totalValue));
+            }
+        }
+        panel.updateSuppliesCurrentRun(currentSuppliesData);
+
+        // Update Supplies Total (historical) - with items
+        Map<String, MokhaLootPanel.ItemData> historicalSuppliesData = new HashMap<>();
+        for (ItemAggregate agg : historicalSuppliesUsed.values()) {
+            historicalSuppliesData.put(agg.name,
+                    new MokhaLootPanel.ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue));
+        }
+        panel.updateSuppliesTotal(historicalSuppliesData);
     }
 }
