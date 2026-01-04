@@ -5,10 +5,10 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.util.Map;
 
-import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JSeparator;
@@ -66,10 +66,16 @@ public class MokhaLootPanel extends PluginPanel {
     private JPanel suppliesTotalItemsPanel;
 
     private final JPanel statsPanel = new JPanel();
+    private Runnable onClearData;
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation) {
+        this(config, onDebugLocation, null);
+    }
+
+    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData) {
         this.config = config;
         this.onDebugLocation = onDebugLocation;
+        this.onClearData = onClearData;
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -96,7 +102,23 @@ public class MokhaLootPanel extends PluginPanel {
         JPanel buttonPanel = new JPanel(new BorderLayout());
         buttonPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         buttonPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-        // buttonPanel.add(resetButton, BorderLayout.CENTER);
+
+        JButton clearButton = new JButton("Clear All Data");
+        clearButton.setFocusPainted(false);
+        clearButton.setBackground(new Color(200, 0, 0)); // Red background
+        clearButton.setForeground(Color.WHITE);
+        clearButton.setFont(FontManager.getRunescapeSmallFont());
+        clearButton.addActionListener(e -> {
+            int response = JOptionPane.showConfirmDialog(this,
+                    "Are you sure you want to clear ALL current and historical data?\nThis action cannot be undone.",
+                    "Confirm Clear All Data",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+            if (response == JOptionPane.YES_OPTION && onClearData != null) {
+                onClearData.run();
+            }
+        });
+        buttonPanel.add(clearButton, BorderLayout.CENTER);
 
         // Wrap stats panel in a container with button at bottom
         JPanel contentWrapper = new JPanel(new BorderLayout());
@@ -405,6 +427,50 @@ public class MokhaLootPanel extends PluginPanel {
     public void updateSuppliesTotal(long totalValue, Map<String, ItemData> itemData) {
         suppliesTotalValueLabel.setText(formatGp(totalValue));
         updateSuppliesPanel(suppliesTotalItemsPanel, itemData);
+    }
+
+    public void clearAllPanelData() {
+        // Clear Profit/Loss section
+        totalClaimedLabel.setText("0 gp");
+        totalClaimedLabel.setForeground(Color.WHITE);
+        supplyCostLabel.setText("0 gp");
+        supplyCostLabel.setForeground(Color.WHITE);
+        profitLossLabel.setText("0 gp");
+        profitLossLabel.setForeground(Color.WHITE);
+        totalUnclaimedLabel.setText("0 gp");
+
+        // Clear Current Run section
+        potentialValueLabel.setText("0 gp");
+        currentRunItemsPanel.removeAll();
+
+        // Clear all wave panels
+        for (int i = 0; i < claimedWavePanels.length; i++) {
+            JPanel headerRow = (JPanel) claimedWavePanels[i].getComponent(0);
+            JLabel valueLabel = (JLabel) headerRow.getComponent(1);
+            valueLabel.setText("0 gp");
+            while (claimedWavePanels[i].getComponentCount() > 1) {
+                claimedWavePanels[i].remove(1);
+            }
+        }
+
+        for (int i = 0; i < unclaimedWavePanels.length; i++) {
+            JPanel headerRow = (JPanel) unclaimedWavePanels[i].getComponent(0);
+            JLabel valueLabel = (JLabel) headerRow.getComponent(1);
+            valueLabel.setText("0 gp");
+            while (unclaimedWavePanels[i].getComponentCount() > 1) {
+                unclaimedWavePanels[i].remove(1);
+            }
+        }
+
+        // Clear supplies sections
+        suppliesCurrentRunTotalLabel.setText("0 gp");
+        suppliesCurrentRunPanel.removeAll();
+        suppliesTotalValueLabel.setText("0 gp");
+        suppliesTotalItemsPanel.removeAll();
+
+        // Refresh the panel
+        statsPanel.revalidate();
+        statsPanel.repaint();
     }
 
     private void updateWavePanel(JPanel wavePanel, int wave, Map<String, ItemData> itemData) {

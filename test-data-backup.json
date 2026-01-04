@@ -1,0 +1,102 @@
+{
+  "description": "Test data backup for Mokha Loot Tracker plugin",
+  "timestamp": "2026-01-04T16:02:23Z",
+  "testData": {
+    "historicalClaimedByWaveJson": {
+      "1": 140000,
+      "2": 520000,
+      "3": 1520000
+    },
+    "historicalClaimedItemsByWaveJson": {
+      "1": {
+        "Spirit seed": {
+          "name": "Spirit seed",
+          "totalQuantity": 10,
+          "pricePerItem": 14000,
+          "totalValue": 140000,
+          "originalTotalValue": 140000
+        }
+      },
+      "2": {
+        "Death rune": {
+          "name": "Death rune",
+          "totalQuantity": 400,
+          "pricePerItem": 1000,
+          "totalValue": 400000,
+          "originalTotalValue": 400000
+        },
+        "Bastion potion": {
+          "name": "Bastion potion",
+          "totalQuantity": 4,
+          "pricePerItem": 30000,
+          "totalValue": 120000,
+          "originalTotalValue": 120000
+        }
+      },
+      "3": {
+        "Sun-kissed bones": {
+          "name": "Sun-kissed bones",
+          "totalQuantity": 20,
+          "pricePerItem": 76000,
+          "totalValue": 1520000,
+          "originalTotalValue": 1520000
+        }
+      }
+    },
+    "historicalSuppliesUsedJson": {
+      "Blighted minnow": {
+        "name": "Blighted minnow",
+        "totalQuantity": 500,
+        "pricePerItem": 570,
+        "totalValue": 285000,
+        "originalTotalValue": 0
+      },
+      "Basalt dust": {
+        "name": "Basalt dust",
+        "totalQuantity": 200,
+        "pricePerItem": 500,
+        "totalValue": 100000,
+        "originalTotalValue": 0
+      }
+    },
+    "historicalSupplyCost": 385000,
+    "historicalTotalClaimed": 2180000,
+    "historicalUnclaimedByWaveJson": {
+      "1": 500000,
+      "2": 300000
+    },
+    "historicalUnclaimedItemsByWaveJson": {
+      "1": {
+        "Loot chest": {
+          "name": "Loot chest",
+          "totalQuantity": 1,
+          "pricePerItem": 500000,
+          "totalValue": 500000,
+          "originalTotalValue": 500000
+        }
+      },
+      "2": {
+        "Loot chest": {
+          "name": "Loot chest",
+          "totalQuantity": 1,
+          "pricePerItem": 300000,
+          "totalValue": 300000,
+          "originalTotalValue": 300000
+        }
+      }
+    },
+    "currentRunLootByWaveJson": {},
+    "configSettings": {
+      "ignoreSpiritSeedsValue": false,
+      "ignoreSunKissedBonesValue": false,
+      "minItemValueThreshold": 0,
+      "showChatNotifications": true,
+      "showOverlay": false,
+      "showSuppliesUsedBeta": true,
+      "testMode": true,
+      "debugLogging": true,
+      "debugItemValueLogging": true,
+      "exampleToggle": false
+    }
+  }
+}
