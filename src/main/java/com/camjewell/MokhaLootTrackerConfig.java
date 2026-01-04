@@ -23,57 +23,50 @@ public interface MokhaLootTrackerConfig extends Config {
 	}
 
 	// Internal persistence properties (not exposed in settings UI)
+	// These use direct ConfigManager access, not @ConfigItem
 
-	@ConfigItem(keyName = "historicalTotalClaimed", name = "", description = "")
 	default long historicalTotalClaimed() {
 		return 0;
 	}
 
 	void setHistoricalTotalClaimed(long value);
 
-	@ConfigItem(keyName = "historicalSupplyCost", name = "", description = "")
 	default long historicalSupplyCost() {
 		return 0;
 	}
 
 	void setHistoricalSupplyCost(long value);
 
-	@ConfigItem(keyName = "historicalClaimedByWaveJson", name = "", description = "")
 	default String historicalClaimedByWaveJson() {
 		return "{}";
 	}
 
 	void setHistoricalClaimedByWaveJson(String value);
 
-	@ConfigItem(keyName = "historicalClaimedItemsByWaveJson", name = "", description = "")
 	default String historicalClaimedItemsByWaveJson() {
 		return "{}";
 	}
 
 	void setHistoricalClaimedItemsByWaveJson(String value);
 
-	@ConfigItem(keyName = "historicalSuppliesUsedJson", name = "", description = "")
 	default String historicalSuppliesUsedJson() {
 		return "{}";
 	}
 
 	void setHistoricalSuppliesUsedJson(String value);
 
-	@ConfigItem(keyName = "historicalUnclaimedByWaveJson", name = "", description = "")
 	default String historicalUnclaimedByWaveJson() {
 		return "{}";
 	}
 
 	void setHistoricalUnclaimedByWaveJson(String value);
 
-	@ConfigItem(keyName = "historicalUnclaimedItemsByWaveJson", name = "", description = "")
 	default String historicalUnclaimedItemsByWaveJson() {
 		return "{}";
 	}
 
 	void setHistoricalUnclaimedItemsByWaveJson(String value);
 
-	@ConfigItem(keyName = "currentRunLootByWaveJson", name = "", description = "")
 	default String currentRunLootByWaveJson() {
 		return "{}";
 	}
