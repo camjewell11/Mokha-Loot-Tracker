@@ -1291,8 +1291,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
         }
 
+        // Calculate total unclaimed (only loot lost to deaths, not current run)
+        long totalUnclaimed = 0;
+        for (Long waveValue : historicalUnclaimedByWave.values()) {
+            totalUnclaimed += waveValue;
+        }
+
         // Update Profit/Loss section
-        long totalUnclaimed = currentRunValue; // Current run is unclaimed until Leave pressed
         panel.updateProfitLoss(historicalTotalClaimed, historicalSupplyCost, totalUnclaimed);
 
         // Update Current Run section with items
