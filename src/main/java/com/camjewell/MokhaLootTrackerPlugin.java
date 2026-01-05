@@ -1235,7 +1235,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             int itemId = entry.getKey();
             int quantity = entry.getValue();
             String itemName = itemManager.getItemComposition(itemId).getName().toLowerCase();
-            int itemValue = itemManager.getItemPrice(itemId) * quantity;
+            int itemValue = getPricePerDose(itemId) * quantity;
 
             totalCost += itemValue;
 
