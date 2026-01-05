@@ -2,7 +2,7 @@
 
 A RuneLite plugin that tracks lost loot, claimed loot, supplies, and deaths during Doom of Mokhaiotl encounters in Old School RuneScape.
 
-<img width="1918" height="1029" alt="image" src="https://github.com/user-attachments/assets/bef3d54c-70d0-403c-9485-9fe329c608a4" />
+<img width="1887" height="1009" alt="image" src="https://github.com/user-attachments/assets/5394fc2c-d219-4f1d-8a98-62dd2dab5747" />
 
 ## Features
 
