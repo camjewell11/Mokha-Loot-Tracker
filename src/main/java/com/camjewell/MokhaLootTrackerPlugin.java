@@ -243,27 +243,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 lootByWave.clear();
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
-                if (config.debugLogging()) {
-                    log.info("[Mokha Debug] Entered Mokha arena (jumped over gap)");
-                }
+                log.debug("[Mokha Debug] Entered Mokha arena (jumped over gap)");
                 // Take initial snapshot when entering arena
                 lastCombinedSnapshot.clear();
                 lastCombinedSnapshot.putAll(buildCombinedSnapshot());
                 // Take initial supply snapshot
                 initialSupplySnapshot.clear();
                 initialSupplySnapshot.putAll(buildCombinedSnapshot());
-                if (config.debugLogging()) {
-                    log.info("[Mokha Debug] Initial snapshot taken with {} unique items", lastCombinedSnapshot.size());
-                }
+                log.debug("[Mokha Debug] Initial snapshot taken with {} unique items", lastCombinedSnapshot.size());
             }
         }
 
         // Detect "Descend" button - continues to next wave without claiming loot
         if (option != null && option.equalsIgnoreCase("Descend")) {
-            if (config.debugLogging()) {
-                log.info("[Mokha] Pressed DESCEND button - continuing to wave {} (loot unclaimed, will accumulate)",
-                        currentWaveNumber + 1);
-            }
+            log.debug("[Mokha] Pressed DESCEND button - continuing to wave {} (loot unclaimed, will accumulate)",
+                    currentWaveNumber + 1);
             // Print accumulated loot so far (not claimed yet, could still be lost)
             printSuppliesConsumed();
             printAccumulatedLoot();
@@ -273,26 +267,20 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Detect "Claim and leave" button - shows confirmation dialog
         if (option != null && option.contains("Claim and leave")) {
-            if (config.debugLogging()) {
-                log.info("[Mokha] Pressed CLAIM AND LEAVE button - confirming exit");
-            }
+            log.debug("[Mokha] Pressed CLAIM AND LEAVE button - confirming exit");
             // Don't print yet - wait for full sequence completion
         }
 
         // Detect "Confirm" button - appears after "Claim and leave"
         if (option != null && option.equalsIgnoreCase("Confirm")) {
-            if (config.debugLogging()) {
-                log.info("[Mokha] Pressed CONFIRM button - exiting to leave screen");
-            }
+            log.debug("[Mokha] Pressed CONFIRM button - exiting to leave screen");
             // Don't print yet - wait for Leave button
         }
 
         // Detect "Leave" button - returns to entrance (only available after confirming
         // claim)
         if (option != null && option.equals("Leave") && !option.contains("Claim")) {
-            if (config.debugLogging()) {
-                log.info("[Mokha] Pressed LEAVE button - claiming loot and returning to entrance");
-            }
+            log.debug("[Mokha] Pressed LEAVE button - claiming loot and returning to entrance");
             if (inMokhaArena) {
                 // Print supplies consumed and claimed loot before clearing state
                 printSuppliesConsumed();
@@ -330,9 +318,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
             if (currentlyDead && !isDead && inMokhaArena) {
                 isDead = true;
-                if (config.debugLogging()) {
-                    log.info("[Mokha] ===== PLAYER DIED ON WAVE {} =====", currentWaveNumber);
-                }
+                log.debug("[Mokha] ===== PLAYER DIED ON WAVE {} =====", currentWaveNumber);
 
                 // Print supplies consumed before death
                 printSuppliesConsumed();
@@ -382,9 +368,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 saveHistoricalData();
             } else if (!currentlyDead && isDead) {
                 isDead = false;
-                if (config.debugLogging()) {
-                    log.info("[Mokha Debug] Player respawned");
-                }
+                log.debug("[Mokha Debug] Player respawned");
             }
         }
 
@@ -541,9 +525,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 if (logMsg.endsWith(", ")) {
                     logMsg = logMsg.substring(0, logMsg.length() - 2);
                 }
-                if (config.debugLogging()) {
-                    log.info("[Mokha Debug] Items consumed: {}", logMsg);
-                }
+                log.debug("[Mokha Debug] Items consumed: {}", logMsg);
             }
 
             // Update panel when supplies are consumed
@@ -574,9 +556,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     currentWaveNumber = 1;
                 }
 
-                if (config.debugLogging()) {
-                    log.info("[Mokha Debug] Loot window detected - Wave {}", currentWaveNumber);
-                }
+                log.debug("[Mokha Debug] Loot window detected - Wave {}", currentWaveNumber);
 
                 // Parse loot value from widget [919:20]
                 Widget valueWidget = client.getWidget(919, 20);
@@ -588,10 +568,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                             String numStr = valueText.replaceAll("[^0-9]", "");
                             if (!numStr.isEmpty()) {
                                 long totalValue = Long.parseLong(numStr);
-                                if (config.debugLogging()) {
-                                    log.info("[Mokha] Wave {} completed - Total loot value: {} gp", currentWaveNumber,
-                                            totalValue);
-                                }
+                                log.debug("[Mokha] Wave {} completed - Total loot value: {} gp", currentWaveNumber,
+                                        totalValue);
                             }
                         } catch (Exception e) {
                             log.error("[Mokha] Error parsing loot value", e);
@@ -661,10 +639,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 }
 
                 newLootThisWave.add(new LootItem(itemName, newQty, itemValue));
-                if (config.debugLogging()) {
-                    log.info("[Mokha] Wave {} NEW Loot: {} x{} (value: {} gp)", currentWaveNumber, itemName, newQty,
-                            itemValue);
-                }
+                log.debug("[Mokha] Wave {} NEW Loot: {} x{} (value: {} gp)", currentWaveNumber, itemName, newQty,
+                        itemValue);
             }
         }
 
@@ -733,26 +709,26 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     private void debugLocation() {
         if (client.getLocalPlayer() == null) {
-            log.info("[Mokha Debug] No player location available");
+            log.debug("[Mokha Debug] No player location available");
             return;
         }
 
         net.runelite.api.coords.WorldPoint location = client.getLocalPlayer().getWorldLocation();
         if (location == null) {
-            log.info("[Mokha Debug] No player location available");
+            log.debug("[Mokha Debug] No player location available");
             return;
         }
 
         // Check if at entrance
         boolean atEntrance = isAtEntrance(location);
 
-        log.info("[Mokha Debug] ==================== DEBUG LOCATION ====================");
-        log.info("[Mokha Debug] Current coordinates: X={}, Y={}, Plane={}", location.getX(), location.getY(),
+        log.debug("[Mokha Debug] ==================== DEBUG LOCATION ====================");
+        log.debug("[Mokha Debug] Current coordinates: X={}, Y={}, Plane={}", location.getX(), location.getY(),
                 location.getPlane());
-        log.info("[Mokha Debug] At entrance: {}", atEntrance);
-        log.info("[Mokha Debug] In arena: {}", inMokhaArena);
-        log.info("[Mokha Debug] Is dead: {}", isDead);
-        log.info("[Mokha Debug] ======================================================");
+        log.debug("[Mokha Debug] At entrance: {}", atEntrance);
+        log.debug("[Mokha Debug] In arena: {}", inMokhaArena);
+        log.debug("[Mokha Debug] Is dead: {}", isDead);
+        log.debug("[Mokha Debug] ======================================================");
     }
 
     /**
@@ -805,9 +781,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
      * Groups potions by base name (e.g., all Prayer potion doses together)
      */
     private void printSuppliesConsumed() {
-        if (!config.debugLogging()) {
-            return;
-        }
         if (totalSuppliesConsumed.isEmpty()) {
             log.info("[Mokha] ===== NO SUPPLIES CONSUMED =====");
             return;
@@ -1110,9 +1083,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
      * Print accumulated loot by wave
      */
     private void printAccumulatedLoot() {
-        if (!config.debugLogging()) {
-            return;
-        }
         if (lootByWave.isEmpty()) {
             log.info("[Mokha] ===== NO LOOT COLLECTED =====");
             return;
@@ -1145,9 +1115,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
      * This includes all loot from completed waves up to the wave they died on
      */
     private void printLostLoot() {
-        if (!config.debugLogging()) {
-            return;
-        }
         // Calculate which waves had claimable loot (all waves before the death wave)
         // If died on wave 1, there's no lost loot
         // If died on wave 2+, we lost loot from all previous waves

@@ -17,11 +17,6 @@ public interface MokhaLootTrackerConfig extends Config {
 		return false;
 	}
 
-	@ConfigItem(keyName = "debugLogging", name = "Debug Logging", description = "Enable debug logging to the console", position = 99)
-	default boolean debugLogging() {
-		return false;
-	}
-
 	// Internal persistence properties (not exposed in settings UI)
 	// These use direct ConfigManager access, not @ConfigItem
 
