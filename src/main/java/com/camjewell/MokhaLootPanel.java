@@ -54,11 +54,17 @@ public class MokhaLootPanel extends PluginPanel {
     // Claimed Loot by Wave - now stores panels for dynamic item lists
     private JPanel claimedWavesContainer; // Container for all waves
     private JPanel[] claimedWavePanels = new JPanel[9]; // Wave 1-8 and 9+
+    private JLabel[] claimedWaveValueLabels = new JLabel[9];
+    private JPanel[] claimedWaveItemPanels = new JPanel[9];
+    private boolean[] claimedWaveCollapsed = new boolean[9];
     private boolean claimedSectionCollapsed = false; // Track collapse state for entire section
 
     // Unclaimed Loot by Wave - now stores panels for dynamic item lists
     private JPanel unclaimedWavesContainer; // Container for all waves
     private JPanel[] unclaimedWavePanels = new JPanel[9]; // Wave 1-8 and 9+
+    private JLabel[] unclaimedWaveValueLabels = new JLabel[9];
+    private JPanel[] unclaimedWaveItemPanels = new JPanel[9];
+    private boolean[] unclaimedWaveCollapsed = new boolean[9];
     private boolean unclaimedSectionCollapsed = false; // Track collapse state for entire section
 
     // Supplies Used Current Run
@@ -261,7 +267,12 @@ public class MokhaLootPanel extends PluginPanel {
         claimedWavesContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
         for (int i = 0; i < 9; i++) {
-            claimedWavePanels[i] = createWavePanel("Wave " + (i == 8 ? "9+" : i + 1));
+            claimedWavePanels[i] = createWavePanel(
+                    "Wave " + (i == 8 ? "9+" : i + 1),
+                    claimedWaveValueLabels,
+                    claimedWaveItemPanels,
+                    claimedWaveCollapsed,
+                    i);
             claimedWavesContainer.add(claimedWavePanels[i]);
         }
 
@@ -312,7 +323,12 @@ public class MokhaLootPanel extends PluginPanel {
         unclaimedWavesContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
         for (int i = 0; i < 9; i++) {
-            unclaimedWavePanels[i] = createWavePanel("Wave " + (i == 8 ? "9+" : i + 1));
+            unclaimedWavePanels[i] = createWavePanel(
+                    "Wave " + (i == 8 ? "9+" : i + 1),
+                    unclaimedWaveValueLabels,
+                    unclaimedWaveItemPanels,
+                    unclaimedWaveCollapsed,
+                    i);
             unclaimedWavesContainer.add(unclaimedWavePanels[i]);
         }
 
@@ -465,28 +481,59 @@ public class MokhaLootPanel extends PluginPanel {
         return row;
     }
 
-    private JPanel createWavePanel(String waveTitle) {
+    private JPanel createWavePanel(String waveTitle, JLabel[] valueLabels, JPanel[] itemPanels, boolean[] collapsedStates,
+            int index) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-        // Header with wave title and value
+        // Header with collapse button, wave title, and value
         JLabel valueLabel = new JLabel("0 gp");
         valueLabel.setFont(FontManager.getRunescapeFont());
         valueLabel.setForeground(Color.WHITE);
 
+        JButton collapseButton = new JButton("▾");
+        collapseButton.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
+        collapseButton.setForeground(Color.WHITE);
+        collapseButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        collapseButton.setBorderPainted(false);
+        collapseButton.setFocusPainted(false);
+        collapseButton.setPreferredSize(new Dimension(18, 18));
+        collapseButton.setMaximumSize(new Dimension(18, 18));
+
         JPanel headerRow = new JPanel(new BorderLayout());
         headerRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
         headerRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+        headerRow.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
 
         JLabel labelComponent = new JLabel(waveTitle + ":");
         labelComponent.setFont(FontManager.getRunescapeFont());
         labelComponent.setForeground(Color.LIGHT_GRAY);
 
-        headerRow.add(labelComponent, BorderLayout.WEST);
+        headerRow.add(collapseButton, BorderLayout.WEST);
+        headerRow.add(labelComponent, BorderLayout.CENTER);
         headerRow.add(valueLabel, BorderLayout.EAST);
 
         panel.add(headerRow);
+
+        JPanel itemsPanel = new JPanel();
+        itemsPanel.setLayout(new BoxLayout(itemsPanel, BoxLayout.Y_AXIS));
+        itemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        panel.add(itemsPanel);
+
+        // Store references for update methods
+        valueLabels[index] = valueLabel;
+        itemPanels[index] = itemsPanel;
+        collapsedStates[index] = false;
+
+        collapseButton.addActionListener(e -> {
+            collapsedStates[index] = !collapsedStates[index];
+            itemsPanel.setVisible(!collapsedStates[index]);
+            collapseButton.setText(collapsedStates[index] ? "▸" : "▾");
+            panel.revalidate();
+            panel.repaint();
+        });
+
         return panel;
     }
 
@@ -534,14 +581,16 @@ public class MokhaLootPanel extends PluginPanel {
     public void updateClaimedWave(int wave, Map<String, ItemData> itemData) {
         int index = wave >= 9 ? 8 : wave - 1;
         if (index >= 0 && index < claimedWavePanels.length) {
-            updateWavePanel(claimedWavePanels[index], wave, itemData);
+            updateWavePanel(claimedWaveValueLabels[index], claimedWaveItemPanels[index],
+                    claimedWaveCollapsed[index], itemData);
         }
     }
 
     public void updateUnclaimedWave(int wave, Map<String, ItemData> itemData) {
         int index = wave >= 9 ? 8 : wave - 1;
         if (index >= 0 && index < unclaimedWavePanels.length) {
-            updateWavePanel(unclaimedWavePanels[index], wave, itemData);
+            updateWavePanel(unclaimedWaveValueLabels[index], unclaimedWaveItemPanels[index],
+                    unclaimedWaveCollapsed[index], itemData);
         }
     }
 
@@ -573,22 +622,14 @@ public class MokhaLootPanel extends PluginPanel {
 
         // Clear all claimed wave panels
         for (int i = 0; i < claimedWavePanels.length; i++) {
-            JPanel headerRow = (JPanel) claimedWavePanels[i].getComponent(0);
-            JLabel valueLabel = (JLabel) headerRow.getComponent(1);
-            valueLabel.setText("0 gp");
-            while (claimedWavePanels[i].getComponentCount() > 1) {
-                claimedWavePanels[i].remove(1);
-            }
+            claimedWaveValueLabels[i].setText("0 gp");
+            claimedWaveItemPanels[i].removeAll();
         }
 
         // Clear all unclaimed wave panels
         for (int i = 0; i < unclaimedWavePanels.length; i++) {
-            JPanel headerRow = (JPanel) unclaimedWavePanels[i].getComponent(0);
-            JLabel valueLabel = (JLabel) headerRow.getComponent(1);
-            valueLabel.setText("0 gp");
-            while (unclaimedWavePanels[i].getComponentCount() > 1) {
-                unclaimedWavePanels[i].remove(1);
-            }
+            unclaimedWaveValueLabels[i].setText("0 gp");
+            unclaimedWaveItemPanels[i].removeAll();
         }
 
         // Clear supplies sections
@@ -602,59 +643,50 @@ public class MokhaLootPanel extends PluginPanel {
         statsPanel.repaint();
     }
 
-    private void updateWavePanel(JPanel wavePanel, int wave, Map<String, ItemData> itemData) {
-        // Clear existing items from panel (keep only header panel)
-        while (wavePanel.getComponentCount() > 1) {
-            wavePanel.remove(1);
-        }
+    private void updateWavePanel(JLabel valueLabel, JPanel itemsPanel, boolean isCollapsed,
+            Map<String, ItemData> itemData) {
+        itemsPanel.removeAll();
 
         if (itemData == null || itemData.isEmpty()) {
-            // Update header to show 0 gp
-            JPanel headerRow = (JPanel) wavePanel.getComponent(0);
-            JLabel valueLabel = (JLabel) headerRow.getComponent(1);
             valueLabel.setText("0 gp");
+            itemsPanel.setVisible(!isCollapsed);
+            itemsPanel.revalidate();
+            itemsPanel.repaint();
             return;
         }
 
-        // Calculate total value
         long totalValue = 0;
         for (ItemData item : itemData.values()) {
             totalValue += item.totalValue;
         }
 
-        // Update header value label with total
-        JPanel headerRow = (JPanel) wavePanel.getComponent(0);
-        JLabel valueLabel = (JLabel) headerRow.getComponent(1);
         valueLabel.setText(formatGp(totalValue));
 
-        // Add item entries with spacing
         for (ItemData item : itemData.values()) {
             String pricePerItemText = item.pricePerItem > 0 ? (formatGp(item.pricePerItem) + "/ea") : "N/A";
 
-            // Create item row with BorderLayout for left/right alignment
             JPanel itemRow = new JPanel(new BorderLayout());
             itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
             itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
             itemRow.setBorder(new EmptyBorder(2, 25, 2, 0));
             itemRow.setToolTipText("Price per item: " + pricePerItemText);
 
-            // Left side: item name and quantity
             JLabel itemLabel = new JLabel("• " + item.name + " x" + item.quantity);
             itemLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemLabel, BorderLayout.WEST);
 
-            // Right side: value
             JLabel itemValueLabel = new JLabel(formatGp(item.totalValue));
             itemValueLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
             itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemValueLabel, BorderLayout.EAST);
 
-            wavePanel.add(itemRow);
+            itemsPanel.add(itemRow);
         }
 
-        wavePanel.revalidate();
-        wavePanel.repaint();
+        itemsPanel.setVisible(!isCollapsed);
+        itemsPanel.revalidate();
+        itemsPanel.repaint();
     }
 
     private void updateSuppliesPanel(JPanel suppliesPanel, Map<String, ItemData> itemData) {
