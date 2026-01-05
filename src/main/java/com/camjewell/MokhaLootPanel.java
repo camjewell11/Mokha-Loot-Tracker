@@ -671,7 +671,7 @@ public class MokhaLootPanel extends PluginPanel {
             itemRow.setBorder(new EmptyBorder(2, 25, 2, 0));
             itemRow.setToolTipText("Price per item: " + pricePerItemText);
 
-            JLabel itemLabel = new JLabel("• " + item.name + " x" + item.quantity);
+            JLabel itemLabel = new JLabel("- " + item.name + " x" + item.quantity);
             itemLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemLabel, BorderLayout.WEST);
@@ -709,7 +709,7 @@ public class MokhaLootPanel extends PluginPanel {
             itemRow.setToolTipText("Price per dose: " + pricePerItemText);
 
             // Left side: item name and quantity
-            JLabel itemLabel = new JLabel("• " + item.name + " x" + item.quantity);
+            JLabel itemLabel = new JLabel("- " + item.name + " x" + item.quantity);
             itemLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemLabel, BorderLayout.WEST);
