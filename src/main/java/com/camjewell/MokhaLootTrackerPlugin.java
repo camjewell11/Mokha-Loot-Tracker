@@ -1088,23 +1088,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private void recalculateAllTotals() {
         log.info("[Mokha] Starting recalculation of all totals...");
 
+        // Apply ignore settings to all historical items (this will update totalValue
+        // based on current config)
+        applyIgnoreSettingsToHistoricalItems(historicalClaimedItemsByWave);
+        applyIgnoreSettingsToHistoricalItems(historicalUnclaimedItemsByWave);
+
         // Recalculate total claimed from historical claimed items
-        historicalTotalClaimed = 0;
-        for (Map<String, ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
-            for (ItemAggregate item : waveItems.values()) {
-                // Apply ignore settings
-                long itemValue = item.originalTotalValue;
-                if (item.name.equals("Spirit seed") && config.ignoreSpiritSeedsValue()) {
-                    itemValue = 0;
-                }
-                if (item.name.equals("Sun-kissed bones") && config.ignoreSunKissedBonesValue()) {
-                    itemValue = 0;
-                }
-                // Update the item's totalValue to reflect the ignore setting
-                item.totalValue = itemValue;
-                historicalTotalClaimed += itemValue;
-            }
-        }
+        recalculateHistoricalTotalClaimed();
 
         // Recalculate total unclaimed from historical unclaimed items
         historicalUnclaimedByWave.clear();
@@ -1112,17 +1102,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             Map<String, ItemAggregate> waveItems = historicalUnclaimedItemsByWave.getOrDefault(wave, new HashMap<>());
             long waveTotal = 0;
             for (ItemAggregate item : waveItems.values()) {
-                // Apply ignore settings
-                long itemValue = item.originalTotalValue;
-                if (item.name.equals("Spirit seed") && config.ignoreSpiritSeedsValue()) {
-                    itemValue = 0;
-                }
-                if (item.name.equals("Sun-kissed bones") && config.ignoreSunKissedBonesValue()) {
-                    itemValue = 0;
-                }
-                // Update the item's totalValue to reflect the ignore setting
-                item.totalValue = itemValue;
-                waveTotal += itemValue;
+                waveTotal += item.totalValue;
             }
             if (waveTotal > 0) {
                 historicalUnclaimedByWave.put(wave, waveTotal);
@@ -1481,29 +1461,27 @@ public class MokhaLootTrackerPlugin extends Plugin {
     /**
      * Apply ignore settings to historical item data
      * Zeros out the totalValue for Spirit Seeds and Sun-kissed Bones if the
-     * respective ignore settings are enabled. Restores original value if setting is
+     * respective ignore settings are enabled. Restores correct value if setting is
      * disabled.
      */
     private void applyIgnoreSettingsToHistoricalItems(Map<Integer, Map<String, ItemAggregate>> historicalItems) {
         for (Map<String, ItemAggregate> waveItems : historicalItems.values()) {
             for (ItemAggregate item : waveItems.values()) {
-                // Ensure originalTotalValue is properly set - calculate if not set
-                if (item.originalTotalValue == 0 && item.totalQuantity > 0) {
-                    item.originalTotalValue = (long) item.pricePerItem * item.totalQuantity;
-                }
-
                 if (item.name.equals("Spirit seed")) {
                     if (config.ignoreSpiritSeedsValue()) {
                         item.totalValue = 0; // Zero out if ignoring
                     } else {
-                        item.totalValue = item.originalTotalValue; // Restore original if not ignoring
+                        // Restore correct value: 140000 per spirit seed
+                        long restoredValue = 140000L * item.totalQuantity;
+                        item.totalValue = restoredValue;
                     }
-                }
-                if (item.name.equals("Sun-kissed bones")) {
+                } else if (item.name.equals("Sun-kissed bones")) {
                     if (config.ignoreSunKissedBonesValue()) {
                         item.totalValue = 0; // Zero out if ignoring
                     } else {
-                        item.totalValue = item.originalTotalValue; // Restore original if not ignoring
+                        // Restore correct value: 8000 per sun-kissed bones
+                        long restoredValue = 8000L * item.totalQuantity;
+                        item.totalValue = restoredValue;
                     }
                 }
             }
