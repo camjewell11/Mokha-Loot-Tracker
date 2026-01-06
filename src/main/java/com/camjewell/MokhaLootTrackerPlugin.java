@@ -180,7 +180,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     @Override
     protected void startUp() throws Exception {
-        panel = new MokhaLootPanel(config, this::debugLocation, this::clearAllData);
+        panel = new MokhaLootPanel(config, this::debugLocation, this::clearAllData, this::recalculateAllTotals,
+                () -> inMokhaArena);
 
         final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/48icon.png");
 
@@ -1077,6 +1078,73 @@ public class MokhaLootTrackerPlugin extends Plugin {
         saveHistoricalData();
 
         log.info("[Mokha] All data cleared successfully");
+    }
+
+    /**
+     * Recalculate all totals based on historical data
+     * This includes: total claimed, total unclaimed, supply cost
+     * Also applies the ignore settings for sun-kissed bones and spirit seeds
+     */
+    private void recalculateAllTotals() {
+        log.info("[Mokha] Starting recalculation of all totals...");
+
+        // Recalculate total claimed from historical claimed items
+        historicalTotalClaimed = 0;
+        for (Map<String, ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
+            for (ItemAggregate item : waveItems.values()) {
+                // Apply ignore settings
+                long itemValue = item.originalTotalValue;
+                if (item.name.equals("Spirit seed") && config.ignoreSpiritSeedsValue()) {
+                    itemValue = 0;
+                }
+                if (item.name.equals("Sun-kissed bones") && config.ignoreSunKissedBonesValue()) {
+                    itemValue = 0;
+                }
+                // Update the item's totalValue to reflect the ignore setting
+                item.totalValue = itemValue;
+                historicalTotalClaimed += itemValue;
+            }
+        }
+
+        // Recalculate total unclaimed from historical unclaimed items
+        historicalUnclaimedByWave.clear();
+        for (int wave = 1; wave <= 20; wave++) {
+            Map<String, ItemAggregate> waveItems = historicalUnclaimedItemsByWave.getOrDefault(wave, new HashMap<>());
+            long waveTotal = 0;
+            for (ItemAggregate item : waveItems.values()) {
+                // Apply ignore settings
+                long itemValue = item.originalTotalValue;
+                if (item.name.equals("Spirit seed") && config.ignoreSpiritSeedsValue()) {
+                    itemValue = 0;
+                }
+                if (item.name.equals("Sun-kissed bones") && config.ignoreSunKissedBonesValue()) {
+                    itemValue = 0;
+                }
+                // Update the item's totalValue to reflect the ignore setting
+                item.totalValue = itemValue;
+                waveTotal += itemValue;
+            }
+            if (waveTotal > 0) {
+                historicalUnclaimedByWave.put(wave, waveTotal);
+            }
+        }
+
+        // Recalculate supply cost from historical supplies used
+        historicalSupplyCost = 0;
+        for (ItemAggregate item : historicalSuppliesUsed.values()) {
+            historicalSupplyCost += item.totalValue;
+        }
+
+        // Save the recalculated data
+        saveHistoricalData();
+
+        // Update panel with recalculated totals
+        updatePanelData();
+
+        log.info("[Mokha] Totals recalculated - Claimed: {}, Unclaimed: {}, Supply Cost: {}",
+                historicalTotalClaimed,
+                historicalUnclaimedByWave.values().stream().mapToLong(Long::longValue).sum(),
+                historicalSupplyCost);
     }
 
     /**

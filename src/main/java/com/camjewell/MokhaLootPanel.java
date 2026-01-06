@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.util.Map;
 
+import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -40,6 +41,7 @@ public class MokhaLootPanel extends PluginPanel {
 
     private final MokhaLootTrackerConfig config;
     private final Runnable onDebugLocation;
+    private java.util.function.BooleanSupplier isInRun;
 
     // Profit/Loss section
     private JLabel totalClaimedLabel;
@@ -81,15 +83,28 @@ public class MokhaLootPanel extends PluginPanel {
 
     private final JPanel statsPanel = new JPanel();
     private Runnable onClearData;
+    private Runnable onRecalculateTotals;
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation) {
-        this(config, onDebugLocation, null);
+        this(config, onDebugLocation, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData) {
+        this(config, onDebugLocation, onClearData, null, null);
+    }
+
+    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData,
+            Runnable onRecalculateTotals) {
+        this(config, onDebugLocation, onClearData, onRecalculateTotals, null);
+    }
+
+    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData,
+            Runnable onRecalculateTotals, java.util.function.BooleanSupplier isInRun) {
         this.config = config;
         this.onDebugLocation = onDebugLocation;
         this.onClearData = onClearData;
+        this.onRecalculateTotals = onRecalculateTotals;
+        this.isInRun = isInRun;
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -113,15 +128,46 @@ public class MokhaLootPanel extends PluginPanel {
         statsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         statsPanel.setBorder(new EmptyBorder(3, 0, 3, 0));
 
-        JPanel buttonPanel = new JPanel(new BorderLayout());
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
         buttonPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         buttonPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
+        JButton recalculateButton = new JButton("Recalculate Totals");
+        recalculateButton.setFocusPainted(false);
+        recalculateButton.setBackground(new Color(0, 100, 50)); // Muted green
+        recalculateButton.setForeground(Color.WHITE);
+        recalculateButton.setFont(FontManager.getRunescapeSmallFont());
+        recalculateButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        recalculateButton.addActionListener(e -> {
+            // Check if currently in a run
+            if (isInRun != null && isInRun.getAsBoolean()) {
+                // Show error dialog - cannot recalculate during run
+                JOptionPane.showMessageDialog(this,
+                        "Will not recalculate during a run.\nFinish your run and try again.",
+                        "Cannot Recalculate",
+                        JOptionPane.WARNING_MESSAGE);
+            } else {
+                // Show confirmation dialog
+                int response = JOptionPane.showConfirmDialog(this,
+                        "Are you sure you want to recalculate all totals?",
+                        "Confirm Recalculate Totals",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE);
+                if (response == JOptionPane.YES_OPTION && onRecalculateTotals != null) {
+                    onRecalculateTotals.run();
+                }
+            }
+        });
+        buttonPanel.add(recalculateButton);
+        buttonPanel.add(Box.createVerticalStrut(10));
+
         JButton clearButton = new JButton("Clear All Data");
         clearButton.setFocusPainted(false);
-        clearButton.setBackground(new Color(200, 0, 0)); // Red background
+        clearButton.setBackground(new Color(120, 0, 0)); // Dark red background
         clearButton.setForeground(Color.WHITE);
         clearButton.setFont(FontManager.getRunescapeSmallFont());
+        clearButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
         clearButton.addActionListener(e -> {
             int response = JOptionPane.showConfirmDialog(this,
                     "Are you sure you want to clear ALL current and historical data?\nThis action cannot be undone.",
@@ -132,7 +178,7 @@ public class MokhaLootPanel extends PluginPanel {
                 onClearData.run();
             }
         });
-        buttonPanel.add(clearButton, BorderLayout.CENTER);
+        buttonPanel.add(clearButton);
 
         // Wrap stats panel in a container with button at bottom
         JPanel contentWrapper = new JPanel(new BorderLayout());
