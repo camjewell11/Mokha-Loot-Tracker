@@ -692,19 +692,27 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     public void updateClaimedWave(int wave, Map<String, ItemData> itemData) {
+        updateClaimedWave(wave, itemData, -1);
+    }
+
+    public void updateClaimedWave(int wave, Map<String, ItemData> itemData, long explicitTotal) {
         int index = wave >= 9 ? 8 : wave - 1;
         if (index >= 0 && index < claimedWavePanels.length) {
             updateWavePanel(claimedWaveValueLabels[index], claimedWaveItemPanels[index],
-                    claimedWaveCollapsed[index], itemData);
+                    claimedWaveCollapsed[index], itemData, explicitTotal);
             updateClaimedSectionTotal();
         }
     }
 
     public void updateUnclaimedWave(int wave, Map<String, ItemData> itemData) {
+        updateUnclaimedWave(wave, itemData, -1);
+    }
+
+    public void updateUnclaimedWave(int wave, Map<String, ItemData> itemData, long explicitTotal) {
         int index = wave >= 9 ? 8 : wave - 1;
         if (index >= 0 && index < unclaimedWavePanels.length) {
             updateWavePanel(unclaimedWaveValueLabels[index], unclaimedWaveItemPanels[index],
-                    unclaimedWaveCollapsed[index], itemData);
+                    unclaimedWaveCollapsed[index], itemData, explicitTotal);
             updateUnclaimedSectionTotal();
         }
     }
@@ -783,6 +791,11 @@ public class MokhaLootPanel extends PluginPanel {
 
     private void updateWavePanel(JLabel valueLabel, JPanel itemsPanel, boolean isCollapsed,
             Map<String, ItemData> itemData) {
+        updateWavePanel(valueLabel, itemsPanel, isCollapsed, itemData, -1);
+    }
+
+    private void updateWavePanel(JLabel valueLabel, JPanel itemsPanel, boolean isCollapsed,
+            Map<String, ItemData> itemData, long explicitTotal) {
         itemsPanel.removeAll();
 
         if (itemData == null || itemData.isEmpty()) {
@@ -793,9 +806,11 @@ public class MokhaLootPanel extends PluginPanel {
             return;
         }
 
-        long totalValue = 0;
-        for (ItemData item : itemData.values()) {
-            totalValue += item.totalValue;
+        long totalValue = explicitTotal >= 0 ? explicitTotal : 0;
+        if (explicitTotal < 0) {
+            for (ItemData item : itemData.values()) {
+                totalValue += item.totalValue;
+            }
         }
 
         valueLabel.setText(formatGp(totalValue));

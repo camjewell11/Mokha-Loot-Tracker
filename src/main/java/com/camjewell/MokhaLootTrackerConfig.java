@@ -17,6 +17,11 @@ public interface MokhaLootTrackerConfig extends Config {
 		return false;
 	}
 
+	@ConfigItem(keyName = "excludeUltraValuableItems", name = "Exclude Uniques", description = "Exclude items worth more than 20 million gp from claimed/unclaimed totals (uniques)", position = 12)
+	default boolean excludeUltraValuableItems() {
+		return false;
+	}
+
 	// Internal persistence properties (not exposed in settings UI)
 	// These use direct ConfigManager access, not @ConfigItem
 

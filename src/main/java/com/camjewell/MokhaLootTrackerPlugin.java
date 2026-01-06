@@ -25,6 +25,7 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.events.ChatMessage;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -102,6 +103,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private final Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave = new HashMap<>(); // Wave ->
                                                                                                              // Item
                                                                                                              // aggregates
+
+    // Mokhaiotl Cloth handling
+    private Integer mokhaClothValueFromChat = null; // Value detected from chat, if any
 
     // Rune pouch mapping (varbit values to item IDs)
     private static final int[] RUNE_POUCH_ITEM_IDS = new int[] {
@@ -302,6 +306,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
                 initialSupplySnapshot.clear();
+                resetMokhaClothValue(); // Reset chat-detected cloth value
 
                 // Update panel to show cleared current run data
                 updatePanelData();
@@ -406,10 +411,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
     public void onConfigChanged(ConfigChanged event) {
         // When ignore settings are toggled, update panel immediately
         if (event.getGroup().equals("mokhaloot")) {
-            if (event.getKey().equals("ignoreSunKissedBonesValue") || event.getKey().equals("ignoreSpiritSeedsValue")) {
+            if (event.getKey().equals("ignoreSunKissedBonesValue") ||
+                    event.getKey().equals("ignoreSpiritSeedsValue") ||
+                    event.getKey().equals("excludeUltraValuableItems")) {
                 log.info("[Mokha] Config changed: {} = {}", event.getKey(), event.getNewValue());
-                // Trigger panel update with new config settings
-                updatePanelData();
+                // Trigger complete recalculation with new config settings
+                recalculateAllTotals();
                 // Save the updated state
                 saveHistoricalData();
             }
@@ -630,6 +637,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 int newQty = currentQty - previousQty;
                 String itemName = itemManager.getItemComposition(itemId).getName();
                 int itemValue = itemManager.getItemPrice(itemId) * newQty;
+
+                // Special handling for Mokhaiotl Cloth (untradable, needs calculated value)
+                if (itemName.equals("Mokhaiotl Cloth") && itemValue == 0) {
+                    int clothValue = getMokhaClothValue();
+                    itemValue = clothValue * newQty;
+                    log.info("[Mokha] Mokhaiotl Cloth detected, using calculated value: {} gp per cloth", clothValue);
+                }
 
                 // Override value to 0 if config toggle is enabled for specific items
                 if (config.ignoreSunKissedBonesValue() && itemName.equals("Sun-kissed bones")) {
@@ -919,6 +933,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     if (loaded != null) {
                         historicalClaimedItemsByWave.putAll(loaded);
                         applyIgnoreSettingsToHistoricalItems(historicalClaimedItemsByWave);
+                        // Recalculate wave totals to respect current filter settings
+                        recalculateWaveTotals();
                         recalculateHistoricalTotalClaimed();
                         log.info("[Mokha] Loaded {} historical claimed wave item entries", loaded.size());
                     }
@@ -970,6 +986,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     if (loaded != null) {
                         historicalUnclaimedItemsByWave.putAll(loaded);
                         applyIgnoreSettingsToHistoricalItems(historicalUnclaimedItemsByWave);
+                        // Recalculate wave totals to respect current filter settings
+                        recalculateWaveTotals();
                         log.info("[Mokha] Loaded {} historical unclaimed wave item entries", loaded.size());
                     }
                 } catch (Exception e) {
@@ -1093,23 +1111,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
         applyIgnoreSettingsToHistoricalItems(historicalClaimedItemsByWave);
         applyIgnoreSettingsToHistoricalItems(historicalUnclaimedItemsByWave);
 
+        // Recalculate wave totals based on current settings
+        recalculateWaveTotals();
+
         // Recalculate total claimed from historical claimed items
         recalculateHistoricalTotalClaimed();
 
-        // Recalculate total unclaimed from historical unclaimed items
-        historicalUnclaimedByWave.clear();
-        for (int wave = 1; wave <= 20; wave++) {
-            Map<String, ItemAggregate> waveItems = historicalUnclaimedItemsByWave.getOrDefault(wave, new HashMap<>());
-            long waveTotal = 0;
-            for (ItemAggregate item : waveItems.values()) {
-                waveTotal += item.totalValue;
-            }
-            if (waveTotal > 0) {
-                historicalUnclaimedByWave.put(wave, waveTotal);
-            }
-        }
-
-        // Recalculate supply cost from historical supplies used
+        // Recalculate supply cost
         historicalSupplyCost = 0;
         for (ItemAggregate item : historicalSuppliesUsed.values()) {
             historicalSupplyCost += item.totalValue;
@@ -1341,8 +1349,23 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Calculate total unclaimed (only loot lost to deaths, not current run)
         long totalUnclaimed = 0;
-        for (Long waveValue : historicalUnclaimedByWave.values()) {
-            totalUnclaimed += waveValue;
+        boolean excludeUltra = config.excludeUltraValuableItems();
+        final int ULTRA_VALUABLE_THRESHOLD = 20_000_000;
+
+        if (excludeUltra) {
+            // Filter out items worth more than 20M
+            for (Map<String, ItemAggregate> waveItems : historicalUnclaimedItemsByWave.values()) {
+                for (ItemAggregate item : waveItems.values()) {
+                    if (item.pricePerItem <= ULTRA_VALUABLE_THRESHOLD) {
+                        totalUnclaimed += item.totalValue;
+                    }
+                }
+            }
+        } else {
+            // Use original totals
+            for (Long waveValue : historicalUnclaimedByWave.values()) {
+                totalUnclaimed += waveValue;
+            }
         }
 
         // Update Profit/Loss section
@@ -1383,7 +1406,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                         new MokhaLootPanel.ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue));
             }
 
-            panel.updateClaimedWave(wave, itemData);
+            // Use pre-calculated wave total that respects the exclude setting
+            long waveTotal = historicalClaimedByWave.getOrDefault(index, 0L);
+            panel.updateClaimedWave(wave, itemData, waveTotal);
         }
 
         // Update Unclaimed Loot by Wave (historical - persisted and never cleared) -
@@ -1419,7 +1444,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 }
             }
 
-            panel.updateUnclaimedWave(wave, itemData);
+            // Use pre-calculated wave total that respects the exclude setting
+            long waveTotal = historicalUnclaimedByWave.getOrDefault(wave, 0L);
+            panel.updateUnclaimedWave(wave, itemData, waveTotal);
         }
 
         // Update Supplies Current Run - with items
@@ -1494,10 +1521,114 @@ public class MokhaLootTrackerPlugin extends Plugin {
      */
     private void recalculateHistoricalTotalClaimed() {
         historicalTotalClaimed = 0;
+        boolean excludeUltra = config.excludeUltraValuableItems();
+        final int ULTRA_VALUABLE_THRESHOLD = 20_000_000;
+
         for (Map<String, ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
             for (ItemAggregate item : waveItems.values()) {
+                // Skip items worth more than 20M if setting is enabled
+                if (excludeUltra && item.pricePerItem > ULTRA_VALUABLE_THRESHOLD) {
+                    continue;
+                }
                 historicalTotalClaimed += item.totalValue;
             }
         }
+    }
+
+    /**
+     * Recalculate wave totals based on excludeUltraValuableItems setting
+     */
+    private void recalculateWaveTotals() {
+        boolean excludeUltra = config.excludeUltraValuableItems();
+        final int ULTRA_VALUABLE_THRESHOLD = 20_000_000;
+
+        // Recalculate claimed by wave
+        historicalClaimedByWave.clear();
+        for (Map.Entry<Integer, Map<String, ItemAggregate>> waveEntry : historicalClaimedItemsByWave.entrySet()) {
+            long waveTotal = 0;
+            for (ItemAggregate item : waveEntry.getValue().values()) {
+                if (excludeUltra && item.pricePerItem > ULTRA_VALUABLE_THRESHOLD) {
+                    continue;
+                }
+                waveTotal += item.totalValue;
+            }
+            historicalClaimedByWave.put(waveEntry.getKey(), waveTotal);
+        }
+
+        // Recalculate unclaimed by wave
+        historicalUnclaimedByWave.clear();
+        for (Map.Entry<Integer, Map<String, ItemAggregate>> waveEntry : historicalUnclaimedItemsByWave.entrySet()) {
+            long waveTotal = 0;
+            for (ItemAggregate item : waveEntry.getValue().values()) {
+                if (excludeUltra && item.pricePerItem > ULTRA_VALUABLE_THRESHOLD) {
+                    continue;
+                }
+                waveTotal += item.totalValue;
+            }
+            historicalUnclaimedByWave.put(waveEntry.getKey(), waveTotal);
+        }
+    }
+
+    /**
+     * Calculate Mokhaiotl Cloth value based on component prices
+     * Formula: p(Confliction Gauntlets) - 10000*p(Demon Tear) - p(Tormented
+     * Bracelet)
+     * Returns the calculated value, or 0 if unable to determine component prices
+     */
+    private int calculateMokhaClothValue() {
+        int conflictionGauntletsPrice = itemManager.getItemPrice(ItemID.CONFLICTION_GAUNTLETS);
+        int demonTearPrice = itemManager.getItemPrice(ItemID.DEMON_TEAR);
+        int tormentedBraceletPrice = itemManager.getItemPrice(ItemID.TORMENTED_BRACELET);
+
+        if (conflictionGauntletsPrice <= 0 || demonTearPrice <= 0 || tormentedBraceletPrice <= 0) {
+            return 0; // Return 0 if any component price is unavailable
+        }
+
+        return conflictionGauntletsPrice - (10000 * demonTearPrice) - tormentedBraceletPrice;
+    }
+
+    /**
+     * Get the Mokhaiotl Cloth value (from chat if detected, otherwise calculated)
+     */
+    private int getMokhaClothValue() {
+        if (mokhaClothValueFromChat != null) {
+            return mokhaClothValueFromChat;
+        }
+        return calculateMokhaClothValue();
+    }
+
+    /**
+     * Listen for chat messages to detect Mokhaiotl Cloth value
+     */
+    @Subscribe
+    public void onChatMessage(ChatMessage event) {
+        String message = event.getMessage();
+
+        // Look for: "<user> received a drop: Mokhaiotl cloth (<value> coins)"
+        if (message.contains("received a drop") && message.contains("Mokhaiotl cloth")) {
+            // Pattern to extract value: look for number within parentheses followed by
+            // "coins"
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\((\\d+(?:,\\d+)*)\\s*coins\\)",
+                    java.util.regex.Pattern.CASE_INSENSITIVE);
+            java.util.regex.Matcher matcher = pattern.matcher(message);
+
+            if (matcher.find()) {
+                try {
+                    String valueStr = matcher.group(1).replaceAll(",", "");
+                    mokhaClothValueFromChat = Integer.parseInt(valueStr);
+                    log.info("[Mokha] Detected Mokhaiotl Cloth value from chat: {} gp", mokhaClothValueFromChat);
+                } catch (NumberFormatException e) {
+                    // If parsing fails, value will be calculated instead
+                    log.debug("[Mokha] Failed to parse Mokhaiotl Cloth value from chat");
+                }
+            }
+        }
+    }
+
+    /**
+     * Reset the chat-detected Mokhaiotl Cloth value (call on arena exit)
+     */
+    private void resetMokhaClothValue() {
+        mokhaClothValueFromChat = null;
     }
 }
