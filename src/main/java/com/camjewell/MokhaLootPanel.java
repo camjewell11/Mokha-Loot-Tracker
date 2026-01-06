@@ -48,6 +48,7 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel supplyCostLabel;
     private JLabel profitLossLabel;
     private JLabel totalUnclaimedLabel;
+    private JLabel claimUnclaimRatioLabel;
 
     // Current Run section
     private JLabel potentialValueLabel;
@@ -224,7 +225,7 @@ public class MokhaLootPanel extends PluginPanel {
 
         JLabel title = new JLabel("Profit/Loss:");
         title.setFont(FontManager.getRunescapeBoldFont());
-        title.setForeground(Color.LIGHT_GRAY);
+        title.setForeground(new Color(218, 165, 32)); // Gold
         JPanel titleRow = new JPanel(new BorderLayout());
         titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
         titleRow.setBorder(new EmptyBorder(1, 0, 0, 0));
@@ -253,6 +254,11 @@ public class MokhaLootPanel extends PluginPanel {
         totalUnclaimedLabel.setFont(FontManager.getRunescapeFont());
         totalUnclaimedLabel.setForeground(Color.WHITE);
         panel.add(createStatRow("Total Unclaimed:", totalUnclaimedLabel));
+
+        claimUnclaimRatioLabel = new JLabel("0.00x");
+        claimUnclaimRatioLabel.setFont(FontManager.getRunescapeFont());
+        claimUnclaimRatioLabel.setForeground(Color.WHITE);
+        panel.add(createStatRow("Claim/Unclaim Ratio:", claimUnclaimRatioLabel));
 
         return panel;
     }
@@ -666,6 +672,18 @@ public class MokhaLootPanel extends PluginPanel {
         profitLossLabel.setForeground(profitLoss >= 0 ? new Color(0, 200, 0) : new Color(200, 0, 0));
 
         totalUnclaimedLabel.setText(formatGp(totalUnclaimed));
+        totalUnclaimedLabel.setForeground(new Color(200, 0, 0)); // Red
+
+        // Calculate and display claim/unclaim ratio with muted colors
+        if (totalUnclaimed > 0) {
+            double ratio = (double) totalClaimed / totalUnclaimed;
+            claimUnclaimRatioLabel.setText(String.format("%.2fx", ratio));
+            // Use muted green for positive, muted red for negative
+            claimUnclaimRatioLabel.setForeground(ratio >= 1.0 ? new Color(0, 170, 0) : new Color(170, 0, 0));
+        } else {
+            claimUnclaimRatioLabel.setText("0.00x");
+            claimUnclaimRatioLabel.setForeground(Color.WHITE);
+        }
     }
 
     public void updateCurrentRun(long potentialValue, Map<String, ItemData> itemData) {
@@ -730,6 +748,7 @@ public class MokhaLootPanel extends PluginPanel {
         profitLossLabel.setText("0 gp");
         profitLossLabel.setForeground(Color.WHITE);
         totalUnclaimedLabel.setText("0 gp");
+        claimUnclaimRatioLabel.setText("0.00x");
 
         // Clear Current Run section
         potentialValueLabel.setText("0 gp");
@@ -791,12 +810,14 @@ public class MokhaLootPanel extends PluginPanel {
             itemRow.setToolTipText("Price per item: " + pricePerItemText);
 
             JLabel itemLabel = new JLabel("- " + item.name + " x" + item.quantity);
-            itemLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+            // Color gold if value > 20m
+            Color itemColor = item.totalValue > 20_000_000 ? new Color(218, 165, 32) : ColorScheme.LIGHT_GRAY_COLOR;
+            itemLabel.setForeground(itemColor);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemLabel, BorderLayout.WEST);
 
             JLabel itemValueLabel = new JLabel(formatGp(item.totalValue));
-            itemValueLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+            itemValueLabel.setForeground(itemColor);
             itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemValueLabel, BorderLayout.EAST);
 
