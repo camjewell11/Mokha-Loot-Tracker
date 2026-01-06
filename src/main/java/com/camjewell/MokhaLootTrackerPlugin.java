@@ -645,7 +645,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 if (itemName.equals("Mokhaiotl Cloth") && itemValue == 0) {
                     int clothValue = getMokhaClothValue();
                     itemValue = clothValue * newQty;
-                    log.info("[Mokha] Mokhaiotl Cloth detected, using calculated value: {} gp per cloth", clothValue);
                 }
 
                 // Override value to 0 if config toggle is enabled for specific items
@@ -901,7 +900,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (clothValueStr != null && !clothValueStr.isEmpty()) {
                 try {
                     mokhaClothValueFromChat = Integer.parseInt(clothValueStr);
-                    log.info("[Mokha] Loaded Mokhaiotl Cloth value from config: {} gp", mokhaClothValueFromChat);
                 } catch (NumberFormatException e) {
                     log.warn("[Mokha] Failed to parse stored cloth value", e);
                 }
@@ -1566,7 +1564,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (clothItem != null) {
                 clothItem.pricePerItem = clothPrice;
                 clothItem.totalValue = (long) clothItem.totalQuantity * clothPrice;
-                log.debug("[Mokha] Updated claimed Mokhaiotl Cloth price to {} gp", clothPrice);
             }
         }
 
@@ -1576,7 +1573,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (clothItem != null) {
                 clothItem.pricePerItem = clothPrice;
                 clothItem.totalValue = (long) clothItem.totalQuantity * clothPrice;
-                log.debug("[Mokha] Updated unclaimed Mokhaiotl Cloth price to {} gp", clothPrice);
             }
         }
     }
@@ -1664,12 +1660,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
     @Subscribe
     public void onChatMessage(ChatMessage event) {
         String message = event.getMessage();
-        log.debug("[Mokha] Chat message received: {}", message);
         Integer foundValue = null;
 
         // Try simple format: "~cloth <value>gp" or "~cloth <value>"
         if (message.toLowerCase().contains("~cloth")) {
-            log.debug("[Mokha] Found '~cloth' in message, attempting to parse...");
             java.util.regex.Pattern simplePattern = java.util.regex.Pattern.compile(
                     "~cloth\\s+(\\d+(?:,\\d+)*)(?:\\s*gp)?",
                     java.util.regex.Pattern.CASE_INSENSITIVE);
@@ -1679,9 +1673,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 try {
                     String valueStr = simpleMatcher.group(1).replaceAll(",", "");
                     foundValue = Integer.parseInt(valueStr);
-                    log.info("[Mokha] Detected Mokhaiotl Cloth value from simple format: {} gp", foundValue);
                 } catch (NumberFormatException e) {
-                    log.debug("[Mokha] Failed to parse cloth value from simple format");
+                    // Failed to parse cloth value from simple format
                 }
             }
         }
@@ -1697,9 +1690,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 try {
                     String valueStr = matcher.group(1).replaceAll(",", "");
                     foundValue = Integer.parseInt(valueStr);
-                    log.info("[Mokha] Detected Mokhaiotl Cloth value from drop message: {} gp", foundValue);
                 } catch (NumberFormatException e) {
-                    log.debug("[Mokha] Failed to parse cloth value from drop message");
+                    // Failed to parse cloth value from drop message
                 }
             }
         }
@@ -1709,7 +1701,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             hasWarnedAboutZeroClothValue = false; // Reset warning flag since we now have a value
             // Save to config so it persists
             configManager.setConfiguration("mokhaloot", "mokhaClothValue", foundValue.toString());
-            log.info("[Mokha] Saved Mokhaiotl Cloth value to config: {} gp", foundValue);
             // Trigger recalculation to update UI immediately
             recalculateAllTotals();
         }
