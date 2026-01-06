@@ -60,6 +60,7 @@ public class MokhaLootPanel extends PluginPanel {
     private JPanel[] claimedWaveItemPanels = new JPanel[9];
     private boolean[] claimedWaveCollapsed = new boolean[9];
     private boolean claimedSectionCollapsed = false; // Track collapse state for entire section
+    private JLabel claimedSectionTotalLabel; // Total value label for collapsed view
 
     // Unclaimed Loot by Wave - now stores panels for dynamic item lists
     private JPanel unclaimedWavesContainer; // Container for all waves
@@ -68,18 +69,21 @@ public class MokhaLootPanel extends PluginPanel {
     private JPanel[] unclaimedWaveItemPanels = new JPanel[9];
     private boolean[] unclaimedWaveCollapsed = new boolean[9];
     private boolean unclaimedSectionCollapsed = false; // Track collapse state for entire section
+    private JLabel unclaimedSectionTotalLabel; // Total value label for collapsed view
 
     // Supplies Used Current Run
     private JLabel suppliesCurrentRunTotalLabel;
     private JPanel suppliesCurrentRunPanel;
     private JPanel suppliesCurrentRunContainer; // Container for all supplies content
     private boolean suppliesCurrentRunCollapsed = false; // Track collapse state
+    private JLabel suppliesCurrentRunHeaderLabel; // Collapsed view total label
 
     // Supplies Used (All Time)
     private JLabel suppliesTotalValueLabel;
     private JPanel suppliesTotalItemsPanel;
     private JPanel suppliesTotalContainer; // Container for all supplies content
     private boolean suppliesTotalCollapsed = false; // Track collapse state
+    private JLabel suppliesTotalHeaderLabel; // Collapsed view total label
 
     private final JPanel statsPanel = new JPanel();
     private Runnable onClearData;
@@ -295,16 +299,26 @@ public class MokhaLootPanel extends PluginPanel {
         collapseButton.setPreferredSize(new Dimension(18, 18));
         collapseButton.setMaximumSize(new Dimension(18, 18));
 
-        JLabel title = new JLabel("Claimed Loot by Wave");
+        JLabel title = new JLabel("Claimed Loot");
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(new Color(0, 200, 0)); // Green
+
+        claimedSectionTotalLabel = new JLabel("0 gp");
+        claimedSectionTotalLabel.setFont(FontManager.getRunescapeFont());
+        claimedSectionTotalLabel.setForeground(Color.WHITE);
+        claimedSectionTotalLabel.setVisible(false); // Hidden when expanded
+
+        JPanel rightPanel = new JPanel(new BorderLayout());
+        rightPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        rightPanel.add(claimedSectionTotalLabel, BorderLayout.CENTER);
+        rightPanel.add(collapseButton, BorderLayout.EAST);
 
         JPanel titleRow = new JPanel(new BorderLayout());
         titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
         titleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
         titleRow.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
         titleRow.add(title, BorderLayout.WEST);
-        titleRow.add(collapseButton, BorderLayout.EAST);
+        titleRow.add(rightPanel, BorderLayout.EAST);
         panel.add(titleRow);
 
         // Container for all wave panels
@@ -328,6 +342,7 @@ public class MokhaLootPanel extends PluginPanel {
         collapseButton.addActionListener(e -> {
             claimedSectionCollapsed = !claimedSectionCollapsed;
             claimedWavesContainer.setVisible(!claimedSectionCollapsed);
+            claimedSectionTotalLabel.setVisible(claimedSectionCollapsed); // Show when collapsed
             collapseButton.setText(claimedSectionCollapsed ? "▸" : "▾");
             panel.revalidate();
             panel.repaint();
@@ -351,16 +366,26 @@ public class MokhaLootPanel extends PluginPanel {
         collapseButton.setPreferredSize(new Dimension(18, 18));
         collapseButton.setMaximumSize(new Dimension(18, 18));
 
-        JLabel title = new JLabel("Unclaimed Loot by Wave");
+        JLabel title = new JLabel("Unclaimed Loot");
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(new Color(200, 0, 0)); // Red
+
+        unclaimedSectionTotalLabel = new JLabel("0 gp");
+        unclaimedSectionTotalLabel.setFont(FontManager.getRunescapeFont());
+        unclaimedSectionTotalLabel.setForeground(Color.WHITE);
+        unclaimedSectionTotalLabel.setVisible(false); // Hidden when expanded
+
+        JPanel rightPanel = new JPanel(new BorderLayout());
+        rightPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        rightPanel.add(unclaimedSectionTotalLabel, BorderLayout.CENTER);
+        rightPanel.add(collapseButton, BorderLayout.EAST);
 
         JPanel titleRow = new JPanel(new BorderLayout());
         titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
         titleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
         titleRow.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
         titleRow.add(title, BorderLayout.WEST);
-        titleRow.add(collapseButton, BorderLayout.EAST);
+        titleRow.add(rightPanel, BorderLayout.EAST);
         panel.add(titleRow);
 
         // Container for all wave panels
@@ -384,6 +409,7 @@ public class MokhaLootPanel extends PluginPanel {
         collapseButton.addActionListener(e -> {
             unclaimedSectionCollapsed = !unclaimedSectionCollapsed;
             unclaimedWavesContainer.setVisible(!unclaimedSectionCollapsed);
+            unclaimedSectionTotalLabel.setVisible(unclaimedSectionCollapsed); // Show when collapsed
             collapseButton.setText(unclaimedSectionCollapsed ? "▸" : "▾");
             panel.revalidate();
             panel.repaint();
@@ -411,12 +437,22 @@ public class MokhaLootPanel extends PluginPanel {
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(new Color(255, 165, 0)); // Orange
 
+        suppliesCurrentRunHeaderLabel = new JLabel("0 gp");
+        suppliesCurrentRunHeaderLabel.setFont(FontManager.getRunescapeFont());
+        suppliesCurrentRunHeaderLabel.setForeground(Color.WHITE);
+        suppliesCurrentRunHeaderLabel.setVisible(false); // Hidden when expanded
+
+        JPanel rightPanel = new JPanel(new BorderLayout());
+        rightPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        rightPanel.add(suppliesCurrentRunHeaderLabel, BorderLayout.CENTER);
+        rightPanel.add(collapseButton, BorderLayout.EAST);
+
         JPanel titleRow = new JPanel(new BorderLayout());
         titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
         titleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
         titleRow.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
         titleRow.add(title, BorderLayout.WEST);
-        titleRow.add(collapseButton, BorderLayout.EAST);
+        titleRow.add(rightPanel, BorderLayout.EAST);
         panel.add(titleRow);
 
         // Container for supplies content
@@ -440,6 +476,7 @@ public class MokhaLootPanel extends PluginPanel {
         collapseButton.addActionListener(e -> {
             suppliesCurrentRunCollapsed = !suppliesCurrentRunCollapsed;
             suppliesCurrentRunContainer.setVisible(!suppliesCurrentRunCollapsed);
+            suppliesCurrentRunHeaderLabel.setVisible(suppliesCurrentRunCollapsed); // Show when collapsed
             collapseButton.setText(suppliesCurrentRunCollapsed ? "▸" : "▾");
             panel.revalidate();
             panel.repaint();
@@ -467,12 +504,22 @@ public class MokhaLootPanel extends PluginPanel {
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(new Color(255, 165, 0)); // Orange
 
+        suppliesTotalHeaderLabel = new JLabel("0 gp");
+        suppliesTotalHeaderLabel.setFont(FontManager.getRunescapeFont());
+        suppliesTotalHeaderLabel.setForeground(Color.WHITE);
+        suppliesTotalHeaderLabel.setVisible(false); // Hidden when expanded
+
+        JPanel rightPanel = new JPanel(new BorderLayout());
+        rightPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        rightPanel.add(suppliesTotalHeaderLabel, BorderLayout.CENTER);
+        rightPanel.add(collapseButton, BorderLayout.EAST);
+
         JPanel titleRow = new JPanel(new BorderLayout());
         titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
         titleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
         titleRow.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
         titleRow.add(title, BorderLayout.WEST);
-        titleRow.add(collapseButton, BorderLayout.EAST);
+        titleRow.add(rightPanel, BorderLayout.EAST);
         panel.add(titleRow);
 
         // Container for supplies content
@@ -496,6 +543,7 @@ public class MokhaLootPanel extends PluginPanel {
         collapseButton.addActionListener(e -> {
             suppliesTotalCollapsed = !suppliesTotalCollapsed;
             suppliesTotalContainer.setVisible(!suppliesTotalCollapsed);
+            suppliesTotalHeaderLabel.setVisible(suppliesTotalCollapsed); // Show when collapsed
             collapseButton.setText(suppliesTotalCollapsed ? "▸" : "▾");
             panel.revalidate();
             panel.repaint();
@@ -630,6 +678,7 @@ public class MokhaLootPanel extends PluginPanel {
         if (index >= 0 && index < claimedWavePanels.length) {
             updateWavePanel(claimedWaveValueLabels[index], claimedWaveItemPanels[index],
                     claimedWaveCollapsed[index], itemData);
+            updateClaimedSectionTotal();
         }
     }
 
@@ -638,19 +687,38 @@ public class MokhaLootPanel extends PluginPanel {
         if (index >= 0 && index < unclaimedWavePanels.length) {
             updateWavePanel(unclaimedWaveValueLabels[index], unclaimedWaveItemPanels[index],
                     unclaimedWaveCollapsed[index], itemData);
+            updateUnclaimedSectionTotal();
         }
     }
 
     public void updateSuppliesCurrentRun(long totalValue, Map<String, ItemData> itemData) {
         // Update total value label
         suppliesCurrentRunTotalLabel.setText(formatGp(totalValue));
+        suppliesCurrentRunHeaderLabel.setText(formatGp(totalValue)); // Also update header label
         // Update items
         updateSuppliesPanel(suppliesCurrentRunPanel, itemData);
     }
 
     public void updateSuppliesTotal(long totalValue, Map<String, ItemData> itemData) {
         suppliesTotalValueLabel.setText(formatGp(totalValue));
+        suppliesTotalHeaderLabel.setText(formatGp(totalValue)); // Also update header label
         updateSuppliesPanel(suppliesTotalItemsPanel, itemData);
+    }
+
+    /**
+     * Update the claimed loot section total for collapsed view to match the summary
+     * value
+     */
+    private void updateClaimedSectionTotal() {
+        claimedSectionTotalLabel.setText(totalClaimedLabel.getText());
+    }
+
+    /**
+     * Update the unclaimed loot section total for collapsed view to match the
+     * summary value
+     */
+    private void updateUnclaimedSectionTotal() {
+        unclaimedSectionTotalLabel.setText(totalUnclaimedLabel.getText());
     }
 
     public void clearAllPanelData() {
@@ -672,17 +740,21 @@ public class MokhaLootPanel extends PluginPanel {
             claimedWaveValueLabels[i].setText("0 gp");
             claimedWaveItemPanels[i].removeAll();
         }
+        claimedSectionTotalLabel.setText("0 gp");
 
         // Clear all unclaimed wave panels
         for (int i = 0; i < unclaimedWavePanels.length; i++) {
             unclaimedWaveValueLabels[i].setText("0 gp");
             unclaimedWaveItemPanels[i].removeAll();
         }
+        unclaimedSectionTotalLabel.setText("0 gp");
 
         // Clear supplies sections
         suppliesCurrentRunTotalLabel.setText("0 gp");
+        suppliesCurrentRunHeaderLabel.setText("0 gp");
         suppliesCurrentRunPanel.removeAll();
         suppliesTotalValueLabel.setText("0 gp");
+        suppliesTotalHeaderLabel.setText("0 gp");
         suppliesTotalItemsPanel.removeAll();
 
         // Refresh the panel
