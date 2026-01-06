@@ -26,6 +26,7 @@ import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -106,6 +107,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     // Mokhaiotl Cloth handling
     private Integer mokhaClothValueFromChat = null; // Value detected from chat, if any
+    private boolean hasWarnedAboutZeroClothValue = false; // Track if we've already warned player
 
     // Rune pouch mapping (varbit values to item IDs)
     private static final int[] RUNE_POUCH_ITEM_IDS = new int[] {
@@ -413,7 +415,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (event.getGroup().equals("mokhaloot")) {
             if (event.getKey().equals("ignoreSunKissedBonesValue") ||
                     event.getKey().equals("ignoreSpiritSeedsValue") ||
-                    event.getKey().equals("excludeUltraValuableItems")) {
+                    event.getKey().equals("excludeUltraValuableItems") ||
+                    event.getKey().equals("mokhaClothValue")) {
                 log.info("[Mokha] Config changed: {} = {}", event.getKey(), event.getNewValue());
                 // Trigger complete recalculation with new config settings
                 recalculateAllTotals();
@@ -892,6 +895,18 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private void loadHistoricalData() {
         try {
             log.info("[Mokha] Starting to load historical data...");
+
+            // Load Mokhaiotl Cloth value from config if saved
+            String clothValueStr = configManager.getConfiguration("mokhaloot", "mokhaClothValue");
+            if (clothValueStr != null && !clothValueStr.isEmpty()) {
+                try {
+                    mokhaClothValueFromChat = Integer.parseInt(clothValueStr);
+                    log.info("[Mokha] Loaded Mokhaiotl Cloth value from config: {} gp", mokhaClothValueFromChat);
+                } catch (NumberFormatException e) {
+                    log.warn("[Mokha] Failed to parse stored cloth value", e);
+                }
+            }
+
             // Get raw config values directly from ConfigManager since we removed
             // @ConfigItem
             String totalClaimedStr = configManager.getConfiguration("mokhaloot", "historicalTotalClaimed");
@@ -1105,6 +1120,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
      */
     private void recalculateAllTotals() {
         log.info("[Mokha] Starting recalculation of all totals...");
+
+        // Update Mokhaiotl Cloth prices first with current cloth value
+        updateMokhaClothPrices();
 
         // Apply ignore settings to all historical items (this will update totalValue
         // based on current config)
@@ -1536,6 +1554,34 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     /**
+     * Update Mokhaiotl Cloth prices in all historical items
+     * Call this when the cloth value changes to update all existing cloth items
+     */
+    private void updateMokhaClothPrices() {
+        int clothPrice = getMokhaClothValue();
+
+        // Update cloth in claimed items
+        for (Map<String, ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
+            ItemAggregate clothItem = waveItems.get("Mokhaiotl Cloth");
+            if (clothItem != null) {
+                clothItem.pricePerItem = clothPrice;
+                clothItem.totalValue = (long) clothItem.totalQuantity * clothPrice;
+                log.debug("[Mokha] Updated claimed Mokhaiotl Cloth price to {} gp", clothPrice);
+            }
+        }
+
+        // Update cloth in unclaimed items
+        for (Map<String, ItemAggregate> waveItems : historicalUnclaimedItemsByWave.values()) {
+            ItemAggregate clothItem = waveItems.get("Mokhaiotl Cloth");
+            if (clothItem != null) {
+                clothItem.pricePerItem = clothPrice;
+                clothItem.totalValue = (long) clothItem.totalQuantity * clothPrice;
+                log.debug("[Mokha] Updated unclaimed Mokhaiotl Cloth price to {} gp", clothPrice);
+            }
+        }
+    }
+
+    /**
      * Recalculate wave totals based on excludeUltraValuableItems setting
      */
     private void recalculateWaveTotals() {
@@ -1594,20 +1640,55 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (mokhaClothValueFromChat != null) {
             return mokhaClothValueFromChat;
         }
-        return calculateMokhaClothValue();
+        int calculatedValue = calculateMokhaClothValue();
+
+        // Warn player if cloth value is 0 and can't be calculated
+        if (calculatedValue == 0 && !hasWarnedAboutZeroClothValue) {
+            hasWarnedAboutZeroClothValue = true;
+            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+                    "<col=FF0000>[Mokha Tracker] Mokhaiotl Cloth value is 0 - cannot calculate from component prices. "
+                            +
+                            "Type: ~cloth <value> (e.g., ~cloth 52300000) to set manually.</col>",
+                    null);
+        }
+
+        return calculatedValue;
     }
 
     /**
      * Listen for chat messages to detect Mokhaiotl Cloth value
+     * Accepts both:
+     * 1. Full format: "<user> received a drop: Mokhaiotl cloth (52,300,000 coins)"
+     * 2. Simple format: "<cloth 52300000gp"
      */
     @Subscribe
     public void onChatMessage(ChatMessage event) {
         String message = event.getMessage();
+        log.debug("[Mokha] Chat message received: {}", message);
+        Integer foundValue = null;
 
-        // Look for: "<user> received a drop: Mokhaiotl cloth (<value> coins)"
-        if (message.contains("received a drop") && message.contains("Mokhaiotl cloth")) {
-            // Pattern to extract value: look for number within parentheses followed by
-            // "coins"
+        // Try simple format: "~cloth <value>gp" or "~cloth <value>"
+        if (message.toLowerCase().contains("~cloth")) {
+            log.debug("[Mokha] Found '~cloth' in message, attempting to parse...");
+            java.util.regex.Pattern simplePattern = java.util.regex.Pattern.compile(
+                    "~cloth\\s+(\\d+(?:,\\d+)*)(?:\\s*gp)?",
+                    java.util.regex.Pattern.CASE_INSENSITIVE);
+            java.util.regex.Matcher simpleMatcher = simplePattern.matcher(message);
+
+            if (simpleMatcher.find()) {
+                try {
+                    String valueStr = simpleMatcher.group(1).replaceAll(",", "");
+                    foundValue = Integer.parseInt(valueStr);
+                    log.info("[Mokha] Detected Mokhaiotl Cloth value from simple format: {} gp", foundValue);
+                } catch (NumberFormatException e) {
+                    log.debug("[Mokha] Failed to parse cloth value from simple format");
+                }
+            }
+        }
+
+        // Try full drop format: "<user> received a drop: Mokhaiotl cloth (<value>
+        // coins)"
+        if (foundValue == null && message.contains("received a drop") && message.contains("Mokhaiotl cloth")) {
             java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\((\\d+(?:,\\d+)*)\\s*coins\\)",
                     java.util.regex.Pattern.CASE_INSENSITIVE);
             java.util.regex.Matcher matcher = pattern.matcher(message);
@@ -1615,13 +1696,22 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (matcher.find()) {
                 try {
                     String valueStr = matcher.group(1).replaceAll(",", "");
-                    mokhaClothValueFromChat = Integer.parseInt(valueStr);
-                    log.info("[Mokha] Detected Mokhaiotl Cloth value from chat: {} gp", mokhaClothValueFromChat);
+                    foundValue = Integer.parseInt(valueStr);
+                    log.info("[Mokha] Detected Mokhaiotl Cloth value from drop message: {} gp", foundValue);
                 } catch (NumberFormatException e) {
-                    // If parsing fails, value will be calculated instead
-                    log.debug("[Mokha] Failed to parse Mokhaiotl Cloth value from chat");
+                    log.debug("[Mokha] Failed to parse cloth value from drop message");
                 }
             }
+        }
+
+        if (foundValue != null) {
+            mokhaClothValueFromChat = foundValue;
+            hasWarnedAboutZeroClothValue = false; // Reset warning flag since we now have a value
+            // Save to config so it persists
+            configManager.setConfiguration("mokhaloot", "mokhaClothValue", foundValue.toString());
+            log.info("[Mokha] Saved Mokhaiotl Cloth value to config: {} gp", foundValue);
+            // Trigger recalculation to update UI immediately
+            recalculateAllTotals();
         }
     }
 
@@ -1630,5 +1720,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
      */
     private void resetMokhaClothValue() {
         mokhaClothValueFromChat = null;
+        hasWarnedAboutZeroClothValue = false; // Reset warning when exiting arena
     }
 }
