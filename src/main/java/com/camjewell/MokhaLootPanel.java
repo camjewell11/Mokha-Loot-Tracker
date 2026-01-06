@@ -111,7 +111,7 @@ public class MokhaLootPanel extends PluginPanel {
         // Create main content panel
         statsPanel.setLayout(new BoxLayout(statsPanel, BoxLayout.Y_AXIS));
         statsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        statsPanel.setBorder(new EmptyBorder(3, 10, 3, 10));
+        statsPanel.setBorder(new EmptyBorder(3, 0, 3, 0));
 
         JPanel buttonPanel = new JPanel(new BorderLayout());
         buttonPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -481,7 +481,8 @@ public class MokhaLootPanel extends PluginPanel {
         return row;
     }
 
-    private JPanel createWavePanel(String waveTitle, JLabel[] valueLabels, JPanel[] itemPanels, boolean[] collapsedStates,
+    private JPanel createWavePanel(String waveTitle, JLabel[] valueLabels, JPanel[] itemPanels,
+            boolean[] collapsedStates,
             int index) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -668,7 +669,7 @@ public class MokhaLootPanel extends PluginPanel {
             JPanel itemRow = new JPanel(new BorderLayout());
             itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
             itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-            itemRow.setBorder(new EmptyBorder(2, 25, 2, 0));
+            itemRow.setBorder(new EmptyBorder(2, 15, 2, 0));
             itemRow.setToolTipText("Price per item: " + pricePerItemText);
 
             JLabel itemLabel = new JLabel("- " + item.name + " x" + item.quantity);
@@ -705,7 +706,7 @@ public class MokhaLootPanel extends PluginPanel {
             JPanel itemRow = new JPanel(new BorderLayout());
             itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
             itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-            itemRow.setBorder(new EmptyBorder(2, 10, 2, 0));
+            itemRow.setBorder(new EmptyBorder(2, 5, 2, 0));
             itemRow.setToolTipText("Price per dose: " + pricePerItemText);
 
             // Left side: item name and quantity
