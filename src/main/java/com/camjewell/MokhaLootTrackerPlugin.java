@@ -131,8 +131,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
             4694, // 19 - Steam rune
             4697, // 20 - Smoke rune
             21880, // 21 - Wrath rune
-            27651, // 22 - Sunfire rune
-            27655 // 23 - Aether rune
+            28929, // 22 - Sunfire rune (corrected ID)
+            30843 // 23 - Aether rune (corrected ID)
     };
 
     /**
