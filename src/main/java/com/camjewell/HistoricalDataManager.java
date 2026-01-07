@@ -1,7 +1,6 @@
 package com.camjewell;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import lombok.extern.slf4j.Slf4j;
 import com.camjewell.MokhaLootTrackerPlugin.ItemAggregate;
@@ -27,14 +26,14 @@ public class HistoricalDataManager {
     private Map<Integer, Long> historicalClaimedByWave;
     private long historicalTotalClaimed;
 
-    public HistoricalDataManager(File runeLiteDirectory) {
+    public HistoricalDataManager(File runeLiteDirectory, Gson gson) {
         File mokhalootDir = new File(runeLiteDirectory, MOKHALOOT_DIR);
         if (!mokhalootDir.exists()) {
             mokhalootDir.mkdirs();
         }
 
         this.dataFile = new File(mokhalootDir, DATA_FILE);
-        this.gson = new GsonBuilder().setPrettyPrinting().create();
+        this.gson = gson.newBuilder().setPrettyPrinting().create();
 
         // Initialize with empty data
         this.historicalClaimedItemsByWave = new HashMap<>();

@@ -200,7 +200,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         lastCombinedSnapshot.clear();
 
         // Initialize historical data manager
-        historicalDataManager = new HistoricalDataManager(net.runelite.client.RuneLite.RUNELITE_DIR);
+        historicalDataManager = new HistoricalDataManager(net.runelite.client.RuneLite.RUNELITE_DIR, gson);
 
         // Load persisted historical data
         loadHistoricalData();
