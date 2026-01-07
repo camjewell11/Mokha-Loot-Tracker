@@ -18,17 +18,16 @@ import net.runelite.api.Client;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
-import net.runelite.api.ItemID;
 import net.runelite.api.Varbits;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
-import net.runelite.api.events.ChatMessage;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
@@ -55,6 +54,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     @Inject
     private ItemManager itemManager;
+
+    @Inject
+    private ClientThread clientThread;
 
     @Inject
     private ConfigManager configManager;
@@ -103,35 +105,34 @@ public class MokhaLootTrackerPlugin extends Plugin {
                                                                                                              // aggregates
 
     // Mokhaiotl Cloth handling
-    private Integer mokhaClothValueFromChat = null; // Value detected from chat, if any
     private boolean hasWarnedAboutZeroClothValue = false; // Track if we've already warned player
 
     // Rune pouch mapping (varbit values to item IDs)
     private static final int[] RUNE_POUCH_ITEM_IDS = new int[] {
             0, // 0 unused / empty
-            ItemID.AIR_RUNE, // 1
-            ItemID.WATER_RUNE, // 2
-            ItemID.EARTH_RUNE, // 3
-            ItemID.FIRE_RUNE, // 4
-            ItemID.MIND_RUNE, // 5
-            ItemID.CHAOS_RUNE, // 6
-            ItemID.DEATH_RUNE, // 7
-            ItemID.BLOOD_RUNE, // 8
-            ItemID.COSMIC_RUNE, // 9
-            ItemID.NATURE_RUNE, // 10
-            ItemID.LAW_RUNE, // 11
-            ItemID.BODY_RUNE, // 12
-            ItemID.SOUL_RUNE, // 13
-            ItemID.ASTRAL_RUNE, // 14
-            ItemID.MIST_RUNE, // 15
-            ItemID.MUD_RUNE, // 16
-            ItemID.DUST_RUNE, // 17
-            ItemID.LAVA_RUNE, // 18
-            ItemID.STEAM_RUNE, // 19
-            ItemID.SMOKE_RUNE, // 20
-            ItemID.WRATH_RUNE, // 21
-            ItemID.SUNFIRE_RUNE, // 22
-            ItemID.AETHER_RUNE // 23
+            556, // 1 - Air rune
+            555, // 2 - Water rune
+            557, // 3 - Earth rune
+            554, // 4 - Fire rune
+            558, // 5 - Mind rune
+            562, // 6 - Chaos rune
+            560, // 7 - Death rune
+            565, // 8 - Blood rune
+            564, // 9 - Cosmic rune
+            561, // 10 - Nature rune
+            563, // 11 - Law rune
+            559, // 12 - Body rune
+            566, // 13 - Soul rune
+            9075, // 14 - Astral rune
+            4695, // 15 - Mist rune
+            4698, // 16 - Mud rune
+            4696, // 17 - Dust rune
+            4699, // 18 - Lava rune
+            4694, // 19 - Steam rune
+            4697, // 20 - Smoke rune
+            21880, // 21 - Wrath rune
+            27651, // 22 - Sunfire rune
+            27655 // 23 - Aether rune
     };
 
     /**
@@ -308,7 +309,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
                 initialSupplySnapshot.clear();
-                resetMokhaClothValue(); // Reset chat-detected cloth value
 
                 // Update panel to show cleared current run data
                 updatePanelData();
@@ -895,16 +895,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         try {
             log.info("[Mokha] Starting to load historical data...");
 
-            // Load Mokhaiotl Cloth value from config if saved
-            String clothValueStr = configManager.getConfiguration("mokhaloot", "mokhaClothValue");
-            if (clothValueStr != null && !clothValueStr.isEmpty()) {
-                try {
-                    mokhaClothValueFromChat = Integer.parseInt(clothValueStr);
-                } catch (NumberFormatException e) {
-                    log.warn("[Mokha] Failed to parse stored cloth value", e);
-                }
-            }
-
             // Load historical data from file
             historicalDataManager.loadData();
 
@@ -1095,36 +1085,40 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private void recalculateAllTotals() {
         log.info("[Mokha] Starting recalculation of all totals...");
 
-        // Update Mokhaiotl Cloth prices first with current cloth value
-        updateMokhaClothPrices();
+        // Run debug logging and recalculation on client thread to avoid assertion
+        // errors
+        clientThread.invoke(() -> {
+            // Update Mokhaiotl Cloth prices first with current cloth value
+            updateMokhaClothPrices();
 
-        // Apply ignore settings to all historical items (this will update totalValue
-        // based on current config)
-        applyIgnoreSettingsToHistoricalItems(historicalClaimedItemsByWave);
-        applyIgnoreSettingsToHistoricalItems(historicalUnclaimedItemsByWave);
+            // Apply ignore settings to all historical items (this will update totalValue
+            // based on current config)
+            applyIgnoreSettingsToHistoricalItems(historicalClaimedItemsByWave);
+            applyIgnoreSettingsToHistoricalItems(historicalUnclaimedItemsByWave);
 
-        // Recalculate wave totals based on current settings
-        recalculateWaveTotals();
+            // Recalculate wave totals based on current settings
+            recalculateWaveTotals();
 
-        // Recalculate total claimed from historical claimed items
-        recalculateHistoricalTotalClaimed();
+            // Recalculate total claimed from historical claimed items
+            recalculateHistoricalTotalClaimed();
 
-        // Recalculate supply cost
-        historicalSupplyCost = 0;
-        for (ItemAggregate item : historicalSuppliesUsed.values()) {
-            historicalSupplyCost += item.totalValue;
-        }
+            // Recalculate supply cost
+            historicalSupplyCost = 0;
+            for (ItemAggregate item : historicalSuppliesUsed.values()) {
+                historicalSupplyCost += item.totalValue;
+            }
 
-        // Save the recalculated data
-        saveHistoricalData();
+            // Save the recalculated data
+            saveHistoricalData();
 
-        // Update panel with recalculated totals
-        updatePanelData();
+            // Update panel with recalculated totals
+            updatePanelData();
 
-        log.info("[Mokha] Totals recalculated - Claimed: {}, Unclaimed: {}, Supply Cost: {}",
-                historicalTotalClaimed,
-                historicalUnclaimedByWave.values().stream().mapToLong(Long::longValue).sum(),
-                historicalSupplyCost);
+            log.info("[Mokha] Totals recalculated - Claimed: {}, Unclaimed: {}, Supply Cost: {}",
+                    historicalTotalClaimed,
+                    historicalUnclaimedByWave.values().stream().mapToLong(Long::longValue).sum(),
+                    historicalSupplyCost);
+        });
     }
 
     /**
@@ -1569,9 +1563,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
      * Returns the calculated value, or 0 if unable to determine component prices
      */
     private int calculateMokhaClothValue() {
-        int conflictionGauntletsPrice = itemManager.getItemPrice(ItemID.CONFLICTION_GAUNTLETS);
-        int demonTearPrice = itemManager.getItemPrice(ItemID.DEMON_TEAR);
-        int tormentedBraceletPrice = itemManager.getItemPrice(ItemID.TORMENTED_BRACELET);
+        int conflictionGauntletsPrice = itemManager.getItemPrice(31106); // Confliction Gauntlets
+        int demonTearPrice = itemManager.getItemPrice(31111); // Demon Tear
+        int tormentedBraceletPrice = itemManager.getItemPrice(19544); // Tormented Bracelet
 
         if (conflictionGauntletsPrice <= 0 || demonTearPrice <= 0 || tormentedBraceletPrice <= 0) {
             return 0; // Return 0 if any component price is unavailable
@@ -1584,84 +1578,16 @@ public class MokhaLootTrackerPlugin extends Plugin {
      * Get the Mokhaiotl Cloth value (from chat if detected, otherwise calculated)
      */
     private int getMokhaClothValue() {
-        if (mokhaClothValueFromChat != null) {
-            return mokhaClothValueFromChat;
-        }
         int calculatedValue = calculateMokhaClothValue();
 
         // Warn player if cloth value is 0 and can't be calculated
         if (calculatedValue == 0 && !hasWarnedAboutZeroClothValue) {
             hasWarnedAboutZeroClothValue = true;
             client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-                    "<col=FF0000>[Mokha Tracker] Mokhaiotl Cloth value is 0 - cannot calculate from component prices. "
-                            +
-                            "Type: ~cloth <value> (e.g., ~cloth 52300000) to set manually.</col>",
+                    "<col=FF0000>[Mokha Tracker] Mokhaiotl Cloth value is 0 - cannot calculate from component prices.</col>",
                     null);
         }
 
         return calculatedValue;
-    }
-
-    /**
-     * Listen for chat messages to detect Mokhaiotl Cloth value
-     * Accepts both:
-     * 1. Full format: "<user> received a drop: Mokhaiotl cloth (52,300,000 coins)"
-     * 2. Simple format: "<cloth 52300000gp"
-     */
-    @Subscribe
-    public void onChatMessage(ChatMessage event) {
-        String message = event.getMessage();
-        Integer foundValue = null;
-
-        // Try simple format: "~cloth <value>gp" or "~cloth <value>"
-        if (message.toLowerCase().contains("~cloth")) {
-            java.util.regex.Pattern simplePattern = java.util.regex.Pattern.compile(
-                    "~cloth\\s+(\\d+(?:,\\d+)*)(?:\\s*gp)?",
-                    java.util.regex.Pattern.CASE_INSENSITIVE);
-            java.util.regex.Matcher simpleMatcher = simplePattern.matcher(message);
-
-            if (simpleMatcher.find()) {
-                try {
-                    String valueStr = simpleMatcher.group(1).replaceAll(",", "");
-                    foundValue = Integer.parseInt(valueStr);
-                } catch (NumberFormatException e) {
-                    // Failed to parse cloth value from simple format
-                }
-            }
-        }
-
-        // Try full drop format: "<user> received a drop: Mokhaiotl cloth (<value>
-        // coins)"
-        if (foundValue == null && message.contains("received a drop") && message.contains("Mokhaiotl cloth")) {
-            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\((\\d+(?:,\\d+)*)\\s*coins\\)",
-                    java.util.regex.Pattern.CASE_INSENSITIVE);
-            java.util.regex.Matcher matcher = pattern.matcher(message);
-
-            if (matcher.find()) {
-                try {
-                    String valueStr = matcher.group(1).replaceAll(",", "");
-                    foundValue = Integer.parseInt(valueStr);
-                } catch (NumberFormatException e) {
-                    // Failed to parse cloth value from drop message
-                }
-            }
-        }
-
-        if (foundValue != null) {
-            mokhaClothValueFromChat = foundValue;
-            hasWarnedAboutZeroClothValue = false; // Reset warning flag since we now have a value
-            // Save to config so it persists
-            configManager.setConfiguration("mokhaloot", "mokhaClothValue", foundValue.toString());
-            // Trigger recalculation to update UI immediately
-            recalculateAllTotals();
-        }
-    }
-
-    /**
-     * Reset the chat-detected Mokhaiotl Cloth value (call on arena exit)
-     */
-    private void resetMokhaClothValue() {
-        mokhaClothValueFromChat = null;
-        hasWarnedAboutZeroClothValue = false; // Reset warning when exiting arena
     }
 }

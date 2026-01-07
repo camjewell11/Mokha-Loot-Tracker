@@ -825,8 +825,10 @@ public class MokhaLootPanel extends PluginPanel {
             itemRow.setToolTipText("Price per item: " + pricePerItemText);
 
             JLabel itemLabel = new JLabel("- " + item.name + " x" + item.quantity);
-            // Color gold if value > 20m
-            Color itemColor = item.totalValue > 20_000_000 ? new Color(218, 165, 32) : ColorScheme.LIGHT_GRAY_COLOR;
+            // Color gold if value > 20m or if item is Dom
+            Color itemColor = (item.totalValue > 20_000_000 || "Dom".equalsIgnoreCase(item.name))
+                    ? new Color(218, 165, 32)
+                    : ColorScheme.LIGHT_GRAY_COLOR;
             itemLabel.setForeground(itemColor);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemLabel, BorderLayout.WEST);
