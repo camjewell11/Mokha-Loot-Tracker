@@ -1503,6 +1503,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private void updateMokhaClothPrices() {
         int clothPrice = getMokhaClothValue();
 
+        // Only update cloth prices if we have a valid (non-zero) price
+        if (clothPrice <= 0) {
+            log.warn("[Mokha] Cloth price is 0 or invalid - skipping cloth price update");
+            return;
+        }
+
+        log.info("[Mokha] Updating cloth prices to {} gp", clothPrice);
+
         // Update cloth in claimed items
         for (Map<String, ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
             ItemAggregate clothItem = waveItems.get("Mokhaiotl Cloth");
