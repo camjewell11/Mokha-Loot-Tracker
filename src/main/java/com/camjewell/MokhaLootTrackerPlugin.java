@@ -72,9 +72,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private int currentWaveNumber = 0;
 
     // Entrance coordinates (for future use)
-    private int entrance_centerX = 1311;
-    private int entrance_centerY = 9555;
-    private int entrance_radius = 25;
+    private final int entrance_centerX = 1311;
+    private final int entrance_centerY = 9555;
+    private final int entrance_radius = 25;
 
     // Combined item tracking (inventory + equipment)
     private final Map<Integer, Integer> lastCombinedSnapshot = new HashMap<>();
@@ -90,10 +90,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
     // Historical tracking (persisted across runs)
     private long historicalTotalClaimed = 0;
     private long historicalSupplyCost = 0;
-    private long historicalPotionsCost = 0;
-    private long historicalFoodCost = 0;
-    private long historicalRunesCost = 0;
-    private long historicalAmmoCost = 0;
     private final Map<Integer, Long> historicalClaimedByWave = new HashMap<>(); // Wave -> Total GP claimed
     private final Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave = new HashMap<>(); // Wave ->
                                                                                                            // Item
@@ -1074,10 +1070,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Clear historical data
         historicalTotalClaimed = 0;
         historicalSupplyCost = 0;
-        historicalPotionsCost = 0;
-        historicalFoodCost = 0;
-        historicalRunesCost = 0;
-        historicalAmmoCost = 0;
         historicalClaimedByWave.clear();
         historicalClaimedItemsByWave.clear();
         historicalSuppliesUsed.clear();
@@ -1278,42 +1270,17 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     /**
-     * Calculate total supplies cost and categorize by type
+     * Calculate total supplies cost
      */
     private long calculateSuppliesCost() {
         long totalCost = 0;
-        long potionsCost = 0;
-        long foodCost = 0;
-        long runesCost = 0;
-        long ammoCost = 0;
 
         for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
             int itemId = entry.getKey();
             int quantity = entry.getValue();
-            String itemName = itemManager.getItemComposition(itemId).getName().toLowerCase();
             int itemValue = getPricePerDose(itemId) * quantity;
-
             totalCost += itemValue;
-
-            // Categorize supplies
-            if (itemName.contains("potion") || itemName.contains("brew") || itemName.contains("mix")) {
-                potionsCost += itemValue;
-            } else if (itemName.contains("rune") || itemName.contains("dust") || itemName.contains("chaos")) {
-                runesCost += itemValue;
-            } else if (itemName.contains("arrow") || itemName.contains("bolt") || itemName.contains("dart")
-                    || itemName.contains("knife") || itemName.contains("javelin")) {
-                ammoCost += itemValue;
-            } else {
-                // Assume everything else is food
-                foodCost += itemValue;
-            }
         }
-
-        // Update historical category costs
-        historicalPotionsCost += potionsCost;
-        historicalFoodCost += foodCost;
-        historicalRunesCost += runesCost;
-        historicalAmmoCost += ammoCost;
 
         return totalCost;
     }
