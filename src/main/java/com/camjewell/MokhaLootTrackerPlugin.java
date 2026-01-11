@@ -93,16 +93,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private long historicalTotalClaimed = 0;
     private long historicalSupplyCost = 0;
     private final Map<Integer, Long> historicalClaimedByWave = new HashMap<>(); // Wave -> Total GP claimed
-    private final Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave = new HashMap<>(); // Wave ->
-                                                                                                           // Item
-                                                                                                           // aggregates
+    private final Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave = new HashMap<>();
     private final Map<String, ItemAggregate> historicalSuppliesUsed = new HashMap<>(); // Item name -> aggregate
 
     // Historical unclaimed loot (persisted, never cleared)
     private final Map<Integer, Long> historicalUnclaimedByWave = new HashMap<>(); // Wave -> Total GP unclaimed
-    private final Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave = new HashMap<>(); // Wave ->
-                                                                                                             // Item
-                                                                                                             // aggregates
+    private final Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave = new HashMap<>();
 
     // Mokhaiotl Cloth handling
     private boolean hasWarnedAboutZeroClothValue = false; // Track if we've already warned player

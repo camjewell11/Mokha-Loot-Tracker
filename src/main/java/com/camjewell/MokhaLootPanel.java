@@ -60,7 +60,7 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel[] claimedWaveValueLabels = new JLabel[9];
     private JPanel[] claimedWaveItemPanels = new JPanel[9];
     private boolean[] claimedWaveCollapsed = new boolean[9];
-    private boolean claimedSectionCollapsed = false; // Track collapse state for entire section
+    private boolean claimedSectionCollapsed = true; // Track collapse state for entire section
     private JLabel claimedSectionTotalLabel; // Total value label for collapsed view
 
     // Unclaimed Loot by Wave - now stores panels for dynamic item lists
@@ -69,7 +69,7 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel[] unclaimedWaveValueLabels = new JLabel[9];
     private JPanel[] unclaimedWaveItemPanels = new JPanel[9];
     private boolean[] unclaimedWaveCollapsed = new boolean[9];
-    private boolean unclaimedSectionCollapsed = false; // Track collapse state for entire section
+    private boolean unclaimedSectionCollapsed = true; // Track collapse state for entire section
     private JLabel unclaimedSectionTotalLabel; // Total value label for collapsed view
 
     // Supplies Used Current Run
@@ -223,7 +223,7 @@ public class MokhaLootPanel extends PluginPanel {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-        JLabel title = new JLabel("Profit/Loss:");
+        JLabel title = new JLabel("Summary:");
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(new Color(218, 165, 32)); // Gold
         JPanel titleRow = new JPanel(new BorderLayout());
@@ -259,6 +259,8 @@ public class MokhaLootPanel extends PluginPanel {
         claimUnclaimRatioLabel.setFont(FontManager.getRunescapeFont());
         claimUnclaimRatioLabel.setForeground(Color.WHITE);
         panel.add(createStatRow("Claim/Unclaim Ratio:", claimUnclaimRatioLabel));
+
+        // claim and death total counters here
 
         return panel;
     }
