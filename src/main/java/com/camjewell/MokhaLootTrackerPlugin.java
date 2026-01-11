@@ -92,6 +92,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
     // Historical tracking (persisted across runs)
     private long historicalTotalClaimed = 0;
     private long historicalSupplyCost = 0;
+    private long historicalClaims = 0;
+    private long historicalDeaths = 0;
     private final Map<Integer, Long> historicalClaimedByWave = new HashMap<>(); // Wave -> Total GP claimed
     private final Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave = new HashMap<>();
     private final Map<String, ItemAggregate> historicalSuppliesUsed = new HashMap<>(); // Item name -> aggregate
@@ -323,6 +325,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (currentlyDead && !isDead && inMokhaArena) {
                 isDead = true;
                 log.debug("[Mokha] ===== PLAYER DIED ON WAVE {} =====", currentWaveNumber);
+                historicalDeaths += 1;
 
                 // Print supplies consumed before death
                 printSuppliesConsumed();
@@ -930,6 +933,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
             historicalClaimedByWave.putAll(historicalDataManager.getHistoricalClaimedByWave());
 
             historicalTotalClaimed = historicalDataManager.getHistoricalTotalClaimed();
+            historicalClaims = historicalDataManager.getHistoricalClaims();
+            historicalDeaths = historicalDataManager.getHistoricalDeaths();
 
             // Apply ignore settings and recalculate
             applyIgnoreSettingsToHistoricalItems(historicalClaimedItemsByWave);
@@ -1019,6 +1024,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
             historicalDataManager.setHistoricalSuppliesUsed(historicalSuppliesUsed);
             historicalDataManager.setHistoricalClaimedByWave(historicalClaimedByWave);
             historicalDataManager.setHistoricalTotalClaimed(historicalTotalClaimed);
+            historicalDataManager.setHistoricalClaims(historicalClaims);
+            historicalDataManager.setHistoricalDeaths(historicalDeaths);
             historicalDataManager.saveData();
 
             // Still save supply cost to ConfigManager for now
@@ -1056,6 +1063,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Clear historical data
         historicalTotalClaimed = 0;
         historicalSupplyCost = 0;
+        historicalClaims = 0;
+        historicalDeaths = 0;
         historicalClaimedByWave.clear();
         historicalClaimedItemsByWave.clear();
         historicalSuppliesUsed.clear();
@@ -1233,6 +1242,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     historicalClaimedByWave.getOrDefault(waveIndex, 0L) + waveValue);
         }
         historicalTotalClaimed += claimedValue;
+        historicalClaims += 1;
 
         // Add supplies cost to historical total and track items
         for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
@@ -1326,7 +1336,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
 
         // Update Profit/Loss section
-        panel.updateProfitLoss(historicalTotalClaimed, historicalSupplyCost, totalUnclaimed);
+        panel.updateProfitLoss(historicalTotalClaimed, historicalSupplyCost, totalUnclaimed,
+                historicalClaims, historicalDeaths);
 
         // Update Current Run section with items
         Map<String, MokhaLootPanel.ItemData> currentRunItems = new HashMap<>();

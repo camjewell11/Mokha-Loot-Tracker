@@ -25,6 +25,8 @@ public class HistoricalDataManager {
     private Map<String, ItemAggregate> historicalSuppliesUsed;
     private Map<Integer, Long> historicalClaimedByWave;
     private long historicalTotalClaimed;
+    private long historicalClaims;
+    private long historicalDeaths;
 
     public HistoricalDataManager(File runeLiteDirectory, Gson gson) {
         File mokhalootDir = new File(runeLiteDirectory, MOKHALOOT_DIR);
@@ -40,6 +42,8 @@ public class HistoricalDataManager {
         this.historicalSuppliesUsed = new HashMap<>();
         this.historicalClaimedByWave = new HashMap<>();
         this.historicalTotalClaimed = 0;
+        this.historicalClaims = 0;
+        this.historicalDeaths = 0;
     }
 
     public void loadData() {
@@ -62,6 +66,8 @@ public class HistoricalDataManager {
                 this.historicalClaimedByWave = data.historicalClaimedByWave != null ? data.historicalClaimedByWave
                         : new HashMap<>();
                 this.historicalTotalClaimed = data.historicalTotalClaimed;
+                this.historicalClaims = data.historicalClaims;
+                this.historicalDeaths = data.historicalDeaths;
 
                 log.info("Loaded historical data from file");
             }
@@ -77,6 +83,8 @@ public class HistoricalDataManager {
             data.historicalSuppliesUsed = this.historicalSuppliesUsed;
             data.historicalClaimedByWave = this.historicalClaimedByWave;
             data.historicalTotalClaimed = this.historicalTotalClaimed;
+            data.historicalClaims = this.historicalClaims;
+            data.historicalDeaths = this.historicalDeaths;
 
             gson.toJson(data, writer);
             log.info("Saved historical data to file");
@@ -137,6 +145,14 @@ public class HistoricalDataManager {
         return historicalTotalClaimed;
     }
 
+    public long getHistoricalClaims() {
+        return historicalClaims;
+    }
+
+    public long getHistoricalDeaths() {
+        return historicalDeaths;
+    }
+
     // Setters
     public void setHistoricalClaimedItemsByWave(Map<Integer, Map<String, ItemAggregate>> data) {
         this.historicalClaimedItemsByWave = data;
@@ -154,10 +170,20 @@ public class HistoricalDataManager {
         this.historicalTotalClaimed = total;
     }
 
+    public void setHistoricalClaims(long claims) {
+        this.historicalClaims = claims;
+    }
+
+    public void setHistoricalDeaths(long deaths) {
+        this.historicalDeaths = deaths;
+    }
+
     private static class HistoricalData {
         Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave;
         Map<String, ItemAggregate> historicalSuppliesUsed;
         Map<Integer, Long> historicalClaimedByWave;
         long historicalTotalClaimed;
+        long historicalClaims;
+        long historicalDeaths;
     }
 }

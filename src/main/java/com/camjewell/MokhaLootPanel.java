@@ -49,6 +49,8 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel profitLossLabel;
     private JLabel totalUnclaimedLabel;
     private JLabel claimUnclaimRatioLabel;
+    private JLabel claimedCountLabel;
+    private JLabel deathCountLabel;
 
     // Current Run section
     private JLabel potentialValueLabel;
@@ -83,7 +85,7 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel suppliesTotalValueLabel;
     private JPanel suppliesTotalItemsPanel;
     private JPanel suppliesTotalContainer; // Container for all supplies content
-    private boolean suppliesTotalCollapsed = false; // Track collapse state
+    private boolean suppliesTotalCollapsed = true; // Track collapse state
     private JLabel suppliesTotalHeaderLabel; // Collapsed view total label
 
     private final JPanel statsPanel = new JPanel();
@@ -260,7 +262,17 @@ public class MokhaLootPanel extends PluginPanel {
         claimUnclaimRatioLabel.setForeground(Color.WHITE);
         panel.add(createStatRow("Claim/Unclaim Ratio:", claimUnclaimRatioLabel));
 
-        // claim and death total counters here
+        panel.add(createInternalSeparator());
+
+        claimedCountLabel = new JLabel("0");
+        claimedCountLabel.setFont(FontManager.getRunescapeFont());
+        claimedCountLabel.setForeground(Color.WHITE);
+        panel.add(createStatRow("Total Claims:", claimedCountLabel));
+
+        deathCountLabel = new JLabel("0");
+        deathCountLabel.setFont(FontManager.getRunescapeFont());
+        deathCountLabel.setForeground(Color.WHITE);
+        panel.add(createStatRow("Total Deaths:", deathCountLabel));
 
         return panel;
     }
@@ -346,6 +358,11 @@ public class MokhaLootPanel extends PluginPanel {
 
         panel.add(claimedWavesContainer);
 
+        // Set initial collapsed/expanded state based on claimedSectionCollapsed
+        claimedWavesContainer.setVisible(!claimedSectionCollapsed);
+        claimedSectionTotalLabel.setVisible(claimedSectionCollapsed);
+        collapseButton.setText(claimedSectionCollapsed ? "▸" : "▾");
+
         // Collapse/expand logic
         collapseButton.addActionListener(e -> {
             claimedSectionCollapsed = !claimedSectionCollapsed;
@@ -412,6 +429,11 @@ public class MokhaLootPanel extends PluginPanel {
         }
 
         panel.add(unclaimedWavesContainer);
+
+        // Set initial collapsed/expanded state based on unclaimedSectionCollapsed
+        unclaimedWavesContainer.setVisible(!unclaimedSectionCollapsed);
+        unclaimedSectionTotalLabel.setVisible(unclaimedSectionCollapsed);
+        collapseButton.setText(unclaimedSectionCollapsed ? "▸" : "▾");
 
         // Collapse/expand logic
         collapseButton.addActionListener(e -> {
@@ -547,6 +569,11 @@ public class MokhaLootPanel extends PluginPanel {
 
         panel.add(suppliesTotalContainer);
 
+        // Set initial collapsed/expanded state based on suppliesTotalCollapsed
+        suppliesTotalContainer.setVisible(!suppliesTotalCollapsed);
+        suppliesTotalHeaderLabel.setVisible(suppliesTotalCollapsed);
+        collapseButton.setText(suppliesTotalCollapsed ? "▸" : "▾");
+
         // Collapse/expand logic
         collapseButton.addActionListener(e -> {
             suppliesTotalCollapsed = !suppliesTotalCollapsed;
@@ -662,7 +689,8 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     // Update methods to be called from plugin
-    public void updateProfitLoss(long totalClaimed, long supplyCost, long totalUnclaimed) {
+    public void updateProfitLoss(long totalClaimed, long supplyCost, long totalUnclaimed, long claimedCount,
+            long deathCount) {
         totalClaimedLabel.setText(formatGp(totalClaimed));
         totalClaimedLabel.setForeground(new Color(0, 200, 0)); // Green
 
@@ -676,6 +704,9 @@ public class MokhaLootPanel extends PluginPanel {
         totalUnclaimedLabel.setText(formatGp(totalUnclaimed));
         totalUnclaimedLabel.setForeground(new Color(200, 0, 0)); // Red
 
+        claimedCountLabel.setText(String.valueOf((int) claimedCount));
+        deathCountLabel.setText(String.valueOf((int) deathCount));
+
         // Calculate and display claim/unclaim ratio with muted colors
         if (totalUnclaimed > 0) {
             double ratio = (double) totalClaimed / totalUnclaimed;
@@ -686,6 +717,7 @@ public class MokhaLootPanel extends PluginPanel {
             claimUnclaimRatioLabel.setText("0.00x");
             claimUnclaimRatioLabel.setForeground(Color.WHITE);
         }
+
     }
 
     public void updateCurrentRun(long potentialValue, Map<String, ItemData> itemData) {
@@ -759,6 +791,8 @@ public class MokhaLootPanel extends PluginPanel {
         profitLossLabel.setForeground(Color.WHITE);
         totalUnclaimedLabel.setText("0 gp");
         claimUnclaimRatioLabel.setText("0.00x");
+        claimedCountLabel.setText("0");
+        deathCountLabel.setText("0");
 
         // Clear Current Run section
         potentialValueLabel.setText("0 gp");
@@ -789,11 +823,6 @@ public class MokhaLootPanel extends PluginPanel {
         // Refresh the panel
         statsPanel.revalidate();
         statsPanel.repaint();
-    }
-
-    private void updateWavePanel(JLabel valueLabel, JPanel itemsPanel, boolean isCollapsed,
-            Map<String, ItemData> itemData) {
-        updateWavePanel(valueLabel, itemsPanel, isCollapsed, itemData, -1);
     }
 
     private void updateWavePanel(JLabel valueLabel, JPanel itemsPanel, boolean isCollapsed,
