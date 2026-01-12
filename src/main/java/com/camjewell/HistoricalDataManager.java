@@ -22,8 +22,10 @@ public class HistoricalDataManager {
     private final Gson gson;
 
     private Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave;
-    private Map<String, ItemAggregate> historicalSuppliesUsed;
     private Map<Integer, Long> historicalClaimedByWave;
+    private Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave;
+    private Map<Integer, Long> historicalUnclaimedByWave;
+    private Map<String, ItemAggregate> historicalSuppliesUsed;
     private long historicalTotalClaimed;
     private long historicalClaims;
     private long historicalDeaths;
@@ -44,6 +46,8 @@ public class HistoricalDataManager {
         this.historicalTotalClaimed = 0;
         this.historicalClaims = 0;
         this.historicalDeaths = 0;
+        this.historicalUnclaimedByWave = new HashMap<>();
+        this.historicalUnclaimedItemsByWave = new HashMap<>();
     }
 
     public void loadData() {
@@ -69,6 +73,12 @@ public class HistoricalDataManager {
                 this.historicalClaims = data.historicalClaims;
                 this.historicalDeaths = data.historicalDeaths;
 
+                this.historicalUnclaimedByWave = data.historicalUnclaimedByWave != null ? data.historicalUnclaimedByWave
+                        : new HashMap<>();
+                this.historicalUnclaimedItemsByWave = data.historicalUnclaimedItemsByWave != null
+                        ? data.historicalUnclaimedItemsByWave
+                        : new HashMap<>();
+
                 log.info("Loaded historical data from file");
             }
         } catch (IOException e) {
@@ -80,8 +90,10 @@ public class HistoricalDataManager {
         try (FileWriter writer = new FileWriter(dataFile)) {
             HistoricalData data = new HistoricalData();
             data.historicalClaimedItemsByWave = this.historicalClaimedItemsByWave;
-            data.historicalSuppliesUsed = this.historicalSuppliesUsed;
+            data.historicalUnclaimedItemsByWave = this.historicalUnclaimedItemsByWave;
             data.historicalClaimedByWave = this.historicalClaimedByWave;
+            data.historicalUnclaimedByWave = this.historicalUnclaimedByWave;
+            data.historicalSuppliesUsed = this.historicalSuppliesUsed;
             data.historicalTotalClaimed = this.historicalTotalClaimed;
             data.historicalClaims = this.historicalClaims;
             data.historicalDeaths = this.historicalDeaths;
@@ -94,38 +106,71 @@ public class HistoricalDataManager {
     }
 
     public void migrateFromConfigManager(String claimedItemsJson, String suppliesUsedJson,
-            String claimedByWaveJson, long totalClaimed) {
-        if (claimedItemsJson != null && !claimedItemsJson.isEmpty()) {
+            String claimedByWaveJson, long totalClaimed,
+            String unclaimedByWaveJson, String unclaimedItemsByWaveJson) {
+        // Merge claimed items
+        if (claimedItemsJson != null && !claimedItemsJson.isEmpty() && !claimedItemsJson.equals("{}")) {
             Type type = new TypeToken<Map<Integer, Map<String, ItemAggregate>>>() {
             }.getType();
             Map<Integer, Map<String, ItemAggregate>> items = gson.fromJson(claimedItemsJson, type);
             if (items != null) {
-                this.historicalClaimedItemsByWave = items;
+                if (this.historicalClaimedItemsByWave == null)
+                    this.historicalClaimedItemsByWave = new HashMap<>();
+                this.historicalClaimedItemsByWave.putAll(items);
             }
         }
-
-        if (suppliesUsedJson != null && !suppliesUsedJson.isEmpty()) {
+        // Merge supplies used
+        if (suppliesUsedJson != null && !suppliesUsedJson.isEmpty() && !suppliesUsedJson.equals("{}")) {
             Type type = new TypeToken<Map<String, ItemAggregate>>() {
             }.getType();
             Map<String, ItemAggregate> supplies = gson.fromJson(suppliesUsedJson, type);
             if (supplies != null) {
-                this.historicalSuppliesUsed = supplies;
+                if (this.historicalSuppliesUsed == null)
+                    this.historicalSuppliesUsed = new HashMap<>();
+                this.historicalSuppliesUsed.putAll(supplies);
             }
         }
-
-        if (claimedByWaveJson != null && !claimedByWaveJson.isEmpty()) {
+        // Merge claimed by wave
+        if (claimedByWaveJson != null && !claimedByWaveJson.isEmpty() && !claimedByWaveJson.equals("{}")) {
             Type type = new TypeToken<Map<Integer, Long>>() {
             }.getType();
             Map<Integer, Long> byWave = gson.fromJson(claimedByWaveJson, type);
             if (byWave != null) {
-                this.historicalClaimedByWave = byWave;
+                if (this.historicalClaimedByWave == null)
+                    this.historicalClaimedByWave = new HashMap<>();
+                this.historicalClaimedByWave.putAll(byWave);
             }
         }
-
-        this.historicalTotalClaimed = totalClaimed;
-
+        // Merge unclaimed by wave
+        if (unclaimedByWaveJson != null && !unclaimedByWaveJson.isEmpty() && !unclaimedByWaveJson.equals("{}")) {
+            Type type = new TypeToken<Map<Integer, Long>>() {
+            }.getType();
+            Map<Integer, Long> unclaimedByWave = gson.fromJson(unclaimedByWaveJson, type);
+            if (unclaimedByWave != null) {
+                if (this.historicalUnclaimedByWave == null)
+                    this.historicalUnclaimedByWave = new HashMap<>();
+                this.historicalUnclaimedByWave.putAll(unclaimedByWave);
+            }
+        }
+        // Merge unclaimed items by wave
+        if (unclaimedItemsByWaveJson != null && !unclaimedItemsByWaveJson.isEmpty()
+                && !unclaimedItemsByWaveJson.equals("{}")) {
+            Type type = new TypeToken<Map<Integer, Map<String, ItemAggregate>>>() {
+            }.getType();
+            Map<Integer, Map<String, ItemAggregate>> unclaimedItemsByWave = gson.fromJson(unclaimedItemsByWaveJson,
+                    type);
+            if (unclaimedItemsByWave != null) {
+                if (this.historicalUnclaimedItemsByWave == null)
+                    this.historicalUnclaimedItemsByWave = new HashMap<>();
+                this.historicalUnclaimedItemsByWave.putAll(unclaimedItemsByWave);
+            }
+        }
+        // Only overwrite total claimed if config value is nonzero
+        if (totalClaimed > 0) {
+            this.historicalTotalClaimed = totalClaimed;
+        }
         saveData();
-        log.info("Migrated historical data from ConfigManager to file");
+        log.info("Migrated historical data from ConfigManager to file (merge mode)");
     }
 
     // Getters
@@ -153,6 +198,14 @@ public class HistoricalDataManager {
         return historicalDeaths;
     }
 
+    public Map<Integer, Long> getHistoricalUnclaimedByWave() {
+        return historicalUnclaimedByWave;
+    }
+
+    public Map<Integer, Map<String, ItemAggregate>> getHistoricalUnclaimedItemsByWave() {
+        return historicalUnclaimedItemsByWave;
+    }
+
     // Setters
     public void setHistoricalClaimedItemsByWave(Map<Integer, Map<String, ItemAggregate>> data) {
         this.historicalClaimedItemsByWave = data;
@@ -178,10 +231,20 @@ public class HistoricalDataManager {
         this.historicalDeaths = deaths;
     }
 
+    public void setHistoricalUnclaimedByWave(Map<Integer, Long> data) {
+        this.historicalUnclaimedByWave = data;
+    }
+
+    public void setHistoricalUnclaimedItemsByWave(Map<Integer, Map<String, ItemAggregate>> data) {
+        this.historicalUnclaimedItemsByWave = data;
+    }
+
     private static class HistoricalData {
         Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave;
-        Map<String, ItemAggregate> historicalSuppliesUsed;
         Map<Integer, Long> historicalClaimedByWave;
+        Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave;
+        Map<Integer, Long> historicalUnclaimedByWave;
+        Map<String, ItemAggregate> historicalSuppliesUsed;
         long historicalTotalClaimed;
         long historicalClaims;
         long historicalDeaths;

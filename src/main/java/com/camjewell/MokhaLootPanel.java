@@ -530,21 +530,13 @@ public class MokhaLootPanel extends PluginPanel {
         claimedCombinedPanel.removeAll();
         Map<String, MokhaLootTrackerPlugin.ItemAggregate> combined = new java.util.HashMap<>();
         long totalValue = 0;
-        System.out.println("[DEBUG] populateClaimedCombinedPanel: historicalClaimedItemsByWave="
-                + (historicalClaimedItemsByWave == null ? "null" : historicalClaimedItemsByWave.size()));
         if (historicalClaimedItemsByWave != null) {
             for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : historicalClaimedItemsByWave
                     .entrySet()) {
-                Integer wave = waveEntry.getKey();
                 Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveMap = waveEntry.getValue();
-                System.out.println(
-                        "[DEBUG]  Wave " + wave + " has " + (waveMap == null ? "null" : waveMap.size()) + " items");
                 if (waveMap != null) {
                     for (Map.Entry<String, MokhaLootTrackerPlugin.ItemAggregate> itemEntry : waveMap.entrySet()) {
-                        String itemName = itemEntry.getKey();
                         MokhaLootTrackerPlugin.ItemAggregate agg = itemEntry.getValue();
-                        System.out.println("[DEBUG]   Item: " + itemName + ", agg=" + (agg == null ? "null"
-                                : (agg.name + ", qty=" + agg.totalQuantity + ", val=" + agg.totalValue)));
                         if (agg == null)
                             continue;
                         MokhaLootTrackerPlugin.ItemAggregate existing = combined.get(agg.name);
@@ -600,21 +592,13 @@ public class MokhaLootPanel extends PluginPanel {
         unclaimedCombinedPanel.removeAll();
         Map<String, MokhaLootTrackerPlugin.ItemAggregate> combined = new java.util.HashMap<>();
         long totalValue = 0;
-        System.out.println("[DEBUG] populateUnclaimedCombinedPanel: historicalUnclaimedItemsByWave="
-                + (historicalUnclaimedItemsByWave == null ? "null" : historicalUnclaimedItemsByWave.size()));
         if (historicalUnclaimedItemsByWave != null) {
             for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : historicalUnclaimedItemsByWave
                     .entrySet()) {
-                Integer wave = waveEntry.getKey();
                 Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveMap = waveEntry.getValue();
-                System.out.println(
-                        "[DEBUG]  Wave " + wave + " has " + (waveMap == null ? "null" : waveMap.size()) + " items");
                 if (waveMap != null) {
                     for (Map.Entry<String, MokhaLootTrackerPlugin.ItemAggregate> itemEntry : waveMap.entrySet()) {
-                        String itemName = itemEntry.getKey();
                         MokhaLootTrackerPlugin.ItemAggregate agg = itemEntry.getValue();
-                        System.out.println("[DEBUG]   Item: " + itemName + ", agg=" + (agg == null ? "null"
-                                : (agg.name + ", qty=" + agg.totalQuantity + ", val=" + agg.totalValue)));
                         if (agg == null)
                             continue;
                         MokhaLootTrackerPlugin.ItemAggregate existing = combined.get(agg.name);
@@ -805,13 +789,6 @@ public class MokhaLootPanel extends PluginPanel {
         });
 
         return panel;
-    }
-
-    private JLabel createDataLabel(String prefix, String value) {
-        JLabel label = new JLabel(prefix + " " + value);
-        label.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        label.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-        return label;
     }
 
     private JPanel createStatRow(String label, JLabel valueLabel) {
@@ -1107,14 +1084,14 @@ public class MokhaLootPanel extends PluginPanel {
 
         // Add item entries
         for (ItemData item : itemData.values()) {
-            String pricePerItemText = item.pricePerItem > 0 ? (formatGp(item.pricePerItem) + "/dose") : "N/A";
+            String pricePerItemText = item.pricePerItem > 0 ? (formatGp(item.pricePerItem) + "/ea") : "N/A";
 
             // Create item row with BorderLayout for left/right alignment
             JPanel itemRow = new JPanel(new BorderLayout());
             itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
             itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
             itemRow.setBorder(new EmptyBorder(2, 5, 2, 0));
-            itemRow.setToolTipText("Price per dose: " + pricePerItemText);
+            itemRow.setToolTipText("Price: " + pricePerItemText);
 
             // Left side: item name and quantity
             JLabel itemLabel = new JLabel("- " + item.name + " x" + item.quantity);
@@ -1136,9 +1113,9 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     private String formatGp(long value) {
-        if (value >= 1_000_000) {
+        if (value >= 1_000_000 || value <= -1_000_000) {
             return String.format("%.2fM gp", value / 1_000_000.0);
-        } else if (value >= 1_000) {
+        } else if (value >= 1_000 || value <= -1_000) {
             return String.format("%.1fK gp", value / 1_000.0);
         } else {
             return value + " gp";
