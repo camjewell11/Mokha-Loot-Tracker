@@ -1,80 +1,95 @@
 # Mokha Loot Tracker
 
-A RuneLite plugin that tracks lost loot, claimed loot, supplies, and deaths during Doom of Mokhaiotl encounters in Old School RuneScape.
+A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during Doom of Mokhaiotl encounters in Old School RuneScape. Mokha Loot Tracker provides detailed, persistent statistics and a modern, interactive UI for maximizing your Mokhaiotl profits.
 
 <img width="1887" height="1009" alt="image" src="https://github.com/user-attachments/assets/5394fc2c-d219-4f1d-8a98-62dd2dab5747" />
 
 ## Features
 
-- **Death Tracking**: Automatically tracks each death in the Mokha arena
-- **Lost Loot Monitoring**: Records the value of unclaimed loot when you die
-- **Claimed Loot Tracking**: Tracks loot successfully claimed via "Claim and Leave" button
-- **Per-Wave Breakdown**: View both lost and claimed loot organized by wave (expandable sections)
-- **Profit/Loss Calculation**: Shows total claimed minus supply cost with color-coded results (green for profit, red for loss)
-- **Supplies Tracking**: Tracks supplies consumed per run (live) and across runs (historical), including potions/runes with dose normalization; paused while dead to avoid gravestone wipes
-- **Item Value Exclusion**: Optional toggles to exclude Sun-kissed Bones and Spirit Seeds from value calculations (both untradable items)
-- **Item Value Threshold Filter**: Hide items below a configured GP threshold from panel display
-- **Real-time Overlay**: Shows potential loot loss during active runs
-- **Persistent Statistics**: All data is saved per-account and persists across sessions
-- **Comprehensive Side Panel**: Detailed view including profit/loss, claimed loot by wave, unclaimed loot by wave, current run value, and supplies used
+- **Death Tracking**: Automatically records each death in the Mokha arena, including wave and lost loot.
+- **Lost Loot Monitoring**: Tracks the value and item breakdown of unclaimed loot lost on death, per wave.
+- **Claimed Loot Tracking**: Tracks loot successfully claimed, with per-wave and combined breakdowns.
+- **Per-Wave & Combined Views**: Expandable/collapsible sections for claimed and unclaimed loot by wave, plus a combined all-waves view with bullet-style formatting and tooltips.
+- **Profit/Loss Calculation**: Shows total claimed minus supply cost, color-coded (green for profit, red for loss).
+- **Supplies Tracking**: Tracks supplies consumed per run (live) and across all runs (historical), including potions (dose-normalized), runes (including rune pouch), and other consumables.
+- **Configurable Item Value Exclusion**: Toggles to ignore Sun-kissed Bones and Spirit Seeds (untradable) in calculations.
+- **Ultra-Valuable Item Filter**: Optionally exclude items worth more than 20 million GP from totals (uniques filter).
+- **Modern UI**: Collapsible/expandable sections, left-padded bullet formatting, hover tooltips for price per item, and color-coded highlights for ultra-valuable items.
+- **Persistent Statistics**: All data is saved per-account and persists across sessions, including historical claimed/unclaimed loot, supplies, and deaths.
+- **Comprehensive Side Panel**: Summary, current run, claimed/unclaimed loot by wave, supplies (current/historical), and interactive controls.
+- **Data Migration**: Automatically migrates old config-based data to new file-based storage.
 
 ## How It Works
 
-The plugin automatically detects when you're in the Mokha arena and monitors your unclaimed loot value.
+Mokha Loot Tracker automatically detects when you enter the Mokha arena and tracks all loot, supplies, and deaths:
 
-**When you die:**
+**On Death:**
 
-1. Records the wave you died on
-2. Calculates the total value of your unclaimed loot
-3. Saves individual items with quantities per wave
-4. Pauses supplies tracking while dead to avoid gravestone wipes
-5. Updates your statistics in the side panel
+- Records the wave and all unclaimed loot (itemized, with quantities and values).
+- Adds lost loot to historical unclaimed statistics.
+- Pauses supplies tracking while dead to avoid gravestone wipes.
+- Increments death count and updates the side panel.
 
-**When you claim loot:**
+**On Claiming Loot:**
 
-1. Detects when you click "Claim and Leave" → "Leave"
-2. Records the value of loot claimed from each wave
-3. Saves itemized breakdown per wave
-4. Updates claimed loot statistics and profit/loss calculation
+- Detects "Claim and Leave" → "Leave" sequence.
+- Records all loot claimed per wave (itemized, with quantities and values).
+- Updates historical claimed statistics and profit/loss.
+- Tracks supplies consumed and adds to historical totals.
 
-## Usage
+**During Runs:**
 
-### Side Panel
+- Tracks supplies consumed in real time (potions, runes, etc.), with dose normalization for potions.
+- Monitors loot window for new loot per wave.
+- Provides a real-time overlay (if enabled) showing potential loot loss.
+
+## Side Panel Overview
 
 Click the Mokha Loot icon in the RuneLite sidebar to view:
 
-- **Total Claimed Value**: Combined GP value of all successfully claimed loot
-- **Supply Cost**: Total GP spent on supplies across all runs
-- **Profit/Loss**: Claimed value minus supply cost (color-coded: green for profit, red for loss)
-- **Total Unclaimed**: Combined GP value of all unclaimed loot from deaths
-- **Current Run**: Real-time value of unclaimed loot during active runs
-- **Claimed Loot by Wave**: Expandable sections showing itemized loot claimed per wave
-- **Unclaimed Loot by Wave**: Expandable sections showing itemized loot lost per wave
-- **Supplies Used (Current Run)**: Live supplies consumed during the current run
-- **Supplies Used**: Historical supplies consumed across all runs
+- **Summary**: Total claimed, supply cost, profit/loss, total unclaimed, claim/unclaim ratio, total claims, total deaths.
+- **Current Run**: Real-time value and item breakdown of unclaimed loot for the current run.
+- **Claimed Loot by Wave**: Expandable/collapsible sections for each wave (1-8, 9+), with itemized loot and values. Combined all-waves view available.
+- **Unclaimed Loot by Wave**: Same as above, for loot lost on death. Combined all-waves view available.
+- **Supplies Used (Current Run)**: Live supplies consumed, with dose/rune normalization and values.
+- **Supplies Used (All Time)**: Historical supplies consumed across all runs.
 
-All sections can be expanded/collapsed for convenient browsing.
+All sections support:
 
-### In-Game Overlay
+- Expand/collapse (▾/▸) for per-wave or combined views.
+- Bullet-style formatting with left padding for items.
+- Hover tooltips showing price per item.
+- Color-coding for ultra-valuable items (gold if >20M GP or "Dom").
 
-During active Mokha runs, an overlay appears showing:
+## Controls
 
-- Current potential loot loss if you die
-- Updates in real-time as you progress
+- **Recalculate Totals**: Recalculates all statistics and reapplies ignore/exclude settings. Disabled during active runs.
+- **Clear All Data**: Removes all tracked data for the current account (with confirmation).
 
-### Side Panel Controls
+## Configuration Options
 
-- **Recalculate Totals**: Recalculates all statistics and reapplies ignore settings
-- **Clear All Data**: Removes all tracked data for the current account
+Accessible via RuneLite Configuration panel → Mokha Loot Tracker:
 
-## Configuration
+- **Ignore Sun-kissed Bones Value**: Set value to 0 for Sun-kissed Bones (untradable, base value 8,000 GP).
+- **Ignore Spirit Seeds Value**: Set value to 0 for Spirit Seeds (untradable, base value 140,000 GP).
+- **Exclude Uniques**: Exclude items worth more than 20 million GP from claimed/unclaimed totals.
 
-The plugin offers several settings:
+## Data Storage & Persistence
 
-- **Ignore Sun-kissed Bones Value**: Removes 8,000 GP per bone from loot calculations (they're untradable)
-- **Ignore Spirit Seeds Value**: Removes 140,000 GP per seed from loot calculations (they're untradable)
+- All statistics are stored locally in your RuneLite configuration and a dedicated JSON file per account.
+- Data includes: historical claimed/unclaimed loot (by wave and item), supplies used, total claimed, supply cost, claims, deaths, and more.
+- Data is automatically migrated from old config-based storage if present.
 
-Access settings via the RuneLite Configuration panel → Mokha Loot Tracker
+## Technical Details
+
+- **Loot & Supplies Tracking**: Uses in-game events and widget parsing to track loot and supplies, including rune pouch and equipment.
+- **Data Structures**:
+  - `Map<Integer, Map<String, ItemAggregate>>` for claimed/unclaimed loot by wave.
+  - `Map<String, ItemAggregate>` for supplies used.
+  - `ItemAggregate` holds name, total quantity, price per item, total value.
+- **UI**: Java Swing-based panel with custom styling, collapsible sections, tooltips, and color-coding.
+- **Persistence**: Data is saved in `mokhaloot/historical-data.json` under your RuneLite directory.
+- **Configurable**: All major toggles and filters are exposed in the config panel.
 
 ## Installation
 
@@ -94,11 +109,7 @@ Access settings via the RuneLite Configuration panel → Mokha Loot Tracker
 ## Requirements
 
 - RuneLite client
-- Old School RuneScape membership (Mokha is members content)
-
-## Data Storage
-
-All statistics are stored locally in your RuneLite configuration and are tied to your account. Each account has separate tracking, so you can use the plugin on multiple accounts without data overlap.
+- Old School RuneScape membership (Mokhaiotl is members content)
 
 ## Support
 
@@ -115,22 +126,13 @@ This plugin is open source and available under standard RuneLite plugin licensin
 
 ### Unreleased / Latest
 
-- Added supplies tracking (live run + historical), with rune pouch and potion dose normalization
-- Added per-item value threshold filter for panel display
-- Refactored panel rendering into collapsible sections for stability and faster updates
-- Fixed supplies valuation to price potion doses correctly
-- Added Spirit Seeds value exclusion toggle
-- Implemented profit/loss calculation with color-coded display
-- Enhanced loot tracking by wave with expandable/collapsible sections
+- Added combined all-waves view for claimed/unclaimed loot with bullet formatting and tooltips
+- Improved UI: left padding, color-coding, tooltips, and modern collapsible sections
+- Added ultra-valuable item exclusion filter (20M+ GP)
+- Enhanced supplies tracking (dose/rune normalization, rune pouch support)
+- Data migration from config to file-based storage
+- Bug fixes and performance improvements
 
 ### Version 1.1.0
 
-- Initial release
-- Death tracking in Mokha arena
-- Lost loot value calculation and tracking
-- Claimed loot tracking via "Claim and Leave" button
-- Per-wave itemized breakdown for both lost and claimed loot
-- Sun-kissed Bones value exclusion toggle
-- Real-time overlay
-- Side panel with comprehensive statistics
-- Per-account data storage
+- Initial release: death tracking, lost loot, claimed loot, per-wave breakdown, Sun-kissed Bones exclusion, overlay, side panel, per-account data storage
