@@ -941,6 +941,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
             recalculateWaveTotals();
             recalculateHistoricalTotalClaimed();
 
+            // Set historical data on the panel so combined view logic works
+            if (panel != null) {
+                panel.setHistoricalClaimedItemsByWave(historicalClaimedItemsByWave);
+                panel.setHistoricalUnclaimedItemsByWave(historicalUnclaimedItemsByWave);
+            }
+
             log.info("[Mokha] Loaded {} historical claimed wave entries", historicalClaimedItemsByWave.size());
             log.info("[Mokha] Loaded {} historical supplies entries", historicalSuppliesUsed.size());
 
