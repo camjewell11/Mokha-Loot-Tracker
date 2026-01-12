@@ -2,7 +2,7 @@
 
 A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during Doom of Mokhaiotl encounters in Old School RuneScape. Mokha Loot Tracker provides detailed, persistent statistics and a modern, interactive UI for maximizing your Mokhaiotl profits.
 
-<img width="1887" height="1009" alt="image" src="https://github.com/user-attachments/assets/5394fc2c-d219-4f1d-8a98-62dd2dab5747" />
+<img width="1890" height="1028" alt="image" src="https://github.com/user-attachments/assets/1cc10533-5a75-4a3c-ac46-fd398a2aee5c" />
 
 ## Features
 
