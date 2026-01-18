@@ -561,7 +561,7 @@ public class MokhaLootPanel extends PluginPanel {
             String left = "- " + agg.name + " x" + agg.totalQuantity;
             JLabel itemLabel = new JLabel(left);
             // Color gold if value > 20m or if item is Dom
-            Color itemColor = (agg.totalValue > 20_000_000 || "Dom".equalsIgnoreCase(agg.name))
+            Color itemColor = (agg.pricePerItem > 20_000_000 || "Dom".equalsIgnoreCase(agg.name))
                     ? new Color(218, 165, 32)
                     : ColorScheme.LIGHT_GRAY_COLOR;
             itemLabel.setForeground(itemColor);

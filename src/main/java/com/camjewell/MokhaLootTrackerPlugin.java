@@ -892,52 +892,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
      */
     private void loadHistoricalData() {
         try {
-            log.info("[Mokha] Starting to load historical data...");
-
-            // Load historical data from file
+            log.info("[Mokha] Starting to load historical data from file...");
+            // Only load from file
             historicalDataManager.loadData();
-
-            // Check if we need to migrate from ConfigManager
-            String claimedItemsJson = configManager.getConfiguration("mokhaloot", "historicalClaimedItemsByWaveJson");
-            String unclaimedByWaveJson = configManager.getConfiguration("mokhaloot", "historicalUnclaimedByWaveJson");
-            String unclaimedItemsByWaveJson = configManager.getConfiguration("mokhaloot",
-                    "historicalUnclaimedItemsByWaveJson");
-            boolean hasClaimed = claimedItemsJson != null && !claimedItemsJson.isEmpty()
-                    && !claimedItemsJson.equals("{}");
-            boolean hasUnclaimed = unclaimedByWaveJson != null && !unclaimedByWaveJson.isEmpty()
-                    && !unclaimedByWaveJson.equals("{}");
-            boolean hasUnclaimedItems = unclaimedItemsByWaveJson != null && !unclaimedItemsByWaveJson.isEmpty()
-                    && !unclaimedItemsByWaveJson.equals("{}");
-            if (hasClaimed || hasUnclaimed || hasUnclaimedItems) {
-                log.info("[Mokha] Found old data in ConfigManager (claimed or unclaimed), migrating to file...");
-
-                String suppliesJson = configManager.getConfiguration("mokhaloot", "historicalSuppliesUsedJson");
-                String claimedJson = configManager.getConfiguration("mokhaloot", "historicalClaimedByWaveJson");
-                String totalClaimedStr = configManager.getConfiguration("mokhaloot", "historicalTotalClaimed");
-                long totalClaimed = totalClaimedStr != null && !totalClaimedStr.isEmpty()
-                        ? Long.parseLong(totalClaimedStr)
-                        : 0;
-
-                // Migrate to file
-                historicalDataManager.migrateFromConfigManager(
-                        claimedItemsJson,
-                        suppliesJson,
-                        claimedJson,
-                        totalClaimed,
-                        unclaimedByWaveJson,
-                        unclaimedItemsByWaveJson);
-
-                // Clear old config data
-                configManager.unsetConfiguration("mokhaloot", "historicalClaimedItemsByWaveJson");
-                configManager.unsetConfiguration("mokhaloot", "historicalSuppliesUsedJson");
-                configManager.unsetConfiguration("mokhaloot", "historicalClaimedByWaveJson");
-                configManager.unsetConfiguration("mokhaloot", "historicalTotalClaimed");
-                configManager.unsetConfiguration("mokhaloot", "historicalUnclaimedByWaveJson");
-                configManager.unsetConfiguration("mokhaloot", "historicalUnclaimedItemsByWaveJson");
-
-                log.info("[Mokha] Migration complete, old config data cleared");
-            }
-
             // Copy data from manager to plugin fields
             historicalClaimedItemsByWave.clear();
             historicalClaimedItemsByWave.putAll(historicalDataManager.getHistoricalClaimedItemsByWave());
@@ -1021,22 +978,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             historicalDataManager.setHistoricalUnclaimedByWave(historicalUnclaimedByWave);
             historicalDataManager.setHistoricalUnclaimedItemsByWave(historicalUnclaimedItemsByWave);
             historicalDataManager.saveData();
-
-            // Still save supply cost to ConfigManager for now
-            configManager.setConfiguration("mokhaloot", "historicalSupplyCost", String.valueOf(historicalSupplyCost));
-
-            // Save unclaimed by wave (legacy, for migration/compatibility)
-            String unclaimedByWaveJson = gson.toJson(historicalUnclaimedByWave);
-            configManager.setConfiguration("mokhaloot", "historicalUnclaimedByWaveJson", unclaimedByWaveJson);
-
-            // Save unclaimed items by wave (legacy, for migration/compatibility)
-            String unclaimedItemsJson = gson.toJson(historicalUnclaimedItemsByWave);
-            configManager.setConfiguration("mokhaloot", "historicalUnclaimedItemsByWaveJson", unclaimedItemsJson);
-
-            // Save current run loot by wave
-            String currentRunJson = gson.toJson(lootByWave);
-            configManager.setConfiguration("mokhaloot", "currentRunLootByWaveJson", currentRunJson);
-
             log.info("[Mokha] Historical data saved - Claimed: {}, Supply Cost: {}",
                     historicalTotalClaimed, historicalSupplyCost);
         } catch (Exception e) {
@@ -1090,6 +1031,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
             // Update Mokhaiotl Cloth prices first with current cloth value
             updateMokhaClothPrices();
 
+            // Recalculate GE value for all items in claimed and unclaimed loot
+            recalculateAllItemGEValues(historicalClaimedItemsByWave);
+            recalculateAllItemGEValues(historicalUnclaimedItemsByWave);
+
             // Apply ignore settings to all historical items (this will update totalValue
             // based on current config)
             applyIgnoreSettingsToHistoricalItems(historicalClaimedItemsByWave);
@@ -1118,6 +1063,38 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     historicalUnclaimedByWave.values().stream().mapToLong(Long::longValue).sum(),
                     historicalSupplyCost);
         });
+    }
+
+    /**
+     * Recalculate GE value for all items in the provided map (by wave)
+     */
+    private void recalculateAllItemGEValues(Map<Integer, Map<String, ItemAggregate>> itemsByWave) {
+        for (Map<String, ItemAggregate> waveItems : itemsByWave.values()) {
+            for (ItemAggregate item : waveItems.values()) {
+                int itemId = getItemIdForName(item.name);
+                if (itemId > 0) {
+                    int gePrice = itemManager.getItemPrice(itemId);
+                    item.pricePerItem = gePrice;
+                    item.totalValue = (long) gePrice * item.totalQuantity;
+                }
+            }
+        }
+    }
+
+    /**
+     * Helper to get itemId from item name using ItemManager
+     */
+    private int getItemIdForName(String name) {
+        if (name == null || name.isEmpty())
+            return -1;
+        try {
+            return itemManager.search(name).stream()
+                    .map(itemPrice -> itemPrice.getId())
+                    .filter(id -> itemManager.getItemComposition(id).getName().equalsIgnoreCase(name))
+                    .findFirst().orElse(-1);
+        } catch (Exception e) {
+            return -1;
+        }
     }
 
     /**
