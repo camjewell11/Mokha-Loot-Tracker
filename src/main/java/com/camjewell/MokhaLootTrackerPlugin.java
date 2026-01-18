@@ -217,7 +217,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
     @Subscribe
     public void onMenuOptionClicked(MenuOptionClicked event) {
         String option = event.getMenuOption();
-        String target = event.getMenuTarget();
 
         // Detect entering arena via "Jump over gap"
         if (option != null && option.contains("Jump-over")) {
@@ -415,8 +414,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
 
         // Only process inventory or equipment containers
-        if (event.getContainerId() != InventoryID.INVENTORY.getId() &&
-                event.getContainerId() != InventoryID.EQUIPMENT.getId()) {
+        if (event.getContainerId() != 93 && event.getContainerId() != 94) {
             return;
         }
 
@@ -429,7 +427,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         Map<Integer, Integer> combined = new HashMap<>();
 
         // Add inventory items
-        ItemContainer inventory = client.getItemContainer(InventoryID.INVENTORY);
+        ItemContainer inventory = client.getItemContainer(93);
         if (inventory != null) {
             for (Item item : inventory.getItems()) {
                 if (item != null && item.getId() > 0) {
@@ -439,7 +437,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
 
         // Add equipment items
-        ItemContainer equipment = client.getItemContainer(InventoryID.EQUIPMENT);
+        ItemContainer equipment = client.getItemContainer(94);
         if (equipment != null) {
             for (Item item : equipment.getItems()) {
                 if (item != null && item.getId() > 0) {
