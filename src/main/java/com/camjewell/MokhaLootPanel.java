@@ -24,7 +24,7 @@ public class MokhaLootPanel extends PluginPanel {
      * Represents item data for display (name, quantity, price per item, total
      * value)
      */
-    public static class ItemData {
+    public class ItemData {
         public String name;
         public int quantity;
         public int pricePerItem;
@@ -318,7 +318,7 @@ public class MokhaLootPanel extends PluginPanel {
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
         // Header with collapse button and title
-        JButton collapseButton = new JButton("▸"); // Start collapsed
+        JButton collapseButton = new JButton(getArrowOrFallback("▸", "→")); // Start collapsed
         collapseButton.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
         collapseButton.setForeground(Color.WHITE);
         collapseButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -393,7 +393,7 @@ public class MokhaLootPanel extends PluginPanel {
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
         // Header with collapse button and title
-        JButton collapseButton = new JButton("▸"); // Start collapsed
+        JButton collapseButton = new JButton(getArrowOrFallback("▸", "→")); // Start collapsed
         collapseButton.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
         collapseButton.setForeground(Color.WHITE);
         collapseButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -514,12 +514,10 @@ public class MokhaLootPanel extends PluginPanel {
 
     // Helper to set collapse button text for claimed section
     private void setClaimedCollapseButtonText(String text) {
-        // Find the collapse button in claimed section and set text
-        // (Assumes only one collapse button in claimed section header)
         JPanel header = (JPanel) ((JPanel) claimedWavesContainer.getParent()).getComponent(0);
         JPanel rightPanel = (JPanel) header.getComponent(1);
         JButton collapseButton = (JButton) rightPanel.getComponent(rightPanel.getComponentCount() - 1);
-        collapseButton.setText(text);
+        collapseButton.setText(getArrowOrFallback(text, getArrowFallback(text)));
     }
 
     /**
@@ -649,7 +647,7 @@ public class MokhaLootPanel extends PluginPanel {
         JPanel header = (JPanel) ((JPanel) unclaimedWavesContainer.getParent()).getComponent(0);
         JPanel rightPanel = (JPanel) header.getComponent(1);
         JButton collapseButton = (JButton) rightPanel.getComponent(rightPanel.getComponentCount() - 1);
-        collapseButton.setText(text);
+        collapseButton.setText(getArrowOrFallback(text, getArrowFallback(text)));
     }
 
     private JPanel createSuppliesCurrentRunSection() {
@@ -658,7 +656,7 @@ public class MokhaLootPanel extends PluginPanel {
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
         // Header with collapse button and title
-        JButton collapseButton = new JButton("▾"); // Down triangle for expanded
+        JButton collapseButton = new JButton(getArrowOrFallback("▾", "↓")); // Down triangle for expanded
         collapseButton.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
         collapseButton.setForeground(Color.WHITE);
         collapseButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -711,7 +709,8 @@ public class MokhaLootPanel extends PluginPanel {
             suppliesCurrentRunCollapsed = !suppliesCurrentRunCollapsed;
             suppliesCurrentRunContainer.setVisible(!suppliesCurrentRunCollapsed);
             suppliesCurrentRunHeaderLabel.setVisible(suppliesCurrentRunCollapsed); // Show when collapsed
-            collapseButton.setText(suppliesCurrentRunCollapsed ? "▸" : "▾");
+            collapseButton.setText(getArrowOrFallback(suppliesCurrentRunCollapsed ? "▸" : "▾",
+                    suppliesCurrentRunCollapsed ? "→" : "↓"));
             panel.revalidate();
             panel.repaint();
         });
@@ -725,7 +724,7 @@ public class MokhaLootPanel extends PluginPanel {
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
         // Header with collapse button and title
-        JButton collapseButton = new JButton("▾"); // Down triangle for expanded
+        JButton collapseButton = new JButton(getArrowOrFallback("▾", "↓")); // Down triangle for expanded
         collapseButton.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
         collapseButton.setForeground(Color.WHITE);
         collapseButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -776,14 +775,16 @@ public class MokhaLootPanel extends PluginPanel {
         // Set initial collapsed/expanded state based on suppliesTotalCollapsed
         suppliesTotalContainer.setVisible(!suppliesTotalCollapsed);
         suppliesTotalHeaderLabel.setVisible(suppliesTotalCollapsed);
-        collapseButton.setText(suppliesTotalCollapsed ? "▸" : "▾");
+        collapseButton
+                .setText(getArrowOrFallback(suppliesTotalCollapsed ? "▸" : "▾", suppliesTotalCollapsed ? "→" : "↓"));
 
         // Collapse/expand logic
         collapseButton.addActionListener(e -> {
             suppliesTotalCollapsed = !suppliesTotalCollapsed;
             suppliesTotalContainer.setVisible(!suppliesTotalCollapsed);
             suppliesTotalHeaderLabel.setVisible(suppliesTotalCollapsed); // Show when collapsed
-            collapseButton.setText(suppliesTotalCollapsed ? "▸" : "▾");
+            collapseButton.setText(
+                    getArrowOrFallback(suppliesTotalCollapsed ? "▸" : "▾", suppliesTotalCollapsed ? "→" : "↓"));
             panel.revalidate();
             panel.repaint();
         });
@@ -819,7 +820,7 @@ public class MokhaLootPanel extends PluginPanel {
         valueLabel.setFont(FontManager.getRunescapeFont());
         valueLabel.setForeground(Color.WHITE);
 
-        JButton collapseButton = new JButton("▾");
+        JButton collapseButton = new JButton(getArrowOrFallback("▾", "↓"));
         collapseButton.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
         collapseButton.setForeground(Color.WHITE);
         collapseButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -856,12 +857,50 @@ public class MokhaLootPanel extends PluginPanel {
         collapseButton.addActionListener(e -> {
             collapsedStates[index] = !collapsedStates[index];
             itemsPanel.setVisible(!collapsedStates[index]);
-            collapseButton.setText(collapsedStates[index] ? "▸" : "▾");
+            collapseButton.setText(
+                    getArrowOrFallback(collapsedStates[index] ? "▸" : "▾", collapsedStates[index] ? "→" : "↓"));
             panel.revalidate();
             panel.repaint();
         });
-
         return panel;
+    }
+
+    /**
+     * Returns the fallback arrow for a given arrow symbol.
+     * ▸ (U+25B8) → (U+2192)
+     * ▾ (U+25BE) ↓ (U+2193)
+     * ◂ (U+25C2) ← (U+2190)
+     * ▴ (U+25B4) ↑ (U+2191)
+     */
+    private String getArrowFallback(String arrow) {
+        switch (arrow) {
+            case "▸":
+                return "→";
+            case "▾":
+                return "↓";
+            case "◂":
+                return "←";
+            case "▴":
+                return "↑";
+            default:
+                return arrow;
+        }
+    }
+
+    /**
+     * Returns the preferred arrow if supported, otherwise the fallback.
+     * This is a stub: Java/Swing does not provide a direct way to check font glyph
+     * support at runtime,
+     * so this always returns the preferred arrow. If you want to implement a real
+     * check, you could use Font.canDisplay().
+     */
+    private String getArrowOrFallback(String preferred, String fallback) {
+        java.awt.Font font = FontManager.getRunescapeSmallFont();
+        if (font != null && preferred != null && !preferred.isEmpty() && font.canDisplay(preferred.charAt(0))) {
+            return preferred;
+        } else {
+            return fallback;
+        }
     }
 
     private JPanel createSeparator(int paddingTopBottom) {
