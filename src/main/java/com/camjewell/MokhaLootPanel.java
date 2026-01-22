@@ -24,7 +24,7 @@ public class MokhaLootPanel extends PluginPanel {
      * Represents item data for display (name, quantity, price per item, total
      * value)
      */
-    public class ItemData {
+    public static class ItemData {
         public String name;
         public int quantity;
         public int pricePerItem;
