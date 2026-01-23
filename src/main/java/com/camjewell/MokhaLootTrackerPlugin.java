@@ -452,6 +452,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
             combined.put(entry.getKey(), combined.getOrDefault(entry.getKey(), 0) + entry.getValue());
         }
 
+        // Add Dizanna quiver ammo (if present)
+        // Uses varps as per RuneLite's Ammo plugin
+        final int quiverAmmoId = client.getVarpValue(4142); // VarPlayerID.DIZANAS_QUIVER_TEMP_AMMO
+        final int quiverAmmoCount = client.getVarpValue(4141); // VarPlayerID.DIZANAS_QUIVER_TEMP_AMMO_AMOUNT
+        if (quiverAmmoId > 0 && quiverAmmoCount > 0) {
+            combined.put(quiverAmmoId, combined.getOrDefault(quiverAmmoId, 0) + quiverAmmoCount);
+        }
+
         return combined;
     }
 
