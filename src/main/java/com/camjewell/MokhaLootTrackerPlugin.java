@@ -845,14 +845,27 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     /**
-     * Calculate the price per individual dose for a potion.
-     * Takes the full potion price and divides by dose count.
+     * Calculate the price per individual dose for a potion, or return full price
+     * for non-potion items.
+     * For items with dose suffixes like (1), (2), (3), (4): divides full price by
+     * dose count.
+     * For items without dose suffixes (food, etc.): returns the full item price.
      */
     private int getPricePerDose(int itemId) {
         String itemName = itemManager.getItemComposition(itemId).getName();
-        int doseCount = getPotionDoseCount(itemName);
         int fullPrice = itemManager.getItemPrice(itemId);
-        return fullPrice / doseCount; // Price per individual dose
+
+        // Check if item has a dose suffix like (1), (2), (3), (4)
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\((\\d+)\\)$");
+        java.util.regex.Matcher matcher = pattern.matcher(itemName);
+        if (matcher.find()) {
+            // Item has doses - divide by dose count
+            int doseCount = Integer.parseInt(matcher.group(1));
+            return fullPrice / doseCount;
+        }
+
+        // Item doesn't have doses - return full price
+        return fullPrice;
     }
 
     /**
