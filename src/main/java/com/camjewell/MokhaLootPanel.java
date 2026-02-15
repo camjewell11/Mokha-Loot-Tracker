@@ -1041,12 +1041,22 @@ public class MokhaLootPanel extends PluginPanel {
         }
         claimedSectionTotalLabel.setText("0 gp");
 
+        // Clear claimed combined panel
+        if (claimedCombinedPanel != null) {
+            claimedCombinedPanel.removeAll();
+        }
+
         // Clear all unclaimed wave panels
         for (int i = 0; i < unclaimedWavePanels.length; i++) {
             unclaimedWaveValueLabels[i].setText("0 gp");
             unclaimedWaveItemPanels[i].removeAll();
         }
         unclaimedSectionTotalLabel.setText("0 gp");
+
+        // Clear unclaimed combined panel
+        if (unclaimedCombinedPanel != null) {
+            unclaimedCombinedPanel.removeAll();
+        }
 
         // Clear supplies sections
         suppliesCurrentRunTotalLabel.setText("0 gp");
@@ -1118,6 +1128,9 @@ public class MokhaLootPanel extends PluginPanel {
         suppliesPanel.removeAll();
 
         if (itemData == null || itemData.isEmpty()) {
+            // Still need to refresh UI even when clearing items
+            suppliesPanel.revalidate();
+            suppliesPanel.repaint();
             return;
         }
 
