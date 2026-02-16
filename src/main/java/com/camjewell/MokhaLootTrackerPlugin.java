@@ -33,6 +33,7 @@ import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.Notifier;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
@@ -62,6 +63,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     @Inject
     private ConfigManager configManager;
+    @Inject
+    private Notifier notifier;
     private NavigationButton navButton;
     private MokhaLootPanel panel;
     private HistoricalDataManager historicalDataManager;
@@ -153,6 +156,18 @@ public class MokhaLootTrackerPlugin extends Plugin {
             this.name = name;
             this.quantity = quantity;
             this.value = value;
+        }
+    }
+
+    private static class LootAlertRule {
+        String name;
+        String nameKey;
+        int minQty;
+
+        LootAlertRule(String name, int minQty) {
+            this.name = name;
+            this.nameKey = name.toLowerCase();
+            this.minQty = minQty;
         }
     }
 
@@ -687,6 +702,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Build current loot snapshot
         Map<Integer, Integer> currentLoot = new HashMap<>();
+        Map<String, Integer> currentLootByName = new HashMap<>();
         for (Widget child : children) {
             if (child == null || child.isHidden()) {
                 continue;
@@ -700,9 +716,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // Filter out null, empty, or "null" items
                 if (itemName != null && !itemName.isEmpty() && !itemName.equalsIgnoreCase("null")) {
                     currentLoot.put(itemId, itemQuantity);
+                    String nameKey = itemName.toLowerCase();
+                    currentLootByName.put(nameKey, currentLootByName.getOrDefault(nameKey, 0) + itemQuantity);
                 }
             }
         }
+
+        // Notify if any configured loot alert thresholds are met
+        notifyLootAlerts(currentLootByName);
 
         // Determine NEW loot items for this wave by comparing with previous snapshot
         List<LootItem> newLootThisWave = new ArrayList<>();
@@ -745,6 +766,76 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Update previous loot snapshot
         previousLootSnapshot.clear();
         previousLootSnapshot.putAll(currentLoot);
+    }
+
+    private List<LootAlertRule> parseLootAlertRules() {
+        List<LootAlertRule> rules = new ArrayList<>();
+        String raw = config.lootAlertLines();
+        if (raw == null || raw.trim().isEmpty()) {
+            return rules;
+        }
+
+        String[] lines = raw.split("\\r?\\n");
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+                continue;
+            }
+
+            int commaIndex = trimmed.indexOf(',');
+            if (commaIndex < 0) {
+                log.warn("[Mokha] Loot alert line missing comma: {}", trimmed);
+                continue;
+            }
+
+            String name = trimmed.substring(0, commaIndex).trim();
+            String qtyText = trimmed.substring(commaIndex + 1).trim();
+            if (name.isEmpty() || qtyText.isEmpty()) {
+                log.warn("[Mokha] Loot alert line missing name or quantity: {}", trimmed);
+                continue;
+            }
+
+            int minQty;
+            try {
+                minQty = Integer.parseInt(qtyText);
+            } catch (NumberFormatException e) {
+                log.warn("[Mokha] Loot alert quantity is not a number: {}", trimmed);
+                continue;
+            }
+
+            if (minQty <= 0) {
+                log.warn("[Mokha] Loot alert quantity must be positive: {}", trimmed);
+                continue;
+            }
+
+            rules.add(new LootAlertRule(name, minQty));
+        }
+
+        return rules;
+    }
+
+    private void notifyLootAlerts(Map<String, Integer> currentLootByName) {
+        if (currentLootByName.isEmpty()) {
+            return;
+        }
+
+        List<LootAlertRule> rules = parseLootAlertRules();
+        if (rules.isEmpty()) {
+            return;
+        }
+
+        for (LootAlertRule rule : rules) {
+            Integer qty = currentLootByName.get(rule.nameKey);
+            if (qty != null && qty >= rule.minQty) {
+                String message = String.format(
+                        "[Mokha Tracker] Loot alert: %s x%d (>= %d)",
+                        rule.name,
+                        qty,
+                        rule.minQty);
+                client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", message, null);
+                client.playSoundEffect(4039); // Short beep notification
+            }
+        }
     }
 
     /**

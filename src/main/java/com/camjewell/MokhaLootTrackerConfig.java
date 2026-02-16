@@ -22,6 +22,11 @@ public interface MokhaLootTrackerConfig extends Config {
 		return false;
 	}
 
+	@ConfigItem(keyName = "lootAlertLines", name = "Loot alerts", description = "One per line: item name, quantity (e.g. steel cannonball, 300)", position = 20)
+	default String lootAlertLines() {
+		return "";
+	}
+
 	// Internal persistence properties (not exposed in settings UI)
 	// These use direct ConfigManager access, not @ConfigItem
 
