@@ -1,6 +1,6 @@
 # Mokha Loot Tracker
 
-A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during Doom of Mokhaiotl encounters in Old School RuneScape. Mokha Loot Tracker provides detailed, persistent statistics and a modern, interactive UI for maximizing your Mokhaiotl profits.
+A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during Doom of Mokhaiotl encounters in Old School RuneScape. Features detailed persistent statistics, customizable loot alerts, automatic Mokhaiotl Cloth valuation, and a modern interactive UI for maximizing your Mokhaiotl profits.
 
 <img width="1890" height="1028" alt="image" src="https://github.com/user-attachments/assets/1cc10533-5a75-4a3c-ac46-fd398a2aee5c" />
 
@@ -11,8 +11,10 @@ A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during D
 - **Claimed Loot Tracking**: Tracks loot successfully claimed, with per-wave and combined breakdowns.
 - **Per-Wave & Combined Views**: Expandable/collapsible sections for claimed and unclaimed loot by wave, plus a combined all-waves view with bullet-style formatting and tooltips.
 - **Profit/Loss Calculation**: Shows total claimed minus supply cost, color-coded (green for profit, red for loss).
-- **Supplies Tracking**: Tracks supplies consumed per run (live) and across all runs (historical), including potions (dose-normalized), runes (including rune pouch), and other consumables.
+- **Supplies Tracking**: Tracks supplies consumed per run (live) and across all runs (historical), including potions (dose-normalized), runes (including rune pouch and Dizana's quiver), and other consumables.
 - **Configurable Item Value Exclusion**: Toggles to ignore Sun-kissed Bones and Spirit Seeds (untradable) in calculations.
+- **Mokhaiotl Cloth Value Calculation**: Automatically calculates and updates Cloth value based on current GE prices of component items.
+- **Loot Alerts**: Configurable notifications for specific items with customizable quantity thresholds (chat message + sound effect).
 - **Ultra-Valuable Item Filter**: Optionally exclude items worth more than 20 million GP from totals (uniques filter).
 - **Modern UI**: Collapsible/expandable sections, left-padded bullet formatting, hover tooltips for price per item, and color-coded highlights for ultra-valuable items.
 - **Persistent Statistics**: All data is saved per-account and persists across sessions, including historical claimed/unclaimed loot, supplies, and deaths.
@@ -66,6 +68,20 @@ All sections support:
 - **Recalculate Totals**: Recalculates all statistics and reapplies ignore/exclude settings. Disabled during active runs.
 - **Clear All Data**: Removes all tracked data for the current account (with confirmation).
 
+## Loot Alerts
+
+Configure custom notifications to alert you when specific loot items meet or exceed a quantity threshold:
+
+1. Open RuneLite Configuration → Mokha Loot Tracker
+2. Find the "Loot Alerts" text area
+3. Add one alert per line in format: `Item Name, Minimum Quantity`
+4. Examples:
+   - `Dragon Pickaxe, 1` - Alerts on any Dragon Pickaxe drop
+   - `Blood Rune, 1000` - Alerts when 1000+ Blood Runes are visible
+   - `Mokhaiotl Cloth, 5` - Alerts when 5+ Cloth pieces are found
+
+When triggered, alerts display a chat message and play a notification sound. Alerts check against the total visible loot in the current wave window.
+
 ## Configuration Options
 
 Accessible via RuneLite Configuration panel → Mokha Loot Tracker:
@@ -73,22 +89,30 @@ Accessible via RuneLite Configuration panel → Mokha Loot Tracker:
 - **Ignore Sun-kissed Bones Value**: Set value to 0 for Sun-kissed Bones (untradable, base value 8,000 GP).
 - **Ignore Spirit Seeds Value**: Set value to 0 for Spirit Seeds (untradable, base value 140,000 GP).
 - **Exclude Uniques**: Exclude items worth more than 20 million GP from claimed/unclaimed totals.
+- **Mokhaiotl Cloth Value**: Automatically calculates Cloth value based on component prices (Confliction Gauntlets - 10000×Demon Tear - Tormented Bracelet). Updates dynamically with GE prices.
+- **Loot Alerts**: Configure custom notifications for specific loot items. Format: `Item Name, Minimum Quantity` (one per line). Triggers chat message and sound when threshold is met.
 
 ## Data Storage & Persistence
 
-- All statistics are stored locally in your RuneLite configuration and a dedicated JSON file per account.
-- Data includes: historical claimed/unclaimed loot (by wave and item), supplies used, total claimed, supply cost, claims, deaths, and more.
-- Data is automatically migrated from old config-based storage if present.
+- All statistics are stored locally in dedicated JSON files per account in your RuneLite directory
+- File location: `.runelite/mokhaloot/historical-data-{accountHash}.json`
+- Data includes: historical claimed/unclaimed loot (by wave and item), supplies used, total claimed, supply cost, claims, deaths, and more
+- Data is automatically migrated from old config-based storage if present on first load
+- Each account's data is completely separate and persistent across sessions
 
 ## Technical Details
 
-- **Loot & Supplies Tracking**: Uses in-game events and widget parsing to track loot and supplies, including rune pouch and equipment.
+- **Loot & Supplies Tracking**: Uses in-game events and widget parsing to track loot and supplies, including rune pouch, equipment, and Dizana's quiver.
 - **Data Structures**:
   - `Map<Integer, Map<String, ItemAggregate>>` for claimed/unclaimed loot by wave.
   - `Map<String, ItemAggregate>` for supplies used.
   - `ItemAggregate` holds name, total quantity, price per item, total value.
 - **UI**: Java Swing-based panel with custom styling, collapsible sections, tooltips, and color-coding.
-- **Persistence**: Data is saved in `mokhaloot/historical-data.json` under your RuneLite directory.
+- **Persistence**: Data is saved in `mokhaloot/historical-data-{accountHash}.json` under your RuneLite directory, with automatic migration from old config-based storage.
+- **Price Calculations**:
+  - Uses RuneLite ItemManager for GE prices
+  - Normalizes potion prices to per-dose values
+  - Dynamically calculates Mokhaiotl Cloth value from component prices
 - **Configurable**: All major toggles and filters are exposed in the config panel.
 
 ## Installation
@@ -115,8 +139,16 @@ Accessible via RuneLite Configuration panel → Mokha Loot Tracker:
 
 For bugs, feature requests, or questions:
 
-- Open an issue on the [GitHub repository](https://github.com/camjewell11/Mokha-Loot-Tracker)
-- Contact the developer
+- Open an issue on the [GitHub repository](https://github.com/camjewell11/Mokha-Loot-Tracker/issues)
+- Submit a pull request for contributions
+- Check existing issues before creating new ones
+
+Please include:
+
+- RuneLite version
+- Plugin version
+- Steps to reproduce (for bugs)
+- Screenshots or logs if applicable
 
 ## License
 
@@ -124,13 +156,19 @@ This plugin is open source and available under standard RuneLite plugin licensin
 
 ## Changelog
 
-### Unreleased / Latest
+### Latest (v2.0)
 
-- Added combined all-waves view for claimed/unclaimed loot with bullet formatting and tooltips
+- **Loot Alerts**: Added configurable notifications for specific items with custom quantity thresholds
+- **Mokhaiotl Cloth Value**: Automatic calculation based on component GE prices (Confliction Gauntlets, Demon Tear, Tormented Bracelet)
+- **Dizana's Quiver Support**: Tracks ammunition from Dizana's quiver in addition to inventory/equipment
+- **Enhanced Price Calculations**: Dynamic GE price updates with proper per-dose normalization for all potions
+- **Improved File Storage**: Per-account data files with automatic account hash detection
+- **Teleport Detection**: Better handling of arena exits via teleport vs "Leave" button
+- **Data Migration**: Automatic upgrade from config-based to file-based storage
+- Combined all-waves view for claimed/unclaimed loot with bullet formatting and tooltips
 - Improved UI: left padding, color-coding, tooltips, and modern collapsible sections
 - Added ultra-valuable item exclusion filter (20M+ GP)
 - Enhanced supplies tracking (dose/rune normalization, rune pouch support)
-- Data migration from config to file-based storage
 - Bug fixes and performance improvements
 
 ### Version 1.1.0
