@@ -971,6 +971,9 @@ public class MokhaLootPanel extends PluginPanel {
             updateWavePanel(claimedWaveValueLabels[index], claimedWaveItemPanels[index],
                     claimedWaveCollapsed[index], itemData, explicitTotal);
             updateClaimedSectionTotal();
+            if (claimedSectionState == 2) {
+                populateClaimedCombinedPanel();
+            }
         }
     }
 
@@ -984,6 +987,9 @@ public class MokhaLootPanel extends PluginPanel {
             updateWavePanel(unclaimedWaveValueLabels[index], unclaimedWaveItemPanels[index],
                     unclaimedWaveCollapsed[index], itemData, explicitTotal);
             updateUnclaimedSectionTotal();
+            if (unclaimedSectionState == 2) {
+                populateUnclaimedCombinedPanel();
+            }
         }
     }
 

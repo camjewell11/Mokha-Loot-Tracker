@@ -48,6 +48,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private static final int SPIRIT_SEED_VALUE = 140_000;
     private static final int SUN_KISSED_BONES_VALUE = 8_000;
     private static final String LOOT_VALUE_COLOR_HEX = "66CCFF";
+    private static final String MOKHA_CLOTH_NAME = "Mokhaiotl cloth";
 
     @Inject
     private Client client;
@@ -508,8 +509,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (event.getGroup().equals("mokhaloot")) {
             if (event.getKey().equals("ignoreSunKissedBonesValue") ||
                     event.getKey().equals("ignoreSpiritSeedsValue") ||
-                    event.getKey().equals("excludeUltraValuableItems") ||
-                    event.getKey().equals("mokhaClothValue")) {
+                    event.getKey().equals("excludeUltraValuableItems")) {
                 log.info("[Mokha] Config changed: {} = {}", event.getKey(), event.getNewValue());
                 // Trigger complete recalculation with new config settings
                 recalculateAllTotals();
@@ -955,7 +955,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 int itemValue = itemManager.getItemPrice(itemId) * newQty;
 
                 // Special handling for Mokhaiotl Cloth (untradable, needs calculated value)
-                if (itemName.equals("Mokhaiotl Cloth") && itemValue == 0) {
+                if (isMokhaCloth(itemName) && itemValue == 0) {
                     int clothValue = getMokhaClothValue();
                     itemValue = clothValue * newQty;
                 }
@@ -1491,12 +1491,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
         log.info("[Mokha] Starting recalculation of all totals...");
 
         clientThread.invoke(() -> {
-            // Update Mokhaiotl Cloth prices first with current cloth value
-            updateMokhaClothPrices();
-
             // Recalculate GE value for all items in claimed and unclaimed loot
             recalculateAllItemGEValues(historicalClaimedItemsByWave);
             recalculateAllItemGEValues(historicalUnclaimedItemsByWave);
+
+            // Apply Mokhaiotl Cloth override after GE recalculation so it is not
+            // overwritten by GE price refresh.
+            updateMokhaClothPrices();
 
             // Apply ignore settings to all historical items (this will update totalValue
             // based on current config)
@@ -1534,11 +1535,16 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private void recalculateAllItemGEValues(Map<Integer, Map<String, ItemAggregate>> itemsByWave) {
         for (Map<String, ItemAggregate> waveItems : itemsByWave.values()) {
             for (ItemAggregate item : waveItems.values()) {
+                if (isMokhaCloth(item.name)) {
+                    continue;
+                }
+
                 int itemId = getItemIdForName(item.name);
                 if (itemId > 0) {
                     int gePrice = itemManager.getItemPrice(itemId);
                     item.pricePerItem = gePrice;
                     item.totalValue = (long) gePrice * item.totalQuantity;
+                    item.originalTotalValue = item.totalValue;
                 }
             }
         }
@@ -1958,21 +1964,37 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Update cloth in claimed items
         for (Map<String, ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
-            ItemAggregate clothItem = waveItems.get("Mokhaiotl Cloth");
+            ItemAggregate clothItem = findMokhaClothItem(waveItems);
             if (clothItem != null) {
                 clothItem.pricePerItem = clothPrice;
                 clothItem.totalValue = (long) clothItem.totalQuantity * clothPrice;
+                clothItem.originalTotalValue = clothItem.totalValue;
             }
         }
 
         // Update cloth in unclaimed items
         for (Map<String, ItemAggregate> waveItems : historicalUnclaimedItemsByWave.values()) {
-            ItemAggregate clothItem = waveItems.get("Mokhaiotl Cloth");
+            ItemAggregate clothItem = findMokhaClothItem(waveItems);
             if (clothItem != null) {
                 clothItem.pricePerItem = clothPrice;
                 clothItem.totalValue = (long) clothItem.totalQuantity * clothPrice;
+                clothItem.originalTotalValue = clothItem.totalValue;
             }
         }
+    }
+
+    private boolean isMokhaCloth(String itemName) {
+        return itemName != null && itemName.equalsIgnoreCase(MOKHA_CLOTH_NAME);
+    }
+
+    private ItemAggregate findMokhaClothItem(Map<String, ItemAggregate> waveItems) {
+        for (ItemAggregate item : waveItems.values()) {
+            if (isMokhaCloth(item.name)) {
+                return item;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -2031,6 +2053,24 @@ public class MokhaLootTrackerPlugin extends Plugin {
      * Get the Mokhaiotl Cloth value (from chat if detected, otherwise calculated)
      */
     private int getMokhaClothValue() {
+        String manualValueText = config.mokhaClothValue();
+        if (manualValueText != null && !manualValueText.trim().isEmpty()) {
+            try {
+                String numeric = manualValueText.replaceAll("[^0-9-]", "");
+                if (!numeric.isEmpty()) {
+                    int manualValue = Integer.parseInt(numeric);
+                    if (manualValue > 0) {
+                        return manualValue;
+                    }
+                }
+                log.warn("[Mokha] Manual cloth value '{}' is invalid; falling back to automatic calculation",
+                        manualValueText);
+            } catch (NumberFormatException e) {
+                log.warn("[Mokha] Manual cloth value '{}' is invalid; falling back to automatic calculation",
+                        manualValueText);
+            }
+        }
+
         int calculatedValue = calculateMokhaClothValue();
 
         // Warn player if cloth value is 0 and can't be calculated

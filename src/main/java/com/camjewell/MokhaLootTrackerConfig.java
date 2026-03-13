@@ -27,6 +27,11 @@ public interface MokhaLootTrackerConfig extends Config {
 		return false;
 	}
 
+	@ConfigItem(keyName = "mokhaClothValue", name = "Mokhaiotl Cloth Value", description = "Manual override for Mokhaiotl Cloth value. Leave blank to use automatic calculation.", position = 14)
+	default String mokhaClothValue() {
+		return "";
+	}
+
 	@ConfigItem(keyName = "lootAlertLines", name = "Loot alerts", description = "One per line: item name, quantity (e.g. steel cannonball, 300)", position = 20)
 	default String lootAlertLines() {
 		return "";
