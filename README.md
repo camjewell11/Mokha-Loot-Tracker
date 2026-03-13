@@ -13,7 +13,8 @@ A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during D
 - **Profit/Loss Calculation**: Shows total claimed minus supply cost, color-coded (green for profit, red for loss).
 - **Supplies Tracking**: Tracks supplies consumed per run (live) and across all runs (historical), including potions (dose-normalized), runes (including rune pouch and Dizana's quiver), and other consumables.
 - **Configurable Item Value Exclusion**: Toggles to ignore Sun-kissed Bones and Spirit Seeds (untradable) in calculations.
-- **Mokhaiotl Cloth Value Calculation**: Automatically calculates and updates Cloth value based on current GE prices of component items.
+- **Adjusted Loot Screen Display**: Optional loot-window value rewrite showing both totals: `original gp (adjusted gp)`.
+- **Mokhaiotl Cloth Value Override**: Supports manual cloth value from settings, with automatic component-based calculation as fallback when left blank.
 - **Loot Alerts**: Configurable notifications for specific items with customizable quantity thresholds (chat message + sound effect).
 - **Ultra-Valuable Item Filter**: Optionally exclude items worth more than 20 million GP from totals (uniques filter).
 - **Modern UI**: Collapsible/expandable sections, left-padded bullet formatting, hover tooltips for price per item, and color-coded highlights for ultra-valuable items.
@@ -66,6 +67,9 @@ All sections support:
 ## Controls
 
 - **Recalculate Totals**: Recalculates all statistics and reapplies ignore/exclude settings. Disabled during active runs.
+- **Clear Claimed Historical Data**: Clears claimed historical loot only (with confirmation), then refreshes panel values.
+- **Clear Unclaimed Historical Data**: Clears unclaimed historical loot only (with confirmation), then refreshes panel values.
+- **Clear Supplies Historical Data**: Clears historical supplies usage only (with confirmation), then refreshes panel values.
 - **Clear All Data**: Removes all tracked data for the current account (with confirmation).
 
 ## Loot Alerts
@@ -89,7 +93,8 @@ Accessible via RuneLite Configuration panel → Mokha Loot Tracker:
 - **Ignore Sun-kissed Bones Value**: Set value to 0 for Sun-kissed Bones (untradable, base value 8,000 GP).
 - **Ignore Spirit Seeds Value**: Set value to 0 for Spirit Seeds (untradable, base value 140,000 GP).
 - **Exclude Uniques**: Exclude items worth more than 20 million GP from claimed/unclaimed totals.
-- **Mokhaiotl Cloth Value**: Automatically calculates Cloth value based on component prices (Confliction Gauntlets - 10000×Demon Tear - Tormented Bracelet). Updates dynamically with GE prices.
+- **Show Adjusted Loot Value Display**: Rewrites the collect-loot window value text to show `original gp (adjusted gp)` using ignore toggles.
+- **Mokhaiotl Cloth Value**: Manual override for cloth value. Leave blank to use automatic calculation based on component prices (Confliction Gauntlets - 10000×Demon Tear - Tormented Bracelet).
 - **Loot Alerts**: Configure custom notifications for specific loot items. Format: `Item Name, Minimum Quantity` (one per line). Triggers chat message and sound when threshold is met.
 
 ## Data Storage & Persistence
@@ -158,6 +163,10 @@ This plugin is open source and available under standard RuneLite plugin licensin
 
 ### Latest (v2.0)
 
+- Added optional collect-loot value rewrite showing `original gp (adjusted gp)`
+- Added setting toggle to enable/disable adjusted collect-loot display
+- Added manual Mokhaiotl Cloth value override with automatic fallback when blank
+- Added section-specific historical clear buttons (claimed, unclaimed, supplies)
 - **Loot Alerts**: Added configurable notifications for specific items with custom quantity thresholds
 - **Mokhaiotl Cloth Value**: Automatic calculation based on component GE prices (Confliction Gauntlets, Demon Tear, Tormented Bracelet)
 - **Dizana's Quiver Support**: Tracks ammunition from Dizana's quiver in addition to inventory/equipment
