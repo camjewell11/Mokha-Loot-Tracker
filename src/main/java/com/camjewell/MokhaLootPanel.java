@@ -3,6 +3,7 @@ package com.camjewell;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Insets;
 import java.util.Map;
 
 import javax.swing.Box;
@@ -20,6 +21,8 @@ import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 
 public class MokhaLootPanel extends PluginPanel {
+    private static final int ACTION_BUTTON_HEIGHT = 30;
+
     /**
      * Represents item data for display (name, quantity, price per item, total
      * value)
@@ -94,6 +97,9 @@ public class MokhaLootPanel extends PluginPanel {
     private final JPanel statsPanel = new JPanel();
     private Runnable onClearData;
     private Runnable onRecalculateTotals;
+    private Runnable onClearClaimedHistoricalData;
+    private Runnable onClearUnclaimedHistoricalData;
+    private Runnable onClearSuppliesHistoricalData;
 
     // Add these fields to hold references to the historical data maps (set via
     // setter or constructor)
@@ -101,25 +107,35 @@ public class MokhaLootPanel extends PluginPanel {
     private Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalUnclaimedItemsByWave;
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation) {
-        this(config, onDebugLocation, null, null, null);
+        this(config, onDebugLocation, null, null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData) {
-        this(config, onDebugLocation, onClearData, null, null);
+        this(config, onDebugLocation, onClearData, null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData,
             Runnable onRecalculateTotals) {
-        this(config, onDebugLocation, onClearData, onRecalculateTotals, null);
+        this(config, onDebugLocation, onClearData, onRecalculateTotals, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData,
             Runnable onRecalculateTotals, java.util.function.BooleanSupplier isInRun) {
+        this(config, onDebugLocation, onClearData, onRecalculateTotals, isInRun, null, null, null);
+    }
+
+    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData,
+            Runnable onRecalculateTotals, java.util.function.BooleanSupplier isInRun,
+            Runnable onClearClaimedHistoricalData, Runnable onClearUnclaimedHistoricalData,
+            Runnable onClearSuppliesHistoricalData) {
         this.config = config;
         this.onDebugLocation = onDebugLocation;
         this.onClearData = onClearData;
         this.onRecalculateTotals = onRecalculateTotals;
         this.isInRun = isInRun;
+        this.onClearClaimedHistoricalData = onClearClaimedHistoricalData;
+        this.onClearUnclaimedHistoricalData = onClearUnclaimedHistoricalData;
+        this.onClearSuppliesHistoricalData = onClearSuppliesHistoricalData;
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -149,11 +165,7 @@ public class MokhaLootPanel extends PluginPanel {
         buttonPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         JButton recalculateButton = new JButton("Recalculate Totals");
-        recalculateButton.setFocusPainted(false);
-        recalculateButton.setBackground(new Color(0, 100, 50)); // Muted green
-        recalculateButton.setForeground(Color.WHITE);
-        recalculateButton.setFont(FontManager.getRunescapeSmallFont());
-        recalculateButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        configureActionButton(recalculateButton, new Color(0, 100, 50));
         recalculateButton.addActionListener(e -> {
             // Check if currently in a run
             if (isInRun != null && isInRun.getAsBoolean()) {
@@ -175,14 +187,55 @@ public class MokhaLootPanel extends PluginPanel {
             }
         });
         buttonPanel.add(recalculateButton);
-        buttonPanel.add(Box.createVerticalStrut(10));
+        buttonPanel.add(createButtonDivider());
+
+        JButton clearClaimedButton = new JButton("Clear Claimed Historical Data");
+        configureActionButton(clearClaimedButton, new Color(0, 140, 0));
+        clearClaimedButton.addActionListener(e -> {
+            int response = JOptionPane.showConfirmDialog(this,
+                    "Are you sure you want to clear claimed historical data?\nThis action cannot be undone.",
+                    "Confirm Clear Claimed Historical",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+            if (response == JOptionPane.YES_OPTION && onClearClaimedHistoricalData != null) {
+                onClearClaimedHistoricalData.run();
+            }
+        });
+        buttonPanel.add(clearClaimedButton);
+        buttonPanel.add(Box.createVerticalStrut(6));
+
+        JButton clearUnclaimedButton = new JButton("Clear Unclaimed Historical Data");
+        configureActionButton(clearUnclaimedButton, new Color(140, 35, 35));
+        clearUnclaimedButton.addActionListener(e -> {
+            int response = JOptionPane.showConfirmDialog(this,
+                    "Are you sure you want to clear unclaimed historical data?\nThis action cannot be undone.",
+                    "Confirm Clear Unclaimed Historical",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+            if (response == JOptionPane.YES_OPTION && onClearUnclaimedHistoricalData != null) {
+                onClearUnclaimedHistoricalData.run();
+            }
+        });
+        buttonPanel.add(clearUnclaimedButton);
+        buttonPanel.add(Box.createVerticalStrut(6));
+
+        JButton clearSuppliesButton = new JButton("Clear Supplies Historical Data");
+        configureActionButton(clearSuppliesButton, new Color(170, 115, 0));
+        clearSuppliesButton.addActionListener(e -> {
+            int response = JOptionPane.showConfirmDialog(this,
+                    "Are you sure you want to clear supplies historical data?\nThis action cannot be undone.",
+                    "Confirm Clear Supplies Historical",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+            if (response == JOptionPane.YES_OPTION && onClearSuppliesHistoricalData != null) {
+                onClearSuppliesHistoricalData.run();
+            }
+        });
+        buttonPanel.add(clearSuppliesButton);
+        buttonPanel.add(createButtonDivider());
 
         JButton clearButton = new JButton("Clear All Data");
-        clearButton.setFocusPainted(false);
-        clearButton.setBackground(new Color(120, 0, 0)); // Dark red background
-        clearButton.setForeground(Color.WHITE);
-        clearButton.setFont(FontManager.getRunescapeSmallFont());
-        clearButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        configureActionButton(clearButton, new Color(120, 0, 0));
         clearButton.addActionListener(e -> {
             int response = JOptionPane.showConfirmDialog(this,
                     "Are you sure you want to clear ALL current and historical data?\nThis action cannot be undone.",
@@ -226,6 +279,35 @@ public class MokhaLootPanel extends PluginPanel {
         // Supplies Used (All Time) Section
         statsPanel.add(createSuppliesTotalSection());
         statsPanel.add(createSeparator(5));
+    }
+
+    private void configureActionButton(JButton button, Color backgroundColor) {
+        button.setFocusPainted(false);
+        button.setBackground(backgroundColor);
+        button.setForeground(Color.WHITE);
+        button.setFont(FontManager.getRunescapeSmallFont());
+        button.setAlignmentX(LEFT_ALIGNMENT);
+        button.setMargin(new Insets(2, 8, 2, 8));
+        button.setMinimumSize(new Dimension(120, ACTION_BUTTON_HEIGHT));
+        button.setPreferredSize(new Dimension(Short.MAX_VALUE, ACTION_BUTTON_HEIGHT));
+        button.setMaximumSize(new Dimension(Integer.MAX_VALUE, ACTION_BUTTON_HEIGHT));
+    }
+
+    private JPanel createButtonDivider() {
+        JPanel divider = new JPanel(new BorderLayout());
+        divider.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        divider.setBorder(new EmptyBorder(5, 0, 5, 0));
+        divider.setAlignmentX(LEFT_ALIGNMENT);
+        divider.setMinimumSize(new Dimension(0, 11));
+        divider.setPreferredSize(new Dimension(1, 11));
+        divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 11));
+
+        JSeparator separator = new JSeparator();
+        separator.setForeground(Color.DARK_GRAY);
+        separator.setPreferredSize(new Dimension(1, 1));
+        divider.add(separator, BorderLayout.CENTER);
+
+        return divider;
     }
 
     private JPanel createProfitLossSection() {

@@ -217,7 +217,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
     @Override
     protected void startUp() throws Exception {
         panel = new MokhaLootPanel(config, this::debugLocation, this::clearAllData, this::recalculateAllTotals,
-                () -> inMokhaArena);
+                () -> inMokhaArena,
+                this::clearClaimedHistoricalData,
+                this::clearUnclaimedHistoricalData,
+                this::clearSuppliesHistoricalData);
 
         final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/48icon.png");
 
@@ -1480,6 +1483,38 @@ public class MokhaLootTrackerPlugin extends Plugin {
         saveHistoricalData();
 
         log.info("[Mokha] All data cleared successfully");
+    }
+
+    private void clearClaimedHistoricalData() {
+        historicalTotalClaimed = 0;
+        historicalClaims = 0;
+        historicalClaimedByWave.clear();
+        historicalClaimedItemsByWave.clear();
+
+        updatePanelData();
+        saveHistoricalData();
+
+        log.info("[Mokha] Claimed historical data cleared successfully");
+    }
+
+    private void clearUnclaimedHistoricalData() {
+        historicalUnclaimedByWave.clear();
+        historicalUnclaimedItemsByWave.clear();
+
+        updatePanelData();
+        saveHistoricalData();
+
+        log.info("[Mokha] Unclaimed historical data cleared successfully");
+    }
+
+    private void clearSuppliesHistoricalData() {
+        historicalSupplyCost = 0;
+        historicalSuppliesUsed.clear();
+
+        updatePanelData();
+        saveHistoricalData();
+
+        log.info("[Mokha] Supplies historical data cleared successfully");
     }
 
     /**
