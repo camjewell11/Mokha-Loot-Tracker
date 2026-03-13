@@ -22,6 +22,11 @@ public interface MokhaLootTrackerConfig extends Config {
 		return false;
 	}
 
+	@ConfigItem(keyName = "showAdjustedLootValueDisplay", name = "Show Adjusted Loot Value Display", description = "Show loot value as original and adjusted totals in the delve/claim loot screen", position = 13)
+	default boolean showAdjustedLootValueDisplay() {
+		return false;
+	}
+
 	@ConfigItem(keyName = "lootAlertLines", name = "Loot alerts", description = "One per line: item name, quantity (e.g. steel cannonball, 300)", position = 20)
 	default String lootAlertLines() {
 		return "";

@@ -45,6 +45,9 @@ import net.runelite.client.util.ImageUtil;
 public class MokhaLootTrackerPlugin extends Plugin {
 
     private static final Logger log = LoggerFactory.getLogger(MokhaLootTrackerPlugin.class);
+    private static final int SPIRIT_SEED_VALUE = 140_000;
+    private static final int SUN_KISSED_BONES_VALUE = 8_000;
+    private static final String LOOT_VALUE_COLOR_HEX = "66CCFF";
 
     @Inject
     private Client client;
@@ -83,6 +86,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private boolean suppliesConfirmed = false; // Track if supplies are confirmed (boss appeared)
     private boolean bossWasEverPresentThisWave = false; // Track if boss appeared this wave (for teleport detection)
     private boolean lastDescendClickJustHappened = false; // Track if Descend was just clicked
+    private String lastLootValueDebugSignature = "";
 
     // Entrance coordinates (for future use)
     private final int entrance_centerX = 1311;
@@ -169,6 +173,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
             this.nameKey = name.toLowerCase();
             this.minQty = minQty;
         }
+    }
+
+    private static class LootWidgetDebugData {
+        long ignoredValue;
+        int ignoredItemStacks;
+        String itemSummary;
     }
 
     /**
@@ -642,6 +652,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private void checkForLootWindow() {
         if (!inMokhaArena) {
             lootWindowWasVisible = false;
+            lastLootValueDebugSignature = "";
             return;
         }
 
@@ -650,6 +661,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         boolean lootWindowVisible = mainWidget != null && !mainWidget.isHidden();
 
         if (lootWindowVisible) {
+            updateLootWindowDisplayedValue();
+
             // Only log loot once when window first becomes visible
             if (!lootWindowWasVisible) {
                 // Try to extract wave number from widget text
@@ -686,8 +699,212 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
         }
 
+        if (!lootWindowVisible) {
+            lastLootValueDebugSignature = "";
+        }
+
         // Update window visibility state
         lootWindowWasVisible = lootWindowVisible;
+    }
+
+    private void updateLootWindowDisplayedValue() {
+        Widget valueWidget = client.getWidget(919, 20);
+        Widget lootContainerWidget = client.getWidget(919, 19);
+        if (valueWidget == null || lootContainerWidget == null) {
+            return;
+        }
+
+        if (!config.showAdjustedLootValueDisplay()) {
+            restoreUnadjustedLootValueText(valueWidget);
+            return;
+        }
+
+        String valueText = valueWidget.getText();
+        if (valueText == null || !valueText.contains("Value:")) {
+            return;
+        }
+
+        // Only adjust raw game text. If the value already has our color tag, it has
+        // already been adjusted.
+        if (valueText.contains("<col=" + LOOT_VALUE_COLOR_HEX + ">")) {
+            return;
+        }
+
+        long rawTotalValue = extractGpValue(valueText);
+        if (rawTotalValue <= 0) {
+            return;
+        }
+
+        LootWidgetDebugData debugData = collectLootWidgetDebugData(lootContainerWidget);
+        long ignoredValue = debugData.ignoredValue;
+        long adjustedValue = Math.max(0, rawTotalValue - ignoredValue);
+
+        String adjustedText = formatLootValueText(rawTotalValue, adjustedValue);
+        if (!adjustedText.equals(valueText)) {
+            valueWidget.setText(adjustedText);
+
+            String signature = rawTotalValue + "|" + ignoredValue + "|" + adjustedValue;
+            if (!signature.equals(lastLootValueDebugSignature)) {
+                lastLootValueDebugSignature = signature;
+                log.info(
+                        "[Mokha] Overwrote loot value text (light blue). raw={} ignored={} adjusted={} ignoredStacks={} originalText='{}' newText='{}' items=[{}]",
+                        rawTotalValue,
+                        ignoredValue,
+                        adjustedValue,
+                        debugData.ignoredItemStacks,
+                        valueText,
+                        adjustedText,
+                        debugData.itemSummary);
+            }
+        }
+    }
+
+    private String formatLootValueText(long originalValue, long adjustedValue) {
+        return String.format("<col=%s>Value: %,d gp (%,d gp)</col>",
+                LOOT_VALUE_COLOR_HEX,
+                originalValue,
+                adjustedValue);
+    }
+
+    private void restoreUnadjustedLootValueText(Widget valueWidget) {
+        String valueText = valueWidget.getText();
+        if (valueText == null || !valueText.contains("<col=" + LOOT_VALUE_COLOR_HEX + ">")) {
+            return;
+        }
+
+        long originalValue = extractOriginalValueFromAdjustedDisplay(valueText);
+        if (originalValue <= 0) {
+            return;
+        }
+
+        String restoredText = String.format("Value: %,d GP", originalValue);
+        if (!restoredText.equals(valueText)) {
+            valueWidget.setText(restoredText);
+            lastLootValueDebugSignature = "";
+            log.info("[Mokha] Restored unadjusted loot value text after display toggle was disabled. restoredText='{}'",
+                    restoredText);
+        }
+    }
+
+    private long extractOriginalValueFromAdjustedDisplay(String valueText) {
+        try {
+            String plainText = valueText.replaceAll("<[^>]*>", "").trim();
+            int valueIndex = plainText.indexOf("Value:");
+            if (valueIndex < 0) {
+                return 0;
+            }
+
+            String valuePortion = plainText.substring(valueIndex + "Value:".length()).trim();
+            int openParenIndex = valuePortion.indexOf('(');
+            if (openParenIndex >= 0) {
+                valuePortion = valuePortion.substring(0, openParenIndex);
+            }
+
+            int gpIndex = valuePortion.toUpperCase().indexOf("GP");
+            if (gpIndex >= 0) {
+                valuePortion = valuePortion.substring(0, gpIndex);
+            }
+
+            String numStr = valuePortion.replaceAll("[^0-9]", "");
+            if (!numStr.isEmpty()) {
+                return Long.parseLong(numStr);
+            }
+        } catch (NumberFormatException e) {
+            log.error("[Mokha] Error parsing original value from adjusted display", e);
+        }
+
+        return 0;
+    }
+
+    private LootWidgetDebugData collectLootWidgetDebugData(Widget containerWidget) {
+        LootWidgetDebugData data = new LootWidgetDebugData();
+        StringBuilder summary = new StringBuilder();
+
+        Widget[] children = containerWidget.getChildren();
+        if (children == null) {
+            data.itemSummary = "";
+            return data;
+        }
+
+        for (Widget child : children) {
+            if (child == null || child.isHidden()) {
+                continue;
+            }
+
+            int itemId = child.getItemId();
+            int itemQuantity = child.getItemQuantity();
+            if (itemId <= 0 || itemQuantity <= 0) {
+                continue;
+            }
+
+            String itemName = itemManager.getItemComposition(itemId).getName();
+            if (itemName == null) {
+                continue;
+            }
+
+            int gePrice = itemManager.getItemPrice(itemId);
+            long stackValue = (long) gePrice * itemQuantity;
+            long ignoredStackValue = 0;
+
+            if (config.ignoreSpiritSeedsValue() && itemName.equals("Spirit seed")) {
+                ignoredStackValue = (long) SPIRIT_SEED_VALUE * itemQuantity;
+            }
+
+            if (config.ignoreSunKissedBonesValue() && itemName.equals("Sun-kissed bones")) {
+                ignoredStackValue = (long) SUN_KISSED_BONES_VALUE * itemQuantity;
+            }
+
+            if (ignoredStackValue > 0) {
+                data.ignoredValue += ignoredStackValue;
+                data.ignoredItemStacks++;
+            }
+
+            if (summary.length() > 0) {
+                summary.append("; ");
+            }
+
+            summary.append(itemName)
+                    .append(" x")
+                    .append(itemQuantity)
+                    .append(" (ge=")
+                    .append(gePrice)
+                    .append(", stack=")
+                    .append(stackValue);
+
+            if (ignoredStackValue > 0) {
+                summary.append(", ignored=").append(ignoredStackValue);
+            }
+
+            summary.append(")");
+        }
+
+        data.itemSummary = summary.toString();
+        return data;
+    }
+
+    private long extractGpValue(String valueText) {
+        try {
+            String plainText = valueText.replaceAll("<[^>]*>", "");
+
+            int valueIndex = plainText.indexOf("Value:");
+            if (valueIndex >= 0) {
+                plainText = plainText.substring(valueIndex + "Value:".length());
+            }
+
+            int gpIndex = plainText.toUpperCase().indexOf("GP");
+            if (gpIndex >= 0) {
+                plainText = plainText.substring(0, gpIndex);
+            }
+
+            String numStr = plainText.replaceAll("[^0-9]", "");
+            if (!numStr.isEmpty()) {
+                return Long.parseLong(numStr);
+            }
+        } catch (NumberFormatException e) {
+            log.error("[Mokha] Error parsing loot value", e);
+        }
+
+        return 0;
     }
 
     private void parseLootItems(Widget containerWidget) {
