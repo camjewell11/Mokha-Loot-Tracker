@@ -2,7 +2,9 @@
 
 A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during Doom of Mokhaiotl encounters in Old School RuneScape. Features detailed persistent statistics, customizable loot alerts, automatic Mokhaiotl Cloth valuation, and a modern interactive UI for maximizing your Mokhaiotl profits.
 
-<img width="1890" height="1028" alt="image" src="https://github.com/user-attachments/assets/1cc10533-5a75-4a3c-ac46-fd398a2aee5c" />
+<img width="1918" height="1032" alt="image" src="https://github.com/user-attachments/assets/d59aadda-bba9-45bf-839a-4d8df18add25" />
+
+<img width="242" height="914" alt="image" src="https://github.com/user-attachments/assets/e205c36f-a14d-4664-a5a7-cfb9e6c14c86" />
 
 ## Features
 
