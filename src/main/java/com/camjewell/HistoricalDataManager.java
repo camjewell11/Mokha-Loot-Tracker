@@ -2,8 +2,9 @@ package com.camjewell;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import lombok.extern.slf4j.Slf4j;
 import com.camjewell.MokhaLootTrackerPlugin.ItemAggregate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileReader;
@@ -12,11 +13,14 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
-@Slf4j
 public class HistoricalDataManager {
+    private static final Logger log = LoggerFactory.getLogger(HistoricalDataManager.class);
+
     private static final String MOKHALOOT_DIR = "mokhaloot";
     private static final String DATA_FILE = "historical-data.json";
+    private static final String DEFAULT_PLAYER_KEY = "default";
 
     private final File dataFile;
     private final Gson gson;
@@ -29,6 +33,7 @@ public class HistoricalDataManager {
     private long historicalTotalClaimed;
     private long historicalClaims;
     private long historicalDeaths;
+    private String activePlayerKey;
 
     public HistoricalDataManager(File runeLiteDirectory, Gson gson) {
         File mokhalootDir = new File(runeLiteDirectory, MOKHALOOT_DIR);
@@ -48,61 +53,62 @@ public class HistoricalDataManager {
         this.historicalDeaths = 0;
         this.historicalUnclaimedByWave = new HashMap<>();
         this.historicalUnclaimedItemsByWave = new HashMap<>();
+        this.activePlayerKey = DEFAULT_PLAYER_KEY;
     }
 
     public void loadData() {
+        loadDataForPlayer(DEFAULT_PLAYER_KEY);
+    }
+
+    public void loadDataForPlayer(String playerKey) {
+        String normalizedPlayerKey = normalizePlayerKey(playerKey);
+
         if (!dataFile.exists()) {
-            log.info("Historical data file does not exist, starting fresh");
+            this.activePlayerKey = normalizedPlayerKey;
+            applyDataToFields(new HistoricalData());
+            log.info("Historical data file does not exist, starting fresh for player '{}'", normalizedPlayerKey);
             return;
         }
 
-        try (FileReader reader = new FileReader(dataFile)) {
-            Type type = new TypeToken<HistoricalData>() {
-            }.getType();
-            HistoricalData data = gson.fromJson(reader, type);
-
-            if (data != null) {
-                this.historicalClaimedItemsByWave = data.historicalClaimedItemsByWave != null
-                        ? data.historicalClaimedItemsByWave
-                        : new HashMap<>();
-                this.historicalSuppliesUsed = data.historicalSuppliesUsed != null ? data.historicalSuppliesUsed
-                        : new HashMap<>();
-                this.historicalClaimedByWave = data.historicalClaimedByWave != null ? data.historicalClaimedByWave
-                        : new HashMap<>();
-                this.historicalTotalClaimed = data.historicalTotalClaimed;
-                this.historicalClaims = data.historicalClaims;
-                this.historicalDeaths = data.historicalDeaths;
-
-                this.historicalUnclaimedByWave = data.historicalUnclaimedByWave != null ? data.historicalUnclaimedByWave
-                        : new HashMap<>();
-                this.historicalUnclaimedItemsByWave = data.historicalUnclaimedItemsByWave != null
-                        ? data.historicalUnclaimedItemsByWave
-                        : new HashMap<>();
-
-                log.info("Loaded historical data from file");
-            }
+        try {
+            Map<String, HistoricalData> allData = readAllPlayerData();
+            HistoricalData playerData = allData.getOrDefault(normalizedPlayerKey, new HistoricalData());
+            this.activePlayerKey = normalizedPlayerKey;
+            applyDataToFields(playerData);
+            log.info("Loaded historical data from file for player '{}'", normalizedPlayerKey);
         } catch (IOException e) {
-            log.error("Failed to load historical data", e);
+            log.error("Failed to load historical data for player '{}'", normalizedPlayerKey, e);
+            applyDataToFields(new HistoricalData());
         }
     }
 
     public void saveData() {
-        try (FileWriter writer = new FileWriter(dataFile)) {
-            HistoricalData data = new HistoricalData();
-            data.historicalClaimedItemsByWave = this.historicalClaimedItemsByWave;
-            data.historicalUnclaimedItemsByWave = this.historicalUnclaimedItemsByWave;
-            data.historicalClaimedByWave = this.historicalClaimedByWave;
-            data.historicalUnclaimedByWave = this.historicalUnclaimedByWave;
-            data.historicalSuppliesUsed = this.historicalSuppliesUsed;
-            data.historicalTotalClaimed = this.historicalTotalClaimed;
-            data.historicalClaims = this.historicalClaims;
-            data.historicalDeaths = this.historicalDeaths;
+        saveDataForPlayer(activePlayerKey);
+    }
 
-            gson.toJson(data, writer);
-            log.info("Saved historical data to file");
+    public void saveDataForPlayer(String playerKey) {
+        String normalizedPlayerKey = normalizePlayerKey(playerKey);
+
+        try {
+            Map<String, HistoricalData> allData = readAllPlayerData();
+            allData.put(normalizedPlayerKey, snapshotCurrentData());
+
+            HistoricalDataFile fileData = new HistoricalDataFile();
+            fileData.players = allData;
+
+            try (FileWriter writer = new FileWriter(dataFile)) {
+                gson.toJson(fileData, writer);
+            }
+
+            this.activePlayerKey = normalizedPlayerKey;
+            log.info("Saved historical data to file for player '{}'", normalizedPlayerKey);
         } catch (IOException e) {
-            log.error("Failed to save historical data", e);
+            log.error("Failed to save historical data for player '{}'", normalizedPlayerKey, e);
         }
+    }
+
+    public String getActivePlayerKey() {
+        return activePlayerKey;
     }
 
     // Getters
@@ -169,6 +175,122 @@ public class HistoricalDataManager {
 
     public void setHistoricalUnclaimedItemsByWave(Map<Integer, Map<String, ItemAggregate>> data) {
         this.historicalUnclaimedItemsByWave = data;
+    }
+
+    private String normalizePlayerKey(String playerKey) {
+        if (playerKey == null) {
+            return DEFAULT_PLAYER_KEY;
+        }
+
+        String normalized = playerKey.trim().toLowerCase();
+        return normalized.isEmpty() ? DEFAULT_PLAYER_KEY : normalized;
+    }
+
+    private HistoricalData snapshotCurrentData() {
+        HistoricalData data = new HistoricalData();
+        data.historicalClaimedItemsByWave = historicalClaimedItemsByWave;
+        data.historicalUnclaimedItemsByWave = historicalUnclaimedItemsByWave;
+        data.historicalClaimedByWave = historicalClaimedByWave;
+        data.historicalUnclaimedByWave = historicalUnclaimedByWave;
+        data.historicalSuppliesUsed = historicalSuppliesUsed;
+        data.historicalTotalClaimed = historicalTotalClaimed;
+        data.historicalClaims = historicalClaims;
+        data.historicalDeaths = historicalDeaths;
+        return data;
+    }
+
+    private void applyDataToFields(HistoricalData data) {
+        HistoricalData safeData = Objects.requireNonNullElseGet(data, HistoricalData::new);
+
+        this.historicalClaimedItemsByWave = safeData.historicalClaimedItemsByWave != null
+                ? safeData.historicalClaimedItemsByWave
+                : new HashMap<>();
+        this.historicalSuppliesUsed = safeData.historicalSuppliesUsed != null
+                ? safeData.historicalSuppliesUsed
+                : new HashMap<>();
+        this.historicalClaimedByWave = safeData.historicalClaimedByWave != null
+                ? safeData.historicalClaimedByWave
+                : new HashMap<>();
+        this.historicalTotalClaimed = safeData.historicalTotalClaimed;
+        this.historicalClaims = safeData.historicalClaims;
+        this.historicalDeaths = safeData.historicalDeaths;
+        this.historicalUnclaimedByWave = safeData.historicalUnclaimedByWave != null
+                ? safeData.historicalUnclaimedByWave
+                : new HashMap<>();
+        this.historicalUnclaimedItemsByWave = safeData.historicalUnclaimedItemsByWave != null
+                ? safeData.historicalUnclaimedItemsByWave
+                : new HashMap<>();
+    }
+
+    private Map<String, HistoricalData> readAllPlayerData() throws IOException {
+        Map<String, HistoricalData> allData = new HashMap<>();
+
+        if (!dataFile.exists()) {
+            return allData;
+        }
+
+        try (FileReader reader = new FileReader(dataFile)) {
+            Type type = new TypeToken<HistoricalDataFile>() {
+            }.getType();
+            HistoricalDataFile parsed = gson.fromJson(reader, type);
+
+            if (parsed == null) {
+                return allData;
+            }
+
+            if (parsed.players != null && !parsed.players.isEmpty()) {
+                for (Map.Entry<String, HistoricalData> entry : parsed.players.entrySet()) {
+                    allData.put(normalizePlayerKey(entry.getKey()), entry.getValue());
+                }
+                return allData;
+            }
+
+            // Backward compatibility: migrate legacy single-profile structure into default
+            // player slot.
+            if (parsed.hasLegacyData()) {
+                allData.put(DEFAULT_PLAYER_KEY, parsed.toLegacyHistoricalData());
+            }
+
+            return allData;
+        }
+    }
+
+    private static class HistoricalDataFile {
+        Map<String, HistoricalData> players;
+
+        // Legacy single-profile fields (pre-player separation).
+        Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave;
+        Map<Integer, Long> historicalClaimedByWave;
+        Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave;
+        Map<Integer, Long> historicalUnclaimedByWave;
+        Map<String, ItemAggregate> historicalSuppliesUsed;
+        long historicalTotalClaimed;
+        long historicalClaims;
+        long historicalDeaths;
+
+        private boolean hasLegacyData() {
+            return historicalClaimedItemsByWave != null ||
+                    historicalClaimedByWave != null ||
+                    historicalUnclaimedItemsByWave != null ||
+                    historicalUnclaimedByWave != null ||
+                    historicalSuppliesUsed != null ||
+                    historicalTotalClaimed != 0 ||
+                    historicalClaims != 0 ||
+                    historicalDeaths != 0;
+        }
+
+        private HistoricalData toLegacyHistoricalData() {
+            HistoricalData data = new HistoricalData();
+            data.historicalClaimedItemsByWave = historicalClaimedItemsByWave;
+            data.historicalClaimedByWave = historicalClaimedByWave;
+            data.historicalUnclaimedItemsByWave = historicalUnclaimedItemsByWave;
+            data.historicalUnclaimedByWave = historicalUnclaimedByWave;
+            data.historicalSuppliesUsed = historicalSuppliesUsed;
+            data.historicalTotalClaimed = historicalTotalClaimed;
+            data.historicalClaims = historicalClaims;
+            data.historicalDeaths = historicalDeaths;
+            return data;
+        }
     }
 
     private static class HistoricalData {

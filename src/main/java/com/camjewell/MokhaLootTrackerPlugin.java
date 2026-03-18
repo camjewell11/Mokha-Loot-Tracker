@@ -4,6 +4,7 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import javax.inject.Inject;
@@ -49,6 +50,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private static final int SUN_KISSED_BONES_VALUE = 8_000;
     private static final String LOOT_VALUE_COLOR_HEX = "66CCFF";
     private static final String MOKHA_CLOTH_NAME = "Mokhaiotl cloth";
+    private static final String DEFAULT_PLAYER_PROFILE_KEY = "default";
 
     @Inject
     private Client client;
@@ -72,6 +74,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private NavigationButton navButton;
     private MokhaLootPanel panel;
     private HistoricalDataManager historicalDataManager;
+    private String activeHistoricalPlayerKey = DEFAULT_PLAYER_PROFILE_KEY;
 
     @Inject
     private Gson gson;
@@ -237,7 +240,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Initialize historical data manager
         historicalDataManager = new HistoricalDataManager(net.runelite.client.RuneLite.RUNELITE_DIR, gson);
 
-        // Load persisted historical data
+        // Load persisted historical data (default profile before we know account name)
+        activeHistoricalPlayerKey = DEFAULT_PLAYER_PROFILE_KEY;
         loadHistoricalData();
         updatePanelData();
     }
@@ -354,6 +358,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     @Subscribe
     public void onGameTick(GameTick event) {
+        ensureHistoricalDataLoadedForCurrentPlayer();
+
         boolean wasInArena = inMokhaArena;
 
         // Track boss presence and health (only near entrance or in arena)
@@ -493,6 +499,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     @Subscribe
     public void onGameStateChanged(GameStateChanged event) {
+        if (event.getGameState() == net.runelite.api.GameState.LOGGED_IN) {
+            ensureHistoricalDataLoadedForCurrentPlayer();
+        }
+
         // Save data immediately when logging out or leaving the game
         net.runelite.api.GameState state = event.getGameState();
         if (state == net.runelite.api.GameState.LOGIN_SCREEN ||
@@ -749,7 +759,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             String signature = rawTotalValue + "|" + ignoredValue + "|" + adjustedValue;
             if (!signature.equals(lastLootValueDebugSignature)) {
                 lastLootValueDebugSignature = signature;
-                log.info(
+                log.debug(
                         "[Mokha] Overwrote loot value text (light blue). raw={} ignored={} adjusted={} ignoredStacks={} originalText='{}' newText='{}' items=[{}]",
                         rawTotalValue,
                         ignoredValue,
@@ -784,7 +794,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (!restoredText.equals(valueText)) {
             valueWidget.setText(restoredText);
             lastLootValueDebugSignature = "";
-            log.info("[Mokha] Restored unadjusted loot value text after display toggle was disabled. restoredText='{}'",
+            log.debug(
+                    "[Mokha] Restored unadjusted loot value text after display toggle was disabled. restoredText='{}'",
                     restoredText);
         }
     }
@@ -1360,9 +1371,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
      */
     private void loadHistoricalData() {
         try {
+            String playerKey = getCurrentPlayerProfileKey();
             log.info("[Mokha] Starting to load historical data from file...");
-            // Only load from file
-            historicalDataManager.loadData();
+            historicalDataManager.loadDataForPlayer(playerKey);
+            activeHistoricalPlayerKey = historicalDataManager.getActivePlayerKey();
+
             // Copy data from manager to plugin fields
             historicalClaimedItemsByWave.clear();
             historicalClaimedItemsByWave.putAll(historicalDataManager.getHistoricalClaimedItemsByWave());
@@ -1424,7 +1437,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 }
             }
 
-            log.info("[Mokha] Historical data loaded - Claimed: {}, Supply Cost: {}", historicalTotalClaimed,
+            log.info("[Mokha] Historical data loaded for player '{}' - Claimed: {}, Supply Cost: {}",
+                    activeHistoricalPlayerKey,
+                    historicalTotalClaimed,
                     historicalSupplyCost);
         } catch (Exception e) {
             log.error("[Mokha] Error loading historical data", e);
@@ -1436,6 +1451,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
      */
     private void saveHistoricalData() {
         try {
+            String playerKey = activeHistoricalPlayerKey != null
+                    ? activeHistoricalPlayerKey
+                    : getCurrentPlayerProfileKey();
+
             // Save historical data to file
             historicalDataManager.setHistoricalClaimedItemsByWave(historicalClaimedItemsByWave);
             historicalDataManager.setHistoricalSuppliesUsed(historicalSuppliesUsed);
@@ -1445,12 +1464,78 @@ public class MokhaLootTrackerPlugin extends Plugin {
             historicalDataManager.setHistoricalDeaths(historicalDeaths);
             historicalDataManager.setHistoricalUnclaimedByWave(historicalUnclaimedByWave);
             historicalDataManager.setHistoricalUnclaimedItemsByWave(historicalUnclaimedItemsByWave);
-            historicalDataManager.saveData();
-            log.info("[Mokha] Historical data saved - Claimed: {}, Supply Cost: {}",
-                    historicalTotalClaimed, historicalSupplyCost);
+            historicalDataManager.saveDataForPlayer(playerKey);
+            activeHistoricalPlayerKey = historicalDataManager.getActivePlayerKey();
+            log.info("[Mokha] Historical data saved for player '{}' - Claimed: {}, Supply Cost: {}",
+                    activeHistoricalPlayerKey,
+                    historicalTotalClaimed,
+                    historicalSupplyCost);
         } catch (Exception e) {
             log.error("[Mokha] Error saving historical data", e);
         }
+    }
+
+    private void ensureHistoricalDataLoadedForCurrentPlayer() {
+        if (historicalDataManager == null) {
+            return;
+        }
+
+        String currentKey = getCurrentPlayerProfileKey();
+        if (currentKey.equals(activeHistoricalPlayerKey)) {
+            return;
+        }
+
+        // One-time legacy migration: if we loaded under the "default" fallback key and
+        // now know the real player name, move that data into the player's own profile
+        // rather than discarding it by switching to an empty one.
+        boolean isLegacyMigration = DEFAULT_PLAYER_PROFILE_KEY.equals(activeHistoricalPlayerKey)
+                && !DEFAULT_PLAYER_PROFILE_KEY.equals(currentKey)
+                && hasHistoricalDataInMemory();
+
+        if (isLegacyMigration) {
+            log.info("[Mokha] Migrating legacy historical data from 'default' profile to player '{}'", currentKey);
+            activeHistoricalPlayerKey = currentKey;
+            saveHistoricalData();
+            updatePanelData();
+            return;
+        }
+
+        if (hasHistoricalDataInMemory()) {
+            saveHistoricalData();
+        }
+
+        log.info("[Mokha] Switching historical data profile from '{}' to '{}'",
+                activeHistoricalPlayerKey,
+                currentKey);
+        activeHistoricalPlayerKey = currentKey;
+        loadHistoricalData();
+        updatePanelData();
+    }
+
+    private String getCurrentPlayerProfileKey() {
+        if (client != null && client.getLocalPlayer() != null) {
+            String name = client.getLocalPlayer().getName();
+            if (name != null) {
+                String normalized = name.trim().toLowerCase(Locale.ROOT);
+                if (!normalized.isEmpty()) {
+                    return normalized;
+                }
+            }
+        }
+
+        return activeHistoricalPlayerKey != null ? activeHistoricalPlayerKey : DEFAULT_PLAYER_PROFILE_KEY;
+    }
+
+    private boolean hasHistoricalDataInMemory() {
+        return historicalTotalClaimed > 0
+                || historicalSupplyCost > 0
+                || historicalClaims > 0
+                || historicalDeaths > 0
+                || !historicalClaimedByWave.isEmpty()
+                || !historicalClaimedItemsByWave.isEmpty()
+                || !historicalSuppliesUsed.isEmpty()
+                || !historicalUnclaimedByWave.isEmpty()
+                || !historicalUnclaimedItemsByWave.isEmpty();
     }
 
     /**
