@@ -27,7 +27,7 @@ dependencies {
 }
 
 group = 'com.camjewell'
-version = '3.0'
+version = '6.0'
 
 tasks.withType(JavaCompile).configureEach {
 	options.encoding = 'UTF-8'
