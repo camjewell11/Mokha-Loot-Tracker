@@ -46,8 +46,6 @@ import net.runelite.client.util.ImageUtil;
 public class MokhaLootTrackerPlugin extends Plugin {
 
     private static final Logger log = LoggerFactory.getLogger(MokhaLootTrackerPlugin.class);
-    private static final int SPIRIT_SEED_VALUE = 140_000;
-    private static final int SUN_KISSED_BONES_VALUE = 8_000;
     private static final String LOOT_VALUE_COLOR_HEX = "66CCFF";
     private static final String MOKHA_CLOTH_NAME = "Mokhaiotl cloth";
     private static final String DEFAULT_PLAYER_PROFILE_KEY = "default";
@@ -87,10 +85,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private static final int DOOM_BOSS_NPC_ID = 14707;
     private boolean bossSeenThisRun = false;
     private boolean bossDefeatedThisWave = false;
-    private boolean suppliesConfirmed = false; // Track if supplies are confirmed (boss appeared)
     private boolean bossWasEverPresentThisWave = false; // Track if boss appeared this wave (for teleport detection)
     private boolean lastDescendClickJustHappened = false; // Track if Descend was just clicked
-    private String lastLootValueDebugSignature = "";
 
     // Entrance coordinates (for future use)
     private final int entrance_centerX = 1311;
@@ -177,12 +173,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             this.nameKey = name.toLowerCase();
             this.minQty = minQty;
         }
-    }
-
-    private static class LootWidgetDebugData {
-        long ignoredValue;
-        int ignoredItemStacks;
-        String itemSummary;
     }
 
     /**
@@ -290,9 +280,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 bossSeenThisRun = false;
                 bossDefeatedThisWave = false;
                 bossWasEverPresentThisWave = false;
-                suppliesConfirmed = false; // Reset confirmation for new run
                 currentWaveNumber = 1; // Start at wave 1
-                log.info("[Mokha] Run initialized - awaiting varbit update for arena state");
                 lootByWave.clear();
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
@@ -302,7 +290,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // Take initial supply snapshot
                 initialSupplySnapshot.clear();
                 initialSupplySnapshot.putAll(buildCombinedSnapshot());
-                log.info("[Mokha] Initial snapshots taken, ready for combat");
             }
         }
 
@@ -317,9 +304,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             // Reset boss tracking for next wave
             bossDefeatedThisWave = false;
             bossWasEverPresentThisWave = false; // Reset boss presence for next wave
-            suppliesConfirmed = false; // Reset supplies confirmation for next wave
             lastDescendClickJustHappened = true; // Mark that Descend was clicked (not a teleport)
-            log.info("[Mokha] Boss tracking reset for wave {}", currentWaveNumber);
         }
 
         // Detect "Leave" button - player exits arena (loot is claimed, whether taken to
@@ -343,7 +328,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 currentWaveNumber = 1;
                 bossDefeatedThisWave = false;
                 bossWasEverPresentThisWave = false;
-                suppliesConfirmed = false;
                 lastCombinedSnapshot.clear();
                 lootByWave.clear();
                 previousLootSnapshot.clear();
@@ -373,7 +357,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         if (inMokhaArena && !bossSeenThisRun && bossCurrentlyPresent) {
             bossSeenThisRun = true;
-            suppliesConfirmed = true; // Confirm any supplies consumed during loading phase
             // Update panel to show confirmed supplies
             updatePanelData();
         }
@@ -481,8 +464,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             lastCombinedSnapshot.clear();
             // If supplies are still in memory when leaving arena, clear them
             if (!totalSuppliesConsumed.isEmpty()) {
-                log.warn("[Mokha] Supplies still pending when exiting arena - clearing: {}",
-                        totalSuppliesConsumed.size());
                 totalSuppliesConsumed.clear();
                 updatePanelData();
             }
@@ -523,7 +504,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (event.getKey().equals("ignoreSunKissedBonesValue") ||
                     event.getKey().equals("ignoreSpiritSeedsValue") ||
                     event.getKey().equals("excludeUltraValuableItems")) {
-                log.info("[Mokha] Config changed: {} = {}", event.getKey(), event.getNewValue());
                 // Trigger complete recalculation with new config settings
                 recalculateAllTotals();
                 // Save the updated state
@@ -643,14 +623,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 }
             }
 
-            // Log consumption (don't log additions or equipment swaps)
-            if (consumed.length() > 0) {
-                String logMsg = consumed.toString();
-                if (logMsg.endsWith(", ")) {
-                    logMsg = logMsg.substring(0, logMsg.length() - 2);
-                }
-            }
-
             // Update panel when supplies are consumed
             if (hasConsumption) {
                 updatePanelData();
@@ -665,7 +637,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private void checkForLootWindow() {
         if (!inMokhaArena) {
             lootWindowWasVisible = false;
-            lastLootValueDebugSignature = "";
             return;
         }
 
@@ -674,8 +645,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         boolean lootWindowVisible = mainWidget != null && !mainWidget.isHidden();
 
         if (lootWindowVisible) {
-            updateLootWindowDisplayedValue();
-
             // Only log loot once when window first becomes visible
             if (!lootWindowWasVisible) {
                 // Try to extract wave number from widget text
@@ -687,33 +656,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     currentWaveNumber = 1;
                 }
 
-                // Parse loot value from widget [919:20]
-                Widget valueWidget = client.getWidget(919, 20);
-                if (valueWidget != null) {
-                    String valueText = valueWidget.getText();
-                    if (valueText != null && valueText.contains("Value:")) {
-                        // Extract value from "Value: 3,636 GP"
-                        try {
-                            String numStr = valueText.replaceAll("[^0-9]", "");
-                            if (!numStr.isEmpty()) {
-                                long totalValue = Long.parseLong(numStr);
-                            }
-                        } catch (Exception e) {
-                            log.error("[Mokha] Error parsing loot value", e);
-                        }
-                    }
-                }
-
                 // Parse loot items from widget [919:19] children
                 Widget lootContainerWidget = client.getWidget(919, 19);
                 if (lootContainerWidget != null) {
                     parseLootItems(lootContainerWidget);
                 }
             }
-        }
 
-        if (!lootWindowVisible) {
-            lastLootValueDebugSignature = "";
+            updateLootWindowDisplayedValue();
         }
 
         // Update window visibility state
@@ -748,34 +698,18 @@ public class MokhaLootTrackerPlugin extends Plugin {
             return;
         }
 
-        LootWidgetDebugData debugData = collectLootWidgetDebugData(lootContainerWidget);
-        long ignoredValue = debugData.ignoredValue;
-        long adjustedValue = Math.max(0, rawTotalValue - ignoredValue);
+        long adjustedValue = calculateCurrentRunLootValue();
 
         String adjustedText = formatLootValueText(rawTotalValue, adjustedValue);
         if (!adjustedText.equals(valueText)) {
             valueWidget.setText(adjustedText);
-
-            String signature = rawTotalValue + "|" + ignoredValue + "|" + adjustedValue;
-            if (!signature.equals(lastLootValueDebugSignature)) {
-                lastLootValueDebugSignature = signature;
-                log.debug(
-                        "[Mokha] Overwrote loot value text (light blue). raw={} ignored={} adjusted={} ignoredStacks={} originalText='{}' newText='{}' items=[{}]",
-                        rawTotalValue,
-                        ignoredValue,
-                        adjustedValue,
-                        debugData.ignoredItemStacks,
-                        valueText,
-                        adjustedText,
-                        debugData.itemSummary);
-            }
         }
     }
 
     private String formatLootValueText(long originalValue, long adjustedValue) {
-        return String.format("<col=%s>Value: %,d gp (%,d gp)</col>",
-                LOOT_VALUE_COLOR_HEX,
+        return String.format("Value: %,d gp (<col=%s>%,d gp</col>)",
                 originalValue,
+                LOOT_VALUE_COLOR_HEX,
                 adjustedValue);
     }
 
@@ -793,10 +727,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         String restoredText = String.format("Value: %,d GP", originalValue);
         if (!restoredText.equals(valueText)) {
             valueWidget.setText(restoredText);
-            lastLootValueDebugSignature = "";
-            log.debug(
-                    "[Mokha] Restored unadjusted loot value text after display toggle was disabled. restoredText='{}'",
-                    restoredText);
         }
     }
 
@@ -830,70 +760,34 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return 0;
     }
 
-    private LootWidgetDebugData collectLootWidgetDebugData(Widget containerWidget) {
-        LootWidgetDebugData data = new LootWidgetDebugData();
-        StringBuilder summary = new StringBuilder();
+    private long calculateCurrentRunLootValue() {
+        long currentRunValue = 0;
+        for (List<LootItem> items : lootByWave.values()) {
+            for (LootItem item : items) {
+                currentRunValue += getAdjustedLootItemValue(item.name, item.value);
+            }
+        }
+        return currentRunValue;
+    }
 
-        Widget[] children = containerWidget.getChildren();
-        if (children == null) {
-            data.itemSummary = "";
-            return data;
+    private long getAdjustedLootItemValue(String itemName, long trackedValue) {
+        return shouldIgnoreLootItem(itemName) ? 0 : trackedValue;
+    }
+
+    private boolean shouldIgnoreLootItem(String itemName) {
+        return (config.ignoreSpiritSeedsValue() && itemName.equals("Spirit seed")) ||
+                (config.ignoreSunKissedBonesValue() && itemName.equals("Sun-kissed bones"));
+    }
+
+    private int calculateTrackedLootItemValue(int itemId, String itemName, int quantity) {
+        int itemValue = itemManager.getItemPrice(itemId) * quantity;
+
+        if (isMokhaCloth(itemName) && itemValue == 0) {
+            int clothValue = getMokhaClothValue();
+            itemValue = clothValue * quantity;
         }
 
-        for (Widget child : children) {
-            if (child == null || child.isHidden()) {
-                continue;
-            }
-
-            int itemId = child.getItemId();
-            int itemQuantity = child.getItemQuantity();
-            if (itemId <= 0 || itemQuantity <= 0) {
-                continue;
-            }
-
-            String itemName = itemManager.getItemComposition(itemId).getName();
-            if (itemName == null) {
-                continue;
-            }
-
-            int gePrice = itemManager.getItemPrice(itemId);
-            long stackValue = (long) gePrice * itemQuantity;
-            long ignoredStackValue = 0;
-
-            if (config.ignoreSpiritSeedsValue() && itemName.equals("Spirit seed")) {
-                ignoredStackValue = (long) SPIRIT_SEED_VALUE * itemQuantity;
-            }
-
-            if (config.ignoreSunKissedBonesValue() && itemName.equals("Sun-kissed bones")) {
-                ignoredStackValue = (long) SUN_KISSED_BONES_VALUE * itemQuantity;
-            }
-
-            if (ignoredStackValue > 0) {
-                data.ignoredValue += ignoredStackValue;
-                data.ignoredItemStacks++;
-            }
-
-            if (summary.length() > 0) {
-                summary.append("; ");
-            }
-
-            summary.append(itemName)
-                    .append(" x")
-                    .append(itemQuantity)
-                    .append(" (ge=")
-                    .append(gePrice)
-                    .append(", stack=")
-                    .append(stackValue);
-
-            if (ignoredStackValue > 0) {
-                summary.append(", ignored=").append(ignoredStackValue);
-            }
-
-            summary.append(")");
-        }
-
-        data.itemSummary = summary.toString();
-        return data;
+        return itemValue;
     }
 
     private long extractGpValue(String valueText) {
@@ -966,21 +860,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (currentQty > previousQty) {
                 int newQty = currentQty - previousQty;
                 String itemName = itemManager.getItemComposition(itemId).getName();
-                int itemValue = itemManager.getItemPrice(itemId) * newQty;
-
-                // Special handling for Mokhaiotl Cloth (untradable, needs calculated value)
-                if (isMokhaCloth(itemName) && itemValue == 0) {
-                    int clothValue = getMokhaClothValue();
-                    itemValue = clothValue * newQty;
-                }
-
-                // Override value to 0 if config toggle is enabled for specific items
-                if (config.ignoreSunKissedBonesValue() && itemName.equals("Sun-kissed bones")) {
-                    itemValue = 0;
-                }
-                if (config.ignoreSpiritSeedsValue() && itemName.equals("Spirit seed")) {
-                    itemValue = 0;
-                }
+                int itemValue = calculateTrackedLootItemValue(itemId, itemName, newQty);
 
                 newLootThisWave.add(new LootItem(itemName, newQty, itemValue));
             }
@@ -1171,16 +1051,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
             if (historicalSuppliesUsed.containsKey(itemName)) {
                 historicalSuppliesUsed.get(itemName).add(quantity, pricePerItem);
-                log.debug("[Mokha] Updated supply: {} x{}", itemName, quantity);
             } else {
                 historicalSuppliesUsed.put(itemName, new ItemAggregate(itemName, quantity, pricePerItem));
-                log.debug("[Mokha] Added new supply: {} x{}", itemName, quantity);
             }
         }
 
         long suppliesCost = calculateSuppliesCost();
         historicalSupplyCost += suppliesCost;
-        log.info("[Mokha] Supplies cost added: {} (total: {})", suppliesCost, historicalSupplyCost);
 
         // Route loot - teleporting out always results in unclaimed loot
         // (player abandoned arena without claiming)
@@ -1196,8 +1073,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         bossSeenThisRun = false;
         bossDefeatedThisWave = false;
         bossWasEverPresentThisWave = false;
-        suppliesConfirmed = false;
-        log.info("[Mokha] Arena state cleared");
 
         // Clear tracking data
         lastCombinedSnapshot.clear();
@@ -1205,12 +1080,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
         previousLootSnapshot.clear();
         totalSuppliesConsumed.clear();
         initialSupplySnapshot.clear();
-        log.info("[Mokha] All tracking data cleared");
 
         // Update panel and save
         updatePanelData();
         saveHistoricalData();
-        log.info("[Mokha] Panel updated and data saved");
     }
 
     /**
@@ -1241,7 +1114,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         historicalUnclaimedByWave.put(wave, newTotal);
         historicalUnclaimedItemsByWave.put(wave, waveItems);
 
-        log.info("[Mokha] Wave {} unclaimed loot recorded: {} gp (historical total)", wave, newTotal);
     }
 
     /**
@@ -1255,7 +1127,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 trackUnclaimedLoot(wave, items);
             }
         }
-        log.info("[Mokha] Current run unclaimed loot moved to historical");
     }
 
     /**
@@ -1267,45 +1138,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
             log.info("[Mokha] ===== NO SUPPLIES CONSUMED =====");
             return;
         }
-
-        log.info("[Mokha] ===== SUPPLIES CONSUMED =====");
         long totalValue = 0;
-
-        // Group items by base name (for potions, remove dose numbers)
-        Map<String, Integer> groupedSupplies = new HashMap<>();
-        Map<String, Integer> groupedValues = new HashMap<>();
 
         for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
             int itemId = entry.getKey();
             int quantity = entry.getValue();
-            String itemName = itemManager.getItemComposition(itemId).getName();
-
-            // Use per-dose pricing for potions; otherwise use full item price
-            boolean hasDoseSuffix = itemName.matches(".*\\(\\d+\\)$");
-            int pricePerUnit = hasDoseSuffix ? getPricePerDose(itemId) : itemManager.getItemPrice(itemId);
-            int itemValue = pricePerUnit * quantity;
-
-            // Extract base name (remove dose numbers like (1), (2), (3), (4))
-            String baseName = getBasePotionName(itemName);
-
-            // Accumulate quantities and values by base name
-            groupedSupplies.put(baseName, groupedSupplies.getOrDefault(baseName, 0) + quantity);
-            groupedValues.put(baseName, groupedValues.getOrDefault(baseName, 0) + itemValue);
-        }
-
-        // Print grouped supplies
-        for (Map.Entry<String, Integer> entry : groupedSupplies.entrySet()) {
-            String baseName = entry.getKey();
-            int quantity = entry.getValue();
-            int value = groupedValues.get(baseName);
-
-            // For potions, show as doses
-            if (baseName.endsWith(" potion") || baseName.contains("potion")) {
-                log.info("[Mokha]   - {} x{} doses (value: {} gp)", baseName, quantity, value);
-            } else {
-                log.info("[Mokha]   - {} x{} (value: {} gp)", baseName, quantity, value);
-            }
-            totalValue += value;
+            totalValue += (long) getPricePerDose(itemId) * quantity;
         }
 
         log.info("[Mokha] ===== TOTAL SUPPLIES VALUE: {} gp =====", totalValue);
@@ -1372,7 +1210,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private void loadHistoricalData() {
         try {
             String playerKey = getCurrentPlayerProfileKey();
-            log.info("[Mokha] Starting to load historical data from file...");
             historicalDataManager.loadDataForPlayer(playerKey);
             activeHistoricalPlayerKey = historicalDataManager.getActivePlayerKey();
 
@@ -1407,9 +1244,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 panel.setHistoricalUnclaimedItemsByWave(historicalUnclaimedItemsByWave);
             }
 
-            log.info("[Mokha] Loaded {} historical claimed wave entries", historicalClaimedItemsByWave.size());
-            log.info("[Mokha] Loaded {} historical supplies entries", historicalSuppliesUsed.size());
-
             // Load supply cost (still in ConfigManager for now)
             String supplyCostStr = configManager.getConfiguration("mokhaloot", "historicalSupplyCost");
             historicalSupplyCost = supplyCostStr != null && !supplyCostStr.isEmpty() ? Long.parseLong(supplyCostStr)
@@ -1424,9 +1258,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     Map<Integer, List<LootItem>> loaded = gson.fromJson(currentRunJson, type);
                     if (loaded != null) {
                         lootByWave.putAll(loaded);
-                        log.info(
-                                "[Mokha] Loaded {} current run loot wave entries - moving to historical (disconnected before claim)",
-                                loaded.size());
 
                         // Move all loaded current run loot to historical (player disconnected mid-run)
                         moveCurrentRunUnclaimedToHistorical();
@@ -1436,11 +1267,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     log.warn("[Mokha] Failed to load current run loot by wave data", e);
                 }
             }
-
-            log.info("[Mokha] Historical data loaded for player '{}' - Claimed: {}, Supply Cost: {}",
-                    activeHistoricalPlayerKey,
-                    historicalTotalClaimed,
-                    historicalSupplyCost);
         } catch (Exception e) {
             log.error("[Mokha] Error loading historical data", e);
         }
@@ -1466,10 +1292,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             historicalDataManager.setHistoricalUnclaimedItemsByWave(historicalUnclaimedItemsByWave);
             historicalDataManager.saveDataForPlayer(playerKey);
             activeHistoricalPlayerKey = historicalDataManager.getActivePlayerKey();
-            log.info("[Mokha] Historical data saved for player '{}' - Claimed: {}, Supply Cost: {}",
-                    activeHistoricalPlayerKey,
-                    historicalTotalClaimed,
-                    historicalSupplyCost);
         } catch (Exception e) {
             log.error("[Mokha] Error saving historical data", e);
         }
@@ -1493,7 +1315,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 && hasHistoricalDataInMemory();
 
         if (isLegacyMigration) {
-            log.info("[Mokha] Migrating legacy historical data from 'default' profile to player '{}'", currentKey);
             activeHistoricalPlayerKey = currentKey;
             saveHistoricalData();
             updatePanelData();
@@ -1503,10 +1324,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (hasHistoricalDataInMemory()) {
             saveHistoricalData();
         }
-
-        log.info("[Mokha] Switching historical data profile from '{}' to '{}'",
-                activeHistoricalPlayerKey,
-                currentKey);
         activeHistoricalPlayerKey = currentKey;
         loadHistoricalData();
         updatePanelData();
@@ -1567,7 +1384,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Save empty data to config
         saveHistoricalData();
 
-        log.info("[Mokha] All data cleared successfully");
     }
 
     private void clearClaimedHistoricalData() {
@@ -1579,7 +1395,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         updatePanelData();
         saveHistoricalData();
 
-        log.info("[Mokha] Claimed historical data cleared successfully");
     }
 
     private void clearUnclaimedHistoricalData() {
@@ -1589,7 +1404,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         updatePanelData();
         saveHistoricalData();
 
-        log.info("[Mokha] Unclaimed historical data cleared successfully");
     }
 
     private void clearSuppliesHistoricalData() {
@@ -1599,7 +1413,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         updatePanelData();
         saveHistoricalData();
 
-        log.info("[Mokha] Supplies historical data cleared successfully");
     }
 
     /**
@@ -1608,8 +1421,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
      * Also applies the ignore settings for sun-kissed bones and spirit seeds
      */
     private void recalculateAllTotals() {
-        log.info("[Mokha] Starting recalculation of all totals...");
-
         clientThread.invoke(() -> {
             // Recalculate GE value for all items in claimed and unclaimed loot
             recalculateAllItemGEValues(historicalClaimedItemsByWave);
@@ -1642,10 +1453,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             // Update panel with recalculated totals
             updatePanelData();
 
-            log.info("[Mokha] Totals recalculated - Claimed: {}, Unclaimed: {}, Supply Cost: {}",
-                    historicalTotalClaimed,
-                    historicalUnclaimedByWave.values().stream().mapToLong(Long::longValue).sum(),
-                    historicalSupplyCost);
         });
     }
 
@@ -1694,23 +1501,15 @@ public class MokhaLootTrackerPlugin extends Plugin {
             log.info("[Mokha] ===== NO LOOT COLLECTED =====");
             return;
         }
-
-        log.info("[Mokha] ===== ACCUMULATED LOOT BY WAVE =====");
         long totalValue = 0;
 
         // Iterate through all waves that have loot
         for (Map.Entry<Integer, List<LootItem>> entry : lootByWave.entrySet()) {
-            int wave = entry.getKey();
             List<LootItem> waveLoot = entry.getValue();
             if (waveLoot != null && !waveLoot.isEmpty()) {
-                long waveValue = 0;
-                log.info("[Mokha] Wave {}:", wave);
                 for (LootItem item : waveLoot) {
-                    log.info("[Mokha]   - {} x{} (value: {} gp)", item.name, item.quantity, item.value);
-                    waveValue += item.value;
                     totalValue += item.value;
                 }
-                log.info("[Mokha]   Wave {} Total: {} gp", wave, waveValue);
             }
         }
 
@@ -1722,40 +1521,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
      * This includes all loot from completed waves up to the wave they died on
      */
     private void printLostLoot() {
-        // Calculate which waves had claimable loot (all waves before the death wave)
-        // If died on wave 1, there's no lost loot
-        // If died on wave 2+, we lost loot from all previous waves
-
-        if (currentWaveNumber <= 1 || lootByWave.isEmpty()) {
-            log.info("[Mokha] ===== NO LOOT LOST (died on wave 1) =====");
-            return;
-        }
-
-        log.info("[Mokha] ===== LOOT LOST FROM DEATH =====");
-        long totalValue = 0;
-        int lostWaves = 0;
-
-        // Only count loot from waves BEFORE the current wave (the one they died on)
-        for (int wave = 1; wave < currentWaveNumber; wave++) {
-            List<LootItem> waveLoot = lootByWave.get(wave);
-            if (waveLoot != null && !waveLoot.isEmpty()) {
-                lostWaves++;
-                long waveValue = 0;
-                log.info("[Mokha] Wave {} (lost):", wave);
-                for (LootItem item : waveLoot) {
-                    log.info("[Mokha]   - {} x{} (value: {} gp)", item.name, item.quantity, item.value);
-                    waveValue += item.value;
-                    totalValue += item.value;
-                }
-                log.info("[Mokha]   Wave {} Total: {} gp", wave, waveValue);
-            }
-        }
-
-        if (lostWaves == 0) {
-            log.info("[Mokha] ===== NO LOOT LOST (no loot from previous waves) =====");
-        } else {
-            log.info("[Mokha] ===== TOTAL LOST LOOT VALUE: {} gp ({} waves) =====", totalValue, lostWaves);
-        }
+        // Intentionally left without informational logging.
     }
 
     /**
@@ -1861,18 +1627,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         recalculateHistoricalTotalClaimed();
 
         // Calculate current run unclaimed value
-        long currentRunValue = 0;
-        for (List<LootItem> items : lootByWave.values()) {
-            for (LootItem item : items) {
-                long itemValue = item.value;
-                // Apply ignore settings to current run loot as well
-                if ((config.ignoreSpiritSeedsValue() && item.name.equals("Spirit seed")) ||
-                        (config.ignoreSunKissedBonesValue() && item.name.equals("Sun-kissed bones"))) {
-                    itemValue = 0;
-                }
-                currentRunValue += itemValue;
-            }
-        }
+        long currentRunValue = calculateCurrentRunLootValue();
 
         // Calculate total unclaimed (only loot lost to deaths, not current run)
         long totalUnclaimed = 0;
@@ -1903,12 +1658,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         Map<String, MokhaLootPanel.ItemData> currentRunItems = new HashMap<>();
         for (List<LootItem> waveItems : lootByWave.values()) {
             for (LootItem item : waveItems) {
-                long itemValue = item.value;
-                // Apply ignore settings to current run loot as well
-                if ((config.ignoreSpiritSeedsValue() && item.name.equals("Spirit seed")) ||
-                        (config.ignoreSunKissedBonesValue() && item.name.equals("Sun-kissed bones"))) {
-                    itemValue = 0;
-                }
+                long itemValue = getAdjustedLootItemValue(item.name, item.value);
 
                 MokhaLootPanel.ItemData itemData = currentRunItems.getOrDefault(item.name,
                         new MokhaLootPanel.ItemData(item.name, 0, 0, 0));
@@ -2079,8 +1829,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             log.warn("[Mokha] Cloth price is 0 or invalid - skipping cloth price update");
             return;
         }
-
-        log.info("[Mokha] Updating cloth prices to {} gp", clothPrice);
 
         // Update cloth in claimed items
         for (Map<String, ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
