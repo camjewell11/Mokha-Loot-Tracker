@@ -1037,7 +1037,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         log.info("[Mokha] Wave: {}", currentWaveNumber);
         log.info("[Mokha] Loot by wave entries: {}", lootByWave.size());
         log.info("[Mokha] Total supplies consumed: {}", totalSuppliesConsumed.size());
-        log.info("[Mokha] Supplies confirmed: {}", suppliesConfirmed);
 
         // Print supplies consumed
         printSuppliesConsumed();
