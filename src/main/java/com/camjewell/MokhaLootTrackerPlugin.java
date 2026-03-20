@@ -81,6 +81,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private boolean inMokhaArena = false;
     private boolean isDead = false;
     private boolean lootWindowWasVisible = false;
+    private long lootWindowOriginalValue = 0;
     private int currentWaveNumber = 0;
     private static final int DOOM_BOSS_NPC_ID = 14707;
     private boolean bossSeenThisRun = false;
@@ -637,6 +638,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private void checkForLootWindow() {
         if (!inMokhaArena) {
             lootWindowWasVisible = false;
+            lootWindowOriginalValue = 0;
             return;
         }
 
@@ -664,6 +666,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
 
             updateLootWindowDisplayedValue();
+        } else {
+            lootWindowOriginalValue = 0;
         }
 
         // Update window visibility state
@@ -687,13 +691,19 @@ public class MokhaLootTrackerPlugin extends Plugin {
             return;
         }
 
+        // Capture the unadjusted widget total once per visible loot window so
+        // the white value stays the original game total.
+        if (lootWindowOriginalValue <= 0 && !valueText.contains("<col=" + LOOT_VALUE_COLOR_HEX + ">")) {
+            lootWindowOriginalValue = extractGpValue(valueText);
+        }
+
         // Only adjust raw game text. If the value already has our color tag, it has
         // already been adjusted.
         if (valueText.contains("<col=" + LOOT_VALUE_COLOR_HEX + ">")) {
             return;
         }
 
-        long rawTotalValue = extractGpValue(valueText);
+        long rawTotalValue = lootWindowOriginalValue > 0 ? lootWindowOriginalValue : extractGpValue(valueText);
         if (rawTotalValue <= 0) {
             return;
         }
@@ -1309,9 +1319,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // One-time legacy migration: if we loaded under the "default" fallback key and
         // now know the real player name, move that data into the player's own profile
         // rather than discarding it by switching to an empty one.
+        // Skip the migration if the player already has their own saved data — in that
+        // case the "default" data is stale and the player's file data should be loaded.
         boolean isLegacyMigration = DEFAULT_PLAYER_PROFILE_KEY.equals(activeHistoricalPlayerKey)
                 && !DEFAULT_PLAYER_PROFILE_KEY.equals(currentKey)
-                && hasHistoricalDataInMemory();
+                && hasHistoricalDataInMemory()
+                && !historicalDataManager.hasDataForPlayer(currentKey);
 
         if (isLegacyMigration) {
             activeHistoricalPlayerKey = currentKey;

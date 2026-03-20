@@ -222,6 +222,21 @@ public class HistoricalDataManager {
                 : new HashMap<>();
     }
 
+    public boolean hasDataForPlayer(String playerKey) {
+        try {
+            Map<String, HistoricalData> allData = readAllPlayerData();
+            HistoricalData data = allData.get(normalizePlayerKey(playerKey));
+            if (data == null) {
+                return false;
+            }
+            return data.historicalClaims > 0
+                    || data.historicalTotalClaimed > 0
+                    || (data.historicalClaimedItemsByWave != null && !data.historicalClaimedItemsByWave.isEmpty());
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     private Map<String, HistoricalData> readAllPlayerData() throws IOException {
         Map<String, HistoricalData> allData = new HashMap<>();
 
