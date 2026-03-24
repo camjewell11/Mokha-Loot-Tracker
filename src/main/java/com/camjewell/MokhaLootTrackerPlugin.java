@@ -81,7 +81,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private boolean inMokhaArena = false;
     private boolean isDead = false;
     private boolean lootWindowWasVisible = false;
-    private long lootWindowOriginalValue = 0;
     private int currentWaveNumber = 0;
     private static final int DOOM_BOSS_NPC_ID = 14707;
     private boolean bossSeenThisRun = false;
@@ -638,7 +637,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private void checkForLootWindow() {
         if (!inMokhaArena) {
             lootWindowWasVisible = false;
-            lootWindowOriginalValue = 0;
             return;
         }
 
@@ -666,8 +664,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
 
             updateLootWindowDisplayedValue();
-        } else {
-            lootWindowOriginalValue = 0;
         }
 
         // Update window visibility state
@@ -691,26 +687,16 @@ public class MokhaLootTrackerPlugin extends Plugin {
             return;
         }
 
-        // Capture the unadjusted widget total once per visible loot window so
-        // the white value stays the original game total.
-        if (lootWindowOriginalValue <= 0 && !valueText.contains("<col=" + LOOT_VALUE_COLOR_HEX + ">")) {
-            lootWindowOriginalValue = extractGpValue(valueText);
-        }
-
-        // Only adjust raw game text. If the value already has our color tag, it has
-        // already been adjusted.
-        if (valueText.contains("<col=" + LOOT_VALUE_COLOR_HEX + ">")) {
-            return;
-        }
-
-        long rawTotalValue = lootWindowOriginalValue > 0 ? lootWindowOriginalValue : extractGpValue(valueText);
-        if (rawTotalValue <= 0) {
+        // White = all tracked loot at GE price, no ignore filters applied.
+        // Blue = tracked loot at GE price with ignore filters applied.
+        long unadjustedValue = calculateUnadjustedCurrentRunLootValue();
+        if (unadjustedValue <= 0) {
             return;
         }
 
         long adjustedValue = calculateCurrentRunLootValue();
 
-        String adjustedText = formatLootValueText(rawTotalValue, adjustedValue);
+        String adjustedText = formatLootValueText(unadjustedValue, adjustedValue);
         if (!adjustedText.equals(valueText)) {
             valueWidget.setText(adjustedText);
         }
@@ -770,6 +756,16 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return 0;
     }
 
+    private long calculateUnadjustedCurrentRunLootValue() {
+        long total = 0;
+        for (List<LootItem> items : lootByWave.values()) {
+            for (LootItem item : items) {
+                total += item.value;
+            }
+        }
+        return total;
+    }
+
     private long calculateCurrentRunLootValue() {
         long currentRunValue = 0;
         for (List<LootItem> items : lootByWave.values()) {
@@ -797,32 +793,16 @@ public class MokhaLootTrackerPlugin extends Plugin {
             itemValue = clothValue * quantity;
         }
 
-        return itemValue;
-    }
-
-    private long extractGpValue(String valueText) {
-        try {
-            String plainText = valueText.replaceAll("<[^>]*>", "");
-
-            int valueIndex = plainText.indexOf("Value:");
-            if (valueIndex >= 0) {
-                plainText = plainText.substring(valueIndex + "Value:".length());
+        // Untradable items with known fixed values
+        if (itemValue == 0) {
+            if (itemName.equals("Spirit seed")) {
+                itemValue = 140_000 * quantity;
+            } else if (itemName.equals("Sun-kissed bones")) {
+                itemValue = 8_000 * quantity;
             }
-
-            int gpIndex = plainText.toUpperCase().indexOf("GP");
-            if (gpIndex >= 0) {
-                plainText = plainText.substring(0, gpIndex);
-            }
-
-            String numStr = plainText.replaceAll("[^0-9]", "");
-            if (!numStr.isEmpty()) {
-                return Long.parseLong(numStr);
-            }
-        } catch (NumberFormatException e) {
-            log.error("[Mokha] Error parsing loot value", e);
         }
 
-        return 0;
+        return itemValue;
     }
 
     private void parseLootItems(Widget containerWidget) {
