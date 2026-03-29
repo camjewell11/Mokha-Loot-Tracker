@@ -1666,18 +1666,53 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Update Claimed Loot by Wave (historical) - with items
         for (int wave = 1; wave <= 10; wave++) {
-            int index = wave > 9 ? 9 : wave;
-            Map<String, ItemAggregate> waveItems = historicalClaimedItemsByWave.getOrDefault(index, new HashMap<>());
-
-            // Convert to ItemData for panel
             Map<String, MokhaLootPanel.ItemData> itemData = new HashMap<>();
-            for (ItemAggregate agg : waveItems.values()) {
-                itemData.put(agg.name,
-                        new MokhaLootPanel.ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue));
+            long waveTotal = 0L;
+
+            if (wave <= 9) {
+                Map<String, ItemAggregate> waveItems = historicalClaimedItemsByWave.getOrDefault(wave, new HashMap<>());
+
+                for (ItemAggregate agg : waveItems.values()) {
+                    itemData.put(agg.name,
+                            new MokhaLootPanel.ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue));
+                }
+
+                // Use pre-calculated wave total that respects the exclude setting
+                waveTotal = historicalClaimedByWave.getOrDefault(wave, 0L);
+            } else {
+                // For wave 9+, aggregate all waves >= 9
+                for (Map.Entry<Integer, Map<String, ItemAggregate>> waveEntry : historicalClaimedItemsByWave
+                        .entrySet()) {
+                    int historicalWave = waveEntry.getKey();
+                    if (historicalWave < 9) {
+                        continue;
+                    }
+
+                    for (ItemAggregate agg : waveEntry.getValue().values()) {
+                        if (itemData.containsKey(agg.name)) {
+                            MokhaLootPanel.ItemData existing = itemData.get(agg.name);
+                            itemData.put(agg.name, new MokhaLootPanel.ItemData(
+                                    agg.name,
+                                    existing.quantity + agg.totalQuantity,
+                                    agg.pricePerItem,
+                                    existing.totalValue + agg.totalValue));
+                        } else {
+                            itemData.put(agg.name, new MokhaLootPanel.ItemData(
+                                    agg.name,
+                                    agg.totalQuantity,
+                                    agg.pricePerItem,
+                                    agg.totalValue));
+                        }
+                    }
+                }
+
+                for (Map.Entry<Integer, Long> waveTotalEntry : historicalClaimedByWave.entrySet()) {
+                    if (waveTotalEntry.getKey() >= 9) {
+                        waveTotal += waveTotalEntry.getValue();
+                    }
+                }
             }
 
-            // Use pre-calculated wave total that respects the exclude setting
-            long waveTotal = historicalClaimedByWave.getOrDefault(index, 0L);
             panel.updateClaimedWave(wave, itemData, waveTotal);
         }
 
