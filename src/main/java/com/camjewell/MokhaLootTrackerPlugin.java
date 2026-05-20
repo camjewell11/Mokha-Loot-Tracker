@@ -83,6 +83,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private HistoricalDataManager historicalDataManager;
     private SupplyTrackingService supplyTrackingService;
     private LootTrackingService lootTrackingService;
+    private ArenaStateService arenaStateService;
+    private HistoricalRunService historicalRunService;
     private String activeHistoricalPlayerKey = DEFAULT_PLAYER_PROFILE_KEY;
 
     @Inject
@@ -136,7 +138,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     /**
      * Represents a single loot item with name, quantity, and value
      */
-    private static class LootItem {
+    static class LootItem {
         String name;
         int quantity;
         int value;
@@ -205,6 +207,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         supplyTrackingService = new SupplyTrackingService(client, itemManager, configManager, gson, log,
                 lastCombinedSnapshot, lastWeaponAmmoSnapshot, totalSuppliesConsumed, this::updatePanelData);
         lootTrackingService = new LootTrackingService(client, itemManager, config, log, previousLootSnapshot);
+        arenaStateService = new ArenaStateService();
+        historicalRunService = new HistoricalRunService();
 
         // Load persisted historical data (default profile before we know account name)
         activeHistoricalPlayerKey = DEFAULT_PLAYER_PROFILE_KEY;
@@ -237,28 +241,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     log.warn(
                             "[Mokha] Fallback cleanup: Found {} orphaned supplies from previous run, moving to historical",
                             totalSuppliesConsumed.size());
-                    for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
-                        int itemId = entry.getKey();
-                        int quantity = entry.getValue();
-                        String itemName = getBasePotionName(itemManager.getItemComposition(itemId).getName());
-                        int pricePerItem = getPricePerDose(itemId);
-
-                        if (historicalSuppliesUsed.containsKey(itemName)) {
-                            historicalSuppliesUsed.get(itemName).add(quantity, pricePerItem);
-                        } else {
-                            historicalSuppliesUsed.put(itemName, new ItemAggregate(itemName, quantity, pricePerItem));
-                        }
-                    }
+                    archiveCurrentRunSuppliesToHistorical();
                     calculateSuppliesCost(); // Update historical category costs
                 }
 
-                inMokhaArena = true;
-                bossSeenThisRun = false;
-                bossDefeatedThisWave = false;
-                bossWasEverPresentThisWave = false;
-                currentWaveNumber = 1; // Start at wave 1
-                lastArenaExitTime = 0; // Reset exit time on entry
-                ticksOutsideArenaBounds = 0;
+                applyArenaState(arenaStateService.createArenaEntryState());
                 lootByWave.clear();
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
@@ -301,18 +288,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 saveHistoricalData();
 
                 // Clear all tracking state
-                inMokhaArena = false;
-                isDead = false;
-                currentWaveNumber = 1;
-                bossDefeatedThisWave = false;
-                bossWasEverPresentThisWave = false;
-                lastArenaExitTime = System.currentTimeMillis();
-                ticksOutsideArenaBounds = 0;
-                lastCombinedSnapshot.clear();
-                lootByWave.clear();
-                previousLootSnapshot.clear();
-                totalSuppliesConsumed.clear();
-                initialSupplySnapshot.clear();
+                applyArenaState(arenaStateService.createArenaExitState());
+                clearCurrentRunTrackingCollections();
 
                 log.info("[Mokha] All arena state cleared. Snapshot size: {}, Supplies consumed size: {}",
                         lastCombinedSnapshot.size(), totalSuppliesConsumed.size());
@@ -425,19 +402,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
                 // Update historical supply costs (loot was lost, so don't count it)
                 // Add supplies to historical tracking on any arena exit
-                for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
-                    int itemId = entry.getKey();
-                    int quantity = entry.getValue();
-                    String itemName = getBasePotionName(itemManager.getItemComposition(itemId).getName());
-                    int pricePerItem = getPricePerDose(itemId);
-
-                    // Update or add to historical supplies
-                    if (historicalSuppliesUsed.containsKey(itemName)) {
-                        historicalSuppliesUsed.get(itemName).add(quantity, pricePerItem);
-                    } else {
-                        historicalSuppliesUsed.put(itemName, new ItemAggregate(itemName, quantity, pricePerItem));
-                    }
-                }
+                archiveCurrentRunSuppliesToHistorical();
 
                 calculateSuppliesCost(); // This updates historical category costs
                 long suppliesCost = 0;
@@ -450,18 +415,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // unclaimed forever)
                 moveCurrentRunUnclaimedToHistorical();
 
-                inMokhaArena = false; // Exit arena on death
-                isDead = false;
-                lastArenaExitTime = System.currentTimeMillis();
-                ticksOutsideArenaBounds = 0;
-                bossDefeatedThisWave = false;
-                bossWasEverPresentThisWave = false;
-                // Clear all tracking data
-                lastCombinedSnapshot.clear();
-                lootByWave.clear();
-                previousLootSnapshot.clear();
-                totalSuppliesConsumed.clear();
-                initialSupplySnapshot.clear();
+                applyArenaState(arenaStateService.createArenaExitState());
+                clearCurrentRunTrackingCollections();
 
                 // Update panel to show cleared current run data and updated historical costs
                 updatePanelData();
@@ -742,18 +697,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         printSuppliesConsumed();
 
         // Add supplies to historical tracking on any arena exit
-        for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
-            int itemId = entry.getKey();
-            int quantity = entry.getValue();
-            String itemName = getBasePotionName(itemManager.getItemComposition(itemId).getName());
-            int pricePerItem = getPricePerDose(itemId);
-
-            if (historicalSuppliesUsed.containsKey(itemName)) {
-                historicalSuppliesUsed.get(itemName).add(quantity, pricePerItem);
-            } else {
-                historicalSuppliesUsed.put(itemName, new ItemAggregate(itemName, quantity, pricePerItem));
-            }
-        }
+        archiveCurrentRunSuppliesToHistorical();
 
         long suppliesCost = calculateSuppliesCost();
         historicalSupplyCost += suppliesCost;
@@ -766,21 +710,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         moveCurrentRunUnclaimedToHistorical();
 
         // Clear arena state
-        inMokhaArena = false;
-        isDead = false;
-        lastArenaExitTime = System.currentTimeMillis();
-        ticksOutsideArenaBounds = 0;
-        currentWaveNumber = 1;
-        bossSeenThisRun = false;
-        bossDefeatedThisWave = false;
-        bossWasEverPresentThisWave = false;
-
-        // Clear tracking data
-        lastCombinedSnapshot.clear();
-        lootByWave.clear();
-        previousLootSnapshot.clear();
-        totalSuppliesConsumed.clear();
-        initialSupplySnapshot.clear();
+        applyArenaState(arenaStateService.createArenaExitState());
+        clearCurrentRunTrackingCollections();
 
         // Update panel and save
         updatePanelData();
@@ -788,46 +719,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     /**
-     * Track unclaimed loot by wave to historical data (persisted across sessions)
-     */
-    private void trackUnclaimedLoot(int wave, List<LootItem> items) {
-        if (items.isEmpty()) {
-            return;
-        }
-
-        // Update total unclaimed by wave
-        long currentWaveTotal = historicalUnclaimedByWave.getOrDefault(wave, 0L);
-        long newTotal = currentWaveTotal;
-        Map<String, ItemAggregate> waveItems = historicalUnclaimedItemsByWave.getOrDefault(wave, new HashMap<>());
-
-        for (LootItem item : items) {
-            newTotal += item.value;
-
-            // Track item details
-            int pricePerItem = item.quantity > 0 ? (int) (item.value / item.quantity) : 0;
-            if (waveItems.containsKey(item.name)) {
-                waveItems.get(item.name).add(item.quantity, pricePerItem);
-            } else {
-                waveItems.put(item.name, new ItemAggregate(item.name, item.quantity, pricePerItem));
-            }
-        }
-
-        historicalUnclaimedByWave.put(wave, newTotal);
-        historicalUnclaimedItemsByWave.put(wave, waveItems);
-
-    }
-
-    /**
      * Move all current run unclaimed loot to historical when run ends (death or
      * disconnect)
      */
     private void moveCurrentRunUnclaimedToHistorical() {
-        for (int wave = 1; wave <= 20; wave++) {
-            List<LootItem> items = lootByWave.get(wave);
-            if (items != null && !items.isEmpty()) {
-                trackUnclaimedLoot(wave, items);
-            }
-        }
+        historicalRunService.moveCurrentRunUnclaimedToHistorical(
+                lootByWave,
+                historicalUnclaimedByWave,
+                historicalUnclaimedItemsByWave);
     }
 
     /**
@@ -936,16 +835,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
             String currentRunJson = configManager.getConfiguration("mokhaloot", "currentRunLootByWaveJson");
             if (currentRunJson != null && !currentRunJson.isEmpty() && !currentRunJson.equals("{}")) {
                 try {
-                    java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<Map<Integer, List<LootItem>>>() {
-                    }.getType();
-                    Map<Integer, List<LootItem>> loaded = gson.fromJson(currentRunJson, type);
-                    if (loaded != null) {
-                        lootByWave.putAll(loaded);
-
-                        // Move all loaded current run loot to historical (player disconnected mid-run)
-                        moveCurrentRunUnclaimedToHistorical();
-                        lootByWave.clear(); // Clear so it doesn't show in UI
-                    }
+                    historicalRunService.restoreCurrentRunLootJsonAsUnclaimed(
+                            currentRunJson,
+                            gson,
+                            lootByWave,
+                            historicalUnclaimedByWave,
+                            historicalUnclaimedItemsByWave);
                 } catch (Exception e) {
                     log.warn("[Mokha] Failed to load current run loot by wave data", e);
                 }
@@ -1257,92 +1152,62 @@ public class MokhaLootTrackerPlugin extends Plugin {
         printSuppliesConsumed();
         printAccumulatedLoot();
 
-        for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
-            int itemId = entry.getKey();
-            int quantity = entry.getValue();
-            String itemName = getBasePotionName(itemManager.getItemComposition(itemId).getName());
-            int pricePerItem = getPricePerDose(itemId);
-
-            if (historicalSuppliesUsed.containsKey(itemName)) {
-                historicalSuppliesUsed.get(itemName).add(quantity, pricePerItem);
-            } else {
-                historicalSuppliesUsed.put(itemName, new ItemAggregate(itemName, quantity, pricePerItem));
-            }
-        }
+        archiveCurrentRunSuppliesToHistorical();
 
         long suppliesCost = calculateSuppliesCost();
         historicalSupplyCost += suppliesCost;
 
         moveCurrentRunUnclaimedToHistorical();
 
-        inMokhaArena = false;
-        isDead = false;
-        currentWaveNumber = 1;
-        bossSeenThisRun = false;
-        bossDefeatedThisWave = false;
-        bossWasEverPresentThisWave = false;
-        ticksOutsideArenaBounds = 0;
-        lastArenaExitTime = System.currentTimeMillis();
-
-        lastCombinedSnapshot.clear();
-        lootByWave.clear();
-        previousLootSnapshot.clear();
-        totalSuppliesConsumed.clear();
-        initialSupplySnapshot.clear();
+        applyArenaState(arenaStateService.createArenaExitState());
+        clearCurrentRunTrackingCollections();
 
         updatePanelData();
         saveHistoricalData();
+    }
+
+    private void applyArenaState(ArenaStateService.ArenaStateSnapshot state) {
+        inMokhaArena = state.isInMokhaArena();
+        isDead = state.isDead();
+        currentWaveNumber = state.getCurrentWaveNumber();
+        bossSeenThisRun = state.isBossSeenThisRun();
+        bossDefeatedThisWave = state.isBossDefeatedThisWave();
+        bossWasEverPresentThisWave = state.isBossWasEverPresentThisWave();
+        lastDescendClickJustHappened = state.isLastDescendClickJustHappened();
+        lastArenaExitTime = state.getLastArenaExitTime();
+        ticksOutsideArenaBounds = state.getTicksOutsideArenaBounds();
+    }
+
+    private void clearCurrentRunTrackingCollections() {
+        arenaStateService.clearRunTrackingCollections(
+                lastCombinedSnapshot,
+                lootByWave,
+                previousLootSnapshot,
+                totalSuppliesConsumed,
+                initialSupplySnapshot);
+    }
+
+    private void archiveCurrentRunSuppliesToHistorical() {
+        arenaStateService.archiveConsumedSupplies(
+                totalSuppliesConsumed,
+                historicalSuppliesUsed,
+                itemId -> getBasePotionName(itemManager.getItemComposition(itemId).getName()),
+                this::getPricePerDose);
     }
 
     /**
      * Update historical data when loot is claimed
      */
     private void updateHistoricalDataOnClaim() {
-        // Add claimed loot to historical total
-        long claimedValue = 0;
-        for (Map.Entry<Integer, List<LootItem>> entry : lootByWave.entrySet()) {
-            int wave = entry.getKey();
-            long waveValue = 0;
-
-            // Track items by wave
-            int waveIndex = wave > 9 ? 9 : wave;
-            Map<String, ItemAggregate> waveItems = historicalClaimedItemsByWave.computeIfAbsent(waveIndex,
-                    k -> new HashMap<>());
-
-            for (LootItem item : entry.getValue()) {
-                waveValue += item.value;
-                int pricePerItem = item.quantity > 0 ? item.value / item.quantity : 0;
-
-                // Update or add to historical items for this wave
-                if (waveItems.containsKey(item.name)) {
-                    waveItems.get(item.name).add(item.quantity, pricePerItem);
-                } else {
-                    waveItems.put(item.name, new ItemAggregate(item.name, item.quantity, pricePerItem));
-                }
-            }
-            claimedValue += waveValue;
-
-            // Update historical claimed by wave
-            historicalClaimedByWave.put(waveIndex,
-                    historicalClaimedByWave.getOrDefault(waveIndex, 0L) + waveValue);
-        }
+        long claimedValue = historicalRunService.applyClaimedLoot(
+                lootByWave,
+                historicalClaimedByWave,
+                historicalClaimedItemsByWave);
         historicalTotalClaimed += claimedValue;
         historicalClaims += 1;
 
         // Add supplies cost to historical total and track items on any arena exit
-        for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
-            int itemId = entry.getKey();
-            int quantity = entry.getValue();
-            String itemName = getBasePotionName(itemManager.getItemComposition(itemId).getName());
-            int pricePerItem = getPricePerDose(itemId);
-
-            // Update or add to historical supplies
-            if (historicalSuppliesUsed.containsKey(itemName)) {
-                historicalSuppliesUsed.get(itemName).add(quantity, pricePerItem);
-            } else {
-                historicalSuppliesUsed.put(itemName, new ItemAggregate(itemName, quantity, pricePerItem));
-            }
-        }
+        archiveCurrentRunSuppliesToHistorical();
 
         long suppliesCost = calculateSuppliesCost();
         historicalSupplyCost += suppliesCost;
