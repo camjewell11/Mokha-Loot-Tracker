@@ -27,7 +27,6 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
-import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.NPC;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.widgets.Widget;
@@ -112,6 +111,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private final int entrance_centerY = 9555;
     private final int entrance_radius = 25;
 
+    // Weapon ammo tracking - poll varps on GameTick to detect changes
+    private int lastBlowpipeAmmoType = 0;
+    private int lastBlowpipeAmmoCount = 0;
+    private int lastQuiverAmmoType = 0;
+    private int lastQuiverAmmoCount = 0;
+
     // Combined item tracking (inventory + equipment)
     private final Map<Integer, Integer> lastCombinedSnapshot = new HashMap<>();
 
@@ -122,6 +127,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     // Supply consumption tracking
     private final Map<Integer, Integer> initialSupplySnapshot = new HashMap<>();
     private final Map<Integer, Integer> totalSuppliesConsumed = new HashMap<>();
+    private final Map<Integer, Integer> lastWeaponAmmoSnapshot = new HashMap<>();
 
     // Historical tracking (persisted across runs)
     private long historicalTotalClaimed = 0;
@@ -138,6 +144,25 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     // Mokhaiotl Cloth handling
     private boolean hasWarnedAboutZeroClothValue = false; // Track if we've already warned player
+
+    // Toxic Blowpipe weapon IDs (all variants including post-rework)
+    private static final Set<Integer> BLOWPIPE_WEAPON_IDS = new HashSet<>();
+    static {
+        BLOWPIPE_WEAPON_IDS.add(12926); // Toxic Blowpipe (original)
+        BLOWPIPE_WEAPON_IDS.add(31575); // Camphor Blowpipe
+        BLOWPIPE_WEAPON_IDS.add(31579); // Ironwood Blowpipe
+        BLOWPIPE_WEAPON_IDS.add(31583); // Rosewood Blowpipe
+        BLOWPIPE_WEAPON_IDS.add(28687); // Blazing Blowpipe
+    }
+
+    // Varp IDs for weapon ammo tracking (from RuneLite Item Charges plugin)
+    private static final int BUFF_BAR_WEAPON = 3160; // Equipped weapon ID
+    private static final int BUFF_BAR_AMMO_TYPE = 3158; // Item ID of ammo in weapon
+    private static final int BUFF_BAR_AMMO_AMOUNT = 3159; // Quantity of ammo in weapon
+    private static final int DIZANAS_QUIVER_TEMP_AMMO = 4142; // Quiver ammo item ID
+    private static final int DIZANAS_QUIVER_TEMP_AMMO_AMOUNT = 4141; // Quiver ammo quantity
+    private static final String WEAPON_CHARGES_CONFIG_GROUP = "tictac7x-charges";
+    private static final String BLOWPIPE_STORAGE_CONFIG_KEY = "toxic_blowpipe_storage";
 
     // Rune pouch mapping (varbit values to item IDs)
     private static final int[] RUNE_POUCH_ITEM_IDS = new int[] {
@@ -192,6 +217,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
             this.nameKey = name.toLowerCase();
             this.minQty = minQty;
         }
+    }
+
+    private static class BlowpipeStorageEntry {
+        int itemId;
+        int quantity;
     }
 
     /**
@@ -305,11 +335,22 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 lootByWave.clear();
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
+
+                // Initialize varp tracking to current values (so first consumption check works)
+                lastBlowpipeAmmoType = client.getVarpValue(BUFF_BAR_AMMO_TYPE);
+                lastBlowpipeAmmoCount = client.getVarpValue(BUFF_BAR_AMMO_AMOUNT);
+                lastQuiverAmmoType = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO);
+                lastQuiverAmmoCount = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO_AMOUNT);
+                lastWeaponAmmoSnapshot.clear();
+                lastWeaponAmmoSnapshot.putAll(readWeaponAmmo());
+
                 // Take initial snapshot when entering arena
                 lastCombinedSnapshot.clear();
                 lastCombinedSnapshot.putAll(buildCombinedSnapshot());
-                log.info("[Mokha] Arena entry complete. Initial snapshot captured: {} items",
-                        lastCombinedSnapshot.size());
+                log.info("[Mokha] Arena entry complete. Initial snapshot captured: {} items, Blowpipe ammo: {}",
+                        lastCombinedSnapshot.size(),
+                        lastWeaponAmmoSnapshot.isEmpty() ? lastBlowpipeAmmoCount
+                                : lastWeaponAmmoSnapshot.values().stream().mapToInt(Integer::intValue).sum());
                 // Take initial supply snapshot
                 initialSupplySnapshot.clear();
                 initialSupplySnapshot.putAll(buildCombinedSnapshot());
@@ -376,6 +417,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     @Subscribe
     public void onGameTick(GameTick event) {
         ensureHistoricalDataLoadedForCurrentPlayer();
+
+        // Poll weapon ammo varps to detect consumption (blowpipe darts/scales)
+        checkWeaponAmmoVarps();
 
         boolean wasInArena = inMokhaArena;
 
@@ -570,6 +614,43 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
     }
 
+    /**
+     * Poll weapon ammo varps to detect consumption.
+     * When blowpipe ammo or quiver ammo count decreases, trigger supply snapshot
+     * reconciliation.
+     */
+    private void checkWeaponAmmoVarps() {
+        int currentBlowpipeAmmoType = client.getVarpValue(BUFF_BAR_AMMO_TYPE);
+        int currentBlowpipeAmmoCount = client.getVarpValue(BUFF_BAR_AMMO_AMOUNT);
+        int currentQuiverAmmoType = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO);
+        int currentQuiverAmmoCount = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO_AMOUNT);
+
+        Map<Integer, Integer> currentWeaponAmmo = readWeaponAmmo();
+        boolean hasWeaponAmmoConsumption = false;
+        for (Map.Entry<Integer, Integer> entry : lastWeaponAmmoSnapshot.entrySet()) {
+            int itemId = entry.getKey();
+            int previousQty = entry.getValue();
+            int currentQty = currentWeaponAmmo.getOrDefault(itemId, 0);
+            if (currentQty < previousQty) {
+                hasWeaponAmmoConsumption = true;
+            }
+        }
+
+        if (hasWeaponAmmoConsumption && inMokhaArena && !isDead && isInsideConsumptionBounds(
+                client.getLocalPlayer() != null ? client.getLocalPlayer().getWorldLocation() : null)) {
+            Map<Integer, Integer> currentCombined = buildCombinedSnapshot();
+            checkForConsumption(currentCombined);
+        }
+
+        // Update tracked values
+        lastBlowpipeAmmoType = currentBlowpipeAmmoType;
+        lastBlowpipeAmmoCount = currentBlowpipeAmmoCount;
+        lastQuiverAmmoType = currentQuiverAmmoType;
+        lastQuiverAmmoCount = currentQuiverAmmoCount;
+        lastWeaponAmmoSnapshot.clear();
+        lastWeaponAmmoSnapshot.putAll(currentWeaponAmmo);
+    }
+
     @Subscribe
     public void onItemContainerChanged(ItemContainerChanged event) {
         // Only track item changes while in arena and alive
@@ -634,12 +715,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
             combined.put(entry.getKey(), combined.getOrDefault(entry.getKey(), 0) + entry.getValue());
         }
 
-        // Add Dizanna quiver ammo (if present)
-        // Uses varps as per RuneLite's Ammo plugin
-        final int quiverAmmoId = client.getVarpValue(4142); // VarPlayerID.DIZANAS_QUIVER_TEMP_AMMO
-        final int quiverAmmoCount = client.getVarpValue(4141); // VarPlayerID.DIZANAS_QUIVER_TEMP_AMMO_AMOUNT
-        if (quiverAmmoId > 0 && quiverAmmoCount > 0) {
-            combined.put(quiverAmmoId, combined.getOrDefault(quiverAmmoId, 0) + quiverAmmoCount);
+        // Add weapon internal ammo (blowpipe darts/scales, quiver ammo)
+        Map<Integer, Integer> weaponAmmo = readWeaponAmmo();
+        for (Map.Entry<Integer, Integer> entry : weaponAmmo.entrySet()) {
+            combined.put(entry.getKey(), combined.getOrDefault(entry.getKey(), 0) + entry.getValue());
         }
 
         return combined;
@@ -672,6 +751,60 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
             map.put(itemId, map.getOrDefault(itemId, 0) + amt);
         }
+        return map;
+    }
+
+    /**
+     * Read weapon internal ammo (e.g., toxic blowpipe darts/scales).
+     * Tracks ammo loaded inside weapons that consume charges internally.
+     * Uses varps as per RuneLite's Item Charges plugin.
+     */
+    private Map<Integer, Integer> readWeaponAmmo() {
+        Map<Integer, Integer> map = new HashMap<>();
+        boolean hasBlowpipeAmmoFromVarps = false;
+
+        // Check if player has a blowpipe or similar weapon equipped
+        int equippedWeapon = client.getVarpValue(BUFF_BAR_WEAPON);
+        if (equippedWeapon > 0 && BLOWPIPE_WEAPON_IDS.contains(equippedWeapon)) {
+            // Blowpipe is equipped - read darts/scales from varps when available
+            int ammoType = client.getVarpValue(BUFF_BAR_AMMO_TYPE);
+            int ammoCount = client.getVarpValue(BUFF_BAR_AMMO_AMOUNT);
+            if (ammoType > 0 && ammoCount > 0) {
+                map.put(ammoType, ammoCount);
+                hasBlowpipeAmmoFromVarps = true;
+            }
+        }
+
+        // Also check for quiver ammo if equipped
+        final int quiverAmmoId = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO);
+        final int quiverAmmoCount = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO_AMOUNT);
+        if (quiverAmmoId > 0 && quiverAmmoCount > 0) {
+            map.put(quiverAmmoId, map.getOrDefault(quiverAmmoId, 0) + quiverAmmoCount);
+        }
+
+        // Fallback: read blowpipe storage from Weapon Charges plugin config.
+        // Do this when blowpipe varps are unavailable (common in some sessions).
+        if (!hasBlowpipeAmmoFromVarps) {
+            String serialized = configManager.getConfiguration(WEAPON_CHARGES_CONFIG_GROUP,
+                    BLOWPIPE_STORAGE_CONFIG_KEY);
+            if (serialized == null || serialized.isEmpty()) {
+                return map;
+            }
+
+            try {
+                BlowpipeStorageEntry[] entries = gson.fromJson(serialized, BlowpipeStorageEntry[].class);
+                if (entries != null) {
+                    for (BlowpipeStorageEntry entry : entries) {
+                        if (entry != null && entry.itemId > 0 && entry.quantity > 0) {
+                            map.put(entry.itemId, map.getOrDefault(entry.itemId, 0) + entry.quantity);
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                // Ignore malformed external config payloads and fall back to current map state.
+            }
+        }
+
         return map;
     }
 
