@@ -3,9 +3,11 @@ package com.camjewell;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import javax.inject.Inject;
 
@@ -49,6 +51,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private static final String LOOT_VALUE_COLOR_HEX = "66CCFF";
     private static final String MOKHA_CLOTH_NAME = "Mokhaiotl cloth";
     private static final String DEFAULT_PLAYER_PROFILE_KEY = "default";
+    private static final int ARENA_EXIT_GRACE_TICKS = 5;
+
+    /**
+     * Region IDs observed during Doom runs from location recorder logs.
+     * Tracking should only occur in these regions (or at the entrance) to avoid
+     * bank/non-Doom activity being counted as supplies.
+     */
+    private static final Set<Integer> DOOM_ARENA_REGION_IDS = new HashSet<>();
+
+    static {
+        DOOM_ARENA_REGION_IDS.add(5269); // Entrance / pre-jump area
+        DOOM_ARENA_REGION_IDS.add(50436); // Arena wave region (waves 1-5, recorded)
+        DOOM_ARENA_REGION_IDS.add(50439); // Arena wave region (waves 2-5, recorded)
+        DOOM_ARENA_REGION_IDS.add(42954); // Arena wave region (waves 6+, recorded)
+    }
 
     @Inject
     private Client client;
@@ -88,10 +105,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private boolean bossWasEverPresentThisWave = false; // Track if boss appeared this wave (for teleport detection)
     private boolean lastDescendClickJustHappened = false; // Track if Descend was just clicked
     private long lastArenaExitTime = 0; // Track when player last exited arena to detect stale snapshot usage
-
-    // Coordinate recording for arena boundary mapping
-    private int lastRecordedRegionId = -1; // Track last region to avoid spam logging region transitions
-    private WorldPoint lastRecordedLocation = null; // Track last location logged
+    private int ticksOutsideArenaBounds = 0; // Failsafe: detect stale in-arena state
 
     // Entrance coordinates (for future use)
     private final int entrance_centerX = 1311;
@@ -287,8 +301,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 bossWasEverPresentThisWave = false;
                 currentWaveNumber = 1; // Start at wave 1
                 lastArenaExitTime = 0; // Reset exit time on entry
-                lastRecordedRegionId = -1; // Reset coordinate recording for this session
-                lastRecordedLocation = null;
+                ticksOutsideArenaBounds = 0;
                 lootByWave.clear();
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
@@ -297,9 +310,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 lastCombinedSnapshot.putAll(buildCombinedSnapshot());
                 log.info("[Mokha] Arena entry complete. Initial snapshot captured: {} items",
                         lastCombinedSnapshot.size());
-                if (config.recordCoordinates()) {
-                    log.info("[COORD] ===== RECORDING SESSION START - Arena Entry =====");
-                }
                 // Take initial supply snapshot
                 initialSupplySnapshot.clear();
                 initialSupplySnapshot.putAll(buildCombinedSnapshot());
@@ -336,11 +346,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // Save historical data immediately after claiming
                 saveHistoricalData();
 
-                if (config.recordCoordinates()) {
-                    log.info("[COORD] ===== RECORDING SESSION END - Leave Button Pressed at Wave {} =====",
-                            currentWaveNumber);
-                }
-
                 // Clear all tracking state
                 inMokhaArena = false;
                 isDead = false;
@@ -348,8 +353,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 bossDefeatedThisWave = false;
                 bossWasEverPresentThisWave = false;
                 lastArenaExitTime = System.currentTimeMillis();
-                lastRecordedRegionId = -1; // Reset coordinate recording state
-                lastRecordedLocation = null;
+                ticksOutsideArenaBounds = 0;
                 lastCombinedSnapshot.clear();
                 lootByWave.clear();
                 previousLootSnapshot.clear();
@@ -381,22 +385,24 @@ public class MokhaLootTrackerPlugin extends Plugin {
             location = client.getLocalPlayer().getWorldLocation();
         }
 
-        // Record location data for arena boundary mapping if enabled
-        if (config.recordCoordinates() && location != null) {
-            int regionId = location.getRegionID();
-            int plane = location.getPlane();
-
-            // Log location every tick with wave number and region transitions
-            if (lastRecordedLocation == null || !lastRecordedLocation.equals(location)) {
-                if (lastRecordedRegionId != regionId) {
-                    log.info("[COORD] REGION_TRANSITION | Wave: {} | RegionID: {} → {} | Location: ({}, {}, {})",
-                            currentWaveNumber, lastRecordedRegionId, regionId, location.getX(), location.getY(), plane);
-                    lastRecordedRegionId = regionId;
-                } else {
-                    log.info("[COORD] Wave: {} | RegionID: {} | Location: ({}, {}, {})",
-                            currentWaveNumber, regionId, location.getX(), location.getY(), plane);
+        // Failsafe arena boundary check to avoid stale in-arena state causing supply
+        // tracking outside Doom.
+        if (inMokhaArena) {
+            boolean inTrackedArenaBounds = isInsideRunBounds(location);
+            if (inTrackedArenaBounds) {
+                ticksOutsideArenaBounds = 0;
+            } else {
+                ticksOutsideArenaBounds++;
+                if (ticksOutsideArenaBounds == 1) {
+                    log.warn(
+                            "[Mokha] Player outside tracked arena bounds while run is active; starting grace window ({} ticks)",
+                            ARENA_EXIT_GRACE_TICKS);
                 }
-                lastRecordedLocation = location;
+
+                if (ticksOutsideArenaBounds >= ARENA_EXIT_GRACE_TICKS) {
+                    handleForcedArenaExit("outside tracked arena bounds", location);
+                    return;
+                }
             }
         }
 
@@ -487,15 +493,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // unclaimed forever)
                 moveCurrentRunUnclaimedToHistorical();
 
-                if (config.recordCoordinates()) {
-                    log.info("[COORD] ===== RECORDING SESSION END - Player Death at Wave {} =====", currentWaveNumber);
-                }
-
                 inMokhaArena = false; // Exit arena on death
                 isDead = false;
                 lastArenaExitTime = System.currentTimeMillis();
-                lastRecordedRegionId = -1; // Reset coordinate recording state
-                lastRecordedLocation = null;
+                ticksOutsideArenaBounds = 0;
                 bossDefeatedThisWave = false;
                 bossWasEverPresentThisWave = false;
                 // Clear all tracking data
@@ -586,6 +587,16 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Only process inventory or equipment containers
         if (event.getContainerId() != 93 && event.getContainerId() != 94) {
+            return;
+        }
+
+        WorldPoint location = client.getLocalPlayer() != null ? client.getLocalPlayer().getWorldLocation() : null;
+        if (!isInsideConsumptionBounds(location)) {
+            // Keep snapshots synchronized but do not count consumption outside tracked Doom
+            // bounds.
+            Map<Integer, Integer> currentCombined = buildCombinedSnapshot();
+            lastCombinedSnapshot.clear();
+            lastCombinedSnapshot.putAll(currentCombined);
             return;
         }
 
@@ -1131,16 +1142,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
         printAccumulatedLoot();
         moveCurrentRunUnclaimedToHistorical();
 
-        if (config.recordCoordinates()) {
-            log.info("[COORD] ===== RECORDING SESSION END - Teleport Exit at Wave {} =====", currentWaveNumber);
-        }
-
         // Clear arena state
         inMokhaArena = false;
         isDead = false;
         lastArenaExitTime = System.currentTimeMillis();
-        lastRecordedRegionId = -1; // Reset coordinate recording state
-        lastRecordedLocation = null;
+        ticksOutsideArenaBounds = 0;
         currentWaveNumber = 1;
         bossSeenThisRun = false;
         bossDefeatedThisWave = false;
@@ -1608,6 +1614,80 @@ public class MokhaLootTrackerPlugin extends Plugin {
         int distanceSquared = dx * dx + dy * dy;
         int radiusSquared = entrance_radius * entrance_radius;
         return distanceSquared <= radiusSquared;
+    }
+
+    private boolean isInsideRunBounds(WorldPoint location) {
+        if (location == null) {
+            return false;
+        }
+
+        // Explicit known regions from coordinate recording logs.
+        if (DOOM_ARENA_REGION_IDS.contains(location.getRegionID())) {
+            return true;
+        }
+
+        // Fallback for future waves/regions: while a run is active, treat any instanced
+        // region as arena so we do not miss wave 6+ segments that have not been mapped
+        // yet.
+        return client.isInInstancedRegion();
+    }
+
+    private boolean isInsideConsumptionBounds(WorldPoint location) {
+        if (!isInsideRunBounds(location)) {
+            return false;
+        }
+
+        // Do not track consumption in entrance area where reclaim/setup can happen.
+        return !isAtEntrance(location);
+    }
+
+    private void handleForcedArenaExit(String reason, WorldPoint location) {
+        log.warn("[Mokha] ===== FORCED ARENA EXIT =====");
+        log.warn("[Mokha] Reason: {}", reason);
+        if (location != null) {
+            log.warn("[Mokha] Location at forced exit: ({}, {}, {}), region {}",
+                    location.getX(), location.getY(), location.getPlane(), location.getRegionID());
+        }
+
+        // Treat as unclaimed exit to avoid losing tracked run data.
+        printSuppliesConsumed();
+        printAccumulatedLoot();
+
+        for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
+            int itemId = entry.getKey();
+            int quantity = entry.getValue();
+            String itemName = getBasePotionName(itemManager.getItemComposition(itemId).getName());
+            int pricePerItem = getPricePerDose(itemId);
+
+            if (historicalSuppliesUsed.containsKey(itemName)) {
+                historicalSuppliesUsed.get(itemName).add(quantity, pricePerItem);
+            } else {
+                historicalSuppliesUsed.put(itemName, new ItemAggregate(itemName, quantity, pricePerItem));
+            }
+        }
+
+        long suppliesCost = calculateSuppliesCost();
+        historicalSupplyCost += suppliesCost;
+
+        moveCurrentRunUnclaimedToHistorical();
+
+        inMokhaArena = false;
+        isDead = false;
+        currentWaveNumber = 1;
+        bossSeenThisRun = false;
+        bossDefeatedThisWave = false;
+        bossWasEverPresentThisWave = false;
+        ticksOutsideArenaBounds = 0;
+        lastArenaExitTime = System.currentTimeMillis();
+
+        lastCombinedSnapshot.clear();
+        lootByWave.clear();
+        previousLootSnapshot.clear();
+        totalSuppliesConsumed.clear();
+        initialSupplySnapshot.clear();
+
+        updatePanelData();
+        saveHistoricalData();
     }
 
     /**
