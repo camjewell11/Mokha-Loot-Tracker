@@ -18,10 +18,6 @@ import com.google.gson.Gson;
 import com.google.inject.Provides;
 
 import net.runelite.api.Client;
-import net.runelite.api.InventoryID;
-import net.runelite.api.Item;
-import net.runelite.api.ItemContainer;
-import net.runelite.api.Varbits;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
@@ -35,7 +31,6 @@ import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
-import net.runelite.client.Notifier;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
@@ -83,11 +78,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     @Inject
     private ConfigManager configManager;
-    @Inject
-    private Notifier notifier;
     private NavigationButton navButton;
     private MokhaLootPanel panel;
     private HistoricalDataManager historicalDataManager;
+    private SupplyTrackingService supplyTrackingService;
+    private LootTrackingService lootTrackingService;
     private String activeHistoricalPlayerKey = DEFAULT_PLAYER_PROFILE_KEY;
 
     @Inject
@@ -96,7 +91,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
     // Arena state tracking
     private boolean inMokhaArena = false;
     private boolean isDead = false;
-    private boolean lootWindowWasVisible = false;
     private int currentWaveNumber = 0;
     private static final int DOOM_BOSS_NPC_ID = 14707;
     private boolean bossSeenThisRun = false;
@@ -110,12 +104,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private final int entrance_centerX = 1311;
     private final int entrance_centerY = 9555;
     private final int entrance_radius = 25;
-
-    // Weapon ammo tracking - poll varps on GameTick to detect changes
-    private int lastBlowpipeAmmoType = 0;
-    private int lastBlowpipeAmmoCount = 0;
-    private int lastQuiverAmmoType = 0;
-    private int lastQuiverAmmoCount = 0;
 
     // Combined item tracking (inventory + equipment)
     private final Map<Integer, Integer> lastCombinedSnapshot = new HashMap<>();
@@ -145,57 +133,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
     // Mokhaiotl Cloth handling
     private boolean hasWarnedAboutZeroClothValue = false; // Track if we've already warned player
 
-    // Toxic Blowpipe weapon IDs (all variants including post-rework)
-    private static final Set<Integer> BLOWPIPE_WEAPON_IDS = new HashSet<>();
-    static {
-        BLOWPIPE_WEAPON_IDS.add(12926); // Toxic Blowpipe (original)
-        BLOWPIPE_WEAPON_IDS.add(31575); // Camphor Blowpipe
-        BLOWPIPE_WEAPON_IDS.add(31579); // Ironwood Blowpipe
-        BLOWPIPE_WEAPON_IDS.add(31583); // Rosewood Blowpipe
-        BLOWPIPE_WEAPON_IDS.add(28687); // Blazing Blowpipe
-    }
-
-    // Varp IDs for weapon ammo tracking (from RuneLite Item Charges plugin)
-    private static final int BUFF_BAR_WEAPON = 3160; // Equipped weapon ID
-    private static final int BUFF_BAR_AMMO_TYPE = 3158; // Item ID of ammo in weapon
-    private static final int BUFF_BAR_AMMO_AMOUNT = 3159; // Quantity of ammo in weapon
-    private static final int DIZANAS_QUIVER_TEMP_AMMO = 4142; // Quiver ammo item ID
-    private static final int DIZANAS_QUIVER_TEMP_AMMO_AMOUNT = 4141; // Quiver ammo quantity
-    private static final String WEAPON_CHARGES_CONFIG_GROUP = "tictac7x-charges";
-    private static final String BLOWPIPE_STORAGE_CONFIG_KEY = "toxic_blowpipe_storage";
-    private static final String CAMPHOR_BLOWPIPE_STORAGE_CONFIG_KEY = "camphor_blowpipe_storage";
-    private static final String IRONWOOD_BLOWPIPE_STORAGE_CONFIG_KEY = "ironwood_blowpipe_storage";
-    private static final String ROSEWOOD_BLOWPIPE_STORAGE_CONFIG_KEY = "rosewood_blowpipe_storage";
-    private static final String BLAZING_BLOWPIPE_STORAGE_CONFIG_KEY = "blazing_blowpipe_storage";
-
-    // Rune pouch mapping (varbit values to item IDs)
-    private static final int[] RUNE_POUCH_ITEM_IDS = new int[] {
-            0, // 0 unused / empty
-            556, // 1 - Air rune
-            555, // 2 - Water rune
-            557, // 3 - Earth rune
-            554, // 4 - Fire rune
-            558, // 5 - Mind rune
-            562, // 6 - Chaos rune
-            560, // 7 - Death rune
-            565, // 8 - Blood rune
-            564, // 9 - Cosmic rune
-            561, // 10 - Nature rune
-            563, // 11 - Law rune
-            559, // 12 - Body rune
-            566, // 13 - Soul rune
-            9075, // 14 - Astral rune
-            4695, // 15 - Mist rune
-            4698, // 16 - Mud rune
-            4696, // 17 - Dust rune
-            4699, // 18 - Lava rune
-            4694, // 19 - Steam rune
-            4697, // 20 - Smoke rune
-            21880, // 21 - Wrath rune
-            28929, // 22 - Sunfire rune (corrected ID)
-            30843 // 23 - Aether rune (corrected ID)
-    };
-
     /**
      * Represents a single loot item with name, quantity, and value
      */
@@ -209,23 +146,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             this.quantity = quantity;
             this.value = value;
         }
-    }
-
-    private static class LootAlertRule {
-        String name;
-        String nameKey;
-        int minQty;
-
-        LootAlertRule(String name, int minQty) {
-            this.name = name;
-            this.nameKey = name.toLowerCase();
-            this.minQty = minQty;
-        }
-    }
-
-    private static class BlowpipeStorageEntry {
-        int itemId;
-        int quantity;
     }
 
     /**
@@ -282,6 +202,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Initialize historical data manager
         historicalDataManager = new HistoricalDataManager(net.runelite.client.RuneLite.RUNELITE_DIR, gson);
+        supplyTrackingService = new SupplyTrackingService(client, itemManager, configManager, gson, log,
+                lastCombinedSnapshot, lastWeaponAmmoSnapshot, totalSuppliesConsumed, this::updatePanelData);
+        lootTrackingService = new LootTrackingService(client, itemManager, config, log, previousLootSnapshot);
 
         // Load persisted historical data (default profile before we know account name)
         activeHistoricalPlayerKey = DEFAULT_PLAYER_PROFILE_KEY;
@@ -340,24 +263,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
 
-                // Initialize varp tracking to current values (so first consumption check works)
-                lastBlowpipeAmmoType = client.getVarpValue(BUFF_BAR_AMMO_TYPE);
-                lastBlowpipeAmmoCount = client.getVarpValue(BUFF_BAR_AMMO_AMOUNT);
-                lastQuiverAmmoType = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO);
-                lastQuiverAmmoCount = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO_AMOUNT);
-                lastWeaponAmmoSnapshot.clear();
-                lastWeaponAmmoSnapshot.putAll(readWeaponAmmo());
-
-                // Take initial snapshot when entering arena
-                lastCombinedSnapshot.clear();
-                lastCombinedSnapshot.putAll(buildCombinedSnapshot());
+                // Initialize supply snapshots for consumption tracking
+                int arenaEntryAmmo = supplyTrackingService.initializeForArenaEntry();
                 log.info("[Mokha] Arena entry complete. Initial snapshot captured: {} items, Blowpipe ammo: {}",
-                        lastCombinedSnapshot.size(),
-                        lastWeaponAmmoSnapshot.isEmpty() ? lastBlowpipeAmmoCount
-                                : lastWeaponAmmoSnapshot.values().stream().mapToInt(Integer::intValue).sum());
-                // Take initial supply snapshot
-                initialSupplySnapshot.clear();
-                initialSupplySnapshot.putAll(buildCombinedSnapshot());
+                        lastCombinedSnapshot.size(), arenaEntryAmmo);
             }
         }
 
@@ -422,9 +331,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
     public void onGameTick(GameTick event) {
         ensureHistoricalDataLoadedForCurrentPlayer();
 
-        // Poll weapon ammo varps to detect consumption (blowpipe darts/scales)
-        checkWeaponAmmoVarps();
-
         boolean wasInArena = inMokhaArena;
 
         // Track boss presence and health (only near entrance or in arena)
@@ -432,6 +338,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (client.getLocalPlayer() != null) {
             location = client.getLocalPlayer().getWorldLocation();
         }
+
+        boolean inConsumptionBounds = isInsideConsumptionBounds(location);
+        supplyTrackingService.onGameTick(inMokhaArena, isDead, inConsumptionBounds, lastArenaExitTime);
 
         // Failsafe arena boundary check to avoid stale in-arena state causing supply
         // tracking outside Doom.
@@ -618,312 +527,45 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
     }
 
-    /**
-     * Poll weapon ammo varps to detect consumption.
-     * When blowpipe ammo or quiver ammo count decreases, trigger supply snapshot
-     * reconciliation.
-     */
-    private void checkWeaponAmmoVarps() {
-        int currentBlowpipeAmmoType = client.getVarpValue(BUFF_BAR_AMMO_TYPE);
-        int currentBlowpipeAmmoCount = client.getVarpValue(BUFF_BAR_AMMO_AMOUNT);
-        int currentQuiverAmmoType = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO);
-        int currentQuiverAmmoCount = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO_AMOUNT);
-
-        Map<Integer, Integer> currentWeaponAmmo = readWeaponAmmo();
-        boolean hasWeaponAmmoConsumption = false;
-        for (Map.Entry<Integer, Integer> entry : lastWeaponAmmoSnapshot.entrySet()) {
-            int itemId = entry.getKey();
-            int previousQty = entry.getValue();
-            int currentQty = currentWeaponAmmo.getOrDefault(itemId, 0);
-            if (currentQty < previousQty) {
-                hasWeaponAmmoConsumption = true;
-            }
-        }
-
-        if (hasWeaponAmmoConsumption && inMokhaArena && !isDead && isInsideConsumptionBounds(
-                client.getLocalPlayer() != null ? client.getLocalPlayer().getWorldLocation() : null)) {
-            Map<Integer, Integer> currentCombined = buildCombinedSnapshot();
-            checkForConsumption(currentCombined);
-        }
-
-        // Update tracked values
-        lastBlowpipeAmmoType = currentBlowpipeAmmoType;
-        lastBlowpipeAmmoCount = currentBlowpipeAmmoCount;
-        lastQuiverAmmoType = currentQuiverAmmoType;
-        lastQuiverAmmoCount = currentQuiverAmmoCount;
-        lastWeaponAmmoSnapshot.clear();
-        lastWeaponAmmoSnapshot.putAll(currentWeaponAmmo);
-    }
-
     @Subscribe
     public void onItemContainerChanged(ItemContainerChanged event) {
-        // Only track item changes while in arena and alive
-        if (!inMokhaArena || isDead) {
-            // DEFENSIVE: Log if we're not in arena but have a stale snapshot (corruption
-            // indicator)
-            if (!inMokhaArena && !lastCombinedSnapshot.isEmpty()) {
-                long timeSinceExit = System.currentTimeMillis() - lastArenaExitTime;
-                log.warn(
-                        "[Mokha] WARNING: Item container changed outside arena with stale snapshot. Time since exit: {}ms, Snapshot size: {}, Supplies consumed: {}",
-                        timeSinceExit, lastCombinedSnapshot.size(), totalSuppliesConsumed.size());
-            }
-            return;
-        }
-
-        // Only process inventory or equipment containers
-        if (event.getContainerId() != 93 && event.getContainerId() != 94) {
-            return;
-        }
-
         WorldPoint location = client.getLocalPlayer() != null ? client.getLocalPlayer().getWorldLocation() : null;
-        if (!isInsideConsumptionBounds(location)) {
-            // Keep snapshots synchronized but do not count consumption outside tracked Doom
-            // bounds.
-            Map<Integer, Integer> currentCombined = buildCombinedSnapshot();
-            lastCombinedSnapshot.clear();
-            lastCombinedSnapshot.putAll(currentCombined);
-            return;
-        }
-
-        // Build combined snapshot from both containers
-        Map<Integer, Integer> currentCombined = buildCombinedSnapshot();
-        checkForConsumption(currentCombined);
+        supplyTrackingService.onItemContainerChanged(
+                event.getContainerId(),
+                inMokhaArena,
+                isDead,
+                isInsideConsumptionBounds(location),
+                lastArenaExitTime);
     }
 
-    private Map<Integer, Integer> buildCombinedSnapshot() {
-        Map<Integer, Integer> combined = new HashMap<>();
+    private void checkForLootWindow() {
+        LootTrackingService.LootWindowUpdate update = lootTrackingService.pollLootWindow(inMokhaArena);
 
-        // Add inventory items
-        ItemContainer inventory = client.getItemContainer(93);
-        if (inventory != null) {
-            for (Item item : inventory.getItems()) {
-                if (item != null && item.getId() > 0) {
-                    combined.put(item.getId(), combined.getOrDefault(item.getId(), 0) + item.getQuantity());
-                }
-            }
+        if (update.getDetectedWave() > 0) {
+            currentWaveNumber = update.getDetectedWave();
+        } else if (update.isLootWindowVisible() && currentWaveNumber == 0) {
+            currentWaveNumber = 1;
         }
 
-        // Add equipment items
-        ItemContainer equipment = client.getItemContainer(94);
-        if (equipment != null) {
-            for (Item item : equipment.getItems()) {
-                if (item != null && item.getId() > 0) {
-                    combined.put(item.getId(), combined.getOrDefault(item.getId(), 0) + item.getQuantity());
-                }
-            }
-        }
-
-        // Add rune pouch contents
-        Map<Integer, Integer> runePouchRunes = readRunePouch();
-        for (Map.Entry<Integer, Integer> entry : runePouchRunes.entrySet()) {
-            combined.put(entry.getKey(), combined.getOrDefault(entry.getKey(), 0) + entry.getValue());
-        }
-
-        // Add weapon internal ammo (blowpipe darts/scales, quiver ammo)
-        Map<Integer, Integer> weaponAmmo = readWeaponAmmo();
-        for (Map.Entry<Integer, Integer> entry : weaponAmmo.entrySet()) {
-            combined.put(entry.getKey(), combined.getOrDefault(entry.getKey(), 0) + entry.getValue());
-        }
-
-        return combined;
-    }
-
-    /**
-     * Read rune pouch contents using varbits
-     * Supports both regular and divine rune pouches (up to 6 rune slots)
-     */
-    private Map<Integer, Integer> readRunePouch() {
-        Map<Integer, Integer> map = new HashMap<>();
-        int[] runeVarbits = new int[] { Varbits.RUNE_POUCH_RUNE1, Varbits.RUNE_POUCH_RUNE2, Varbits.RUNE_POUCH_RUNE3,
-                Varbits.RUNE_POUCH_RUNE4, Varbits.RUNE_POUCH_RUNE5, Varbits.RUNE_POUCH_RUNE6 };
-        int[] amtVarbits = new int[] { Varbits.RUNE_POUCH_AMOUNT1, Varbits.RUNE_POUCH_AMOUNT2,
-                Varbits.RUNE_POUCH_AMOUNT3, Varbits.RUNE_POUCH_AMOUNT4, Varbits.RUNE_POUCH_AMOUNT5,
-                Varbits.RUNE_POUCH_AMOUNT6 };
-
-        for (int i = 0; i < runeVarbits.length; i++) {
-            int runeVar = client.getVarbitValue(runeVarbits[i]);
-            int amt = client.getVarbitValue(amtVarbits[i]);
-            if (runeVar <= 0 || amt <= 0) {
-                continue; // 0 means empty slot
-            }
-            if (runeVar >= RUNE_POUCH_ITEM_IDS.length) {
-                continue; // Unknown rune index
-            }
-            int itemId = RUNE_POUCH_ITEM_IDS[runeVar];
-            if (itemId <= 0) {
-                continue;
-            }
-            map.put(itemId, map.getOrDefault(itemId, 0) + amt);
-        }
-        return map;
-    }
-
-    /**
-     * Read weapon internal ammo (e.g., toxic blowpipe darts/scales).
-     * Tracks ammo loaded inside weapons that consume charges internally.
-     * Uses varps as per RuneLite's Item Charges plugin.
-     */
-    private Map<Integer, Integer> readWeaponAmmo() {
-        Map<Integer, Integer> map = new HashMap<>();
-        boolean hasBlowpipeAmmoFromVarps = false;
-
-        // Read weapon ammo varps directly. Variant weapon IDs can change, but these
-        // varps are authoritative when populated.
-        int equippedWeapon = client.getVarpValue(BUFF_BAR_WEAPON);
-        int ammoType = client.getVarpValue(BUFF_BAR_AMMO_TYPE);
-        int ammoCount = client.getVarpValue(BUFF_BAR_AMMO_AMOUNT);
-        if (ammoType > 0 && ammoCount > 0) {
-            map.put(ammoType, ammoCount);
-            hasBlowpipeAmmoFromVarps = true;
-        }
-
-        // Also check for quiver ammo if equipped
-        final int quiverAmmoId = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO);
-        final int quiverAmmoCount = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO_AMOUNT);
-        if (quiverAmmoId > 0 && quiverAmmoCount > 0) {
-            map.put(quiverAmmoId, map.getOrDefault(quiverAmmoId, 0) + quiverAmmoCount);
-        }
-
-        // Fallback: read blowpipe storage from Weapon Charges plugin config.
-        // Do this when blowpipe varps are unavailable (common in some sessions).
-        if (!hasBlowpipeAmmoFromVarps) {
-            // Try a weapon-specific key first when known, then common variant keys.
-            String preferredKey = null;
-            if (equippedWeapon == 12926) {
-                preferredKey = BLOWPIPE_STORAGE_CONFIG_KEY;
-            } else if (equippedWeapon == 31575) {
-                preferredKey = CAMPHOR_BLOWPIPE_STORAGE_CONFIG_KEY;
-            } else if (equippedWeapon == 31579) {
-                preferredKey = IRONWOOD_BLOWPIPE_STORAGE_CONFIG_KEY;
-            } else if (equippedWeapon == 31583) {
-                preferredKey = ROSEWOOD_BLOWPIPE_STORAGE_CONFIG_KEY;
-            } else if (equippedWeapon == 28687) {
-                preferredKey = BLAZING_BLOWPIPE_STORAGE_CONFIG_KEY;
-            }
-
-            String[] fallbackKeys = new String[] {
-                    preferredKey,
-                    BLOWPIPE_STORAGE_CONFIG_KEY,
-                    CAMPHOR_BLOWPIPE_STORAGE_CONFIG_KEY,
-                    IRONWOOD_BLOWPIPE_STORAGE_CONFIG_KEY,
-                    ROSEWOOD_BLOWPIPE_STORAGE_CONFIG_KEY,
-                    BLAZING_BLOWPIPE_STORAGE_CONFIG_KEY
-            };
-
-            for (String key : fallbackKeys) {
-                if (key == null) {
-                    continue;
-                }
-
-                String serialized = configManager.getConfiguration(WEAPON_CHARGES_CONFIG_GROUP, key);
-                if (serialized == null || serialized.isEmpty()) {
-                    continue;
-                }
-
-                try {
-                    BlowpipeStorageEntry[] entries = gson.fromJson(serialized, BlowpipeStorageEntry[].class);
-                    boolean hadEntries = false;
-                    if (entries != null) {
-                        for (BlowpipeStorageEntry entry : entries) {
-                            if (entry != null && entry.itemId > 0 && entry.quantity > 0) {
-                                map.put(entry.itemId, map.getOrDefault(entry.itemId, 0) + entry.quantity);
-                                hadEntries = true;
-                            }
-                        }
-                    }
-
-                    if (hadEntries) {
-                        break;
-                    }
-                } catch (Exception ex) {
-                    // Ignore malformed external config payloads and continue trying keys.
-                }
-            }
-        }
-
-        return map;
-    }
-
-    private void checkForConsumption(Map<Integer, Integer> currentCombined) {
-        // DEFENSIVE: Verify we're still in arena before processing (snapshot safety
-        // check)
-        if (!inMokhaArena) {
-            log.error(
-                    "[Mokha] CRITICAL: checkForConsumption called outside arena! inMokhaArena={}, Snapshot size={}, Time since exit: {}ms",
-                    inMokhaArena, lastCombinedSnapshot.size(), System.currentTimeMillis() - lastArenaExitTime);
-            // Clear stale snapshot to prevent further corruption
-            lastCombinedSnapshot.clear();
-            return;
-        }
-
-        // Only log if we have a previous snapshot
-        if (!lastCombinedSnapshot.isEmpty()) {
-            StringBuilder consumed = new StringBuilder();
-            boolean hasConsumption = false;
-
-            // Only check for items that DECREASED (completely left the player)
-            for (Map.Entry<Integer, Integer> entry : lastCombinedSnapshot.entrySet()) {
+        if (!update.getNewLootByItemId().isEmpty()) {
+            List<LootItem> newLootThisWave = new ArrayList<>();
+            for (Map.Entry<Integer, Integer> entry : update.getNewLootByItemId().entrySet()) {
                 int itemId = entry.getKey();
-                int previousQty = entry.getValue();
-                int currentQty = currentCombined.getOrDefault(itemId, 0);
-
-                if (currentQty < previousQty) {
-                    int consumedQty = previousQty - currentQty;
-                    String itemName = itemManager.getItemComposition(itemId).getName();
-                    consumed.append(
-                            String.format("%s: %d → %d (-%d), ", itemName, previousQty, currentQty, consumedQty));
-
-                    // Accumulate total supplies consumed
-                    totalSuppliesConsumed.put(itemId, totalSuppliesConsumed.getOrDefault(itemId, 0) + consumedQty);
-                    hasConsumption = true;
-                }
+                int newQty = entry.getValue();
+                String itemName = itemManager.getItemComposition(itemId).getName();
+                int itemValue = calculateTrackedLootItemValue(itemId, itemName, newQty);
+                newLootThisWave.add(new LootItem(itemName, newQty, itemValue));
             }
 
-            // Update panel when supplies are consumed
-            if (hasConsumption) {
+            if (!newLootThisWave.isEmpty()) {
+                lootByWave.put(currentWaveNumber, newLootThisWave);
                 updatePanelData();
             }
         }
 
-        // Update combined snapshot
-        lastCombinedSnapshot.clear();
-        lastCombinedSnapshot.putAll(currentCombined);
-    }
-
-    private void checkForLootWindow() {
-        if (!inMokhaArena) {
-            lootWindowWasVisible = false;
-            return;
-        }
-
-        // Widget Group 919 is the Mokhaiotl delve interface
-        Widget mainWidget = client.getWidget(919, 2);
-        boolean lootWindowVisible = mainWidget != null && !mainWidget.isHidden();
-
-        if (lootWindowVisible) {
-            // Only log loot once when window first becomes visible
-            if (!lootWindowWasVisible) {
-                // Try to extract wave number from widget text
-                int detectedWave = extractWaveNumber(mainWidget);
-                if (detectedWave > 0) {
-                    currentWaveNumber = detectedWave;
-                } else if (currentWaveNumber == 0) {
-                    // Fallback: if we couldn't detect wave and it's still 0, assume wave 1
-                    currentWaveNumber = 1;
-                }
-
-                // Parse loot items from widget [919:19] children
-                Widget lootContainerWidget = client.getWidget(919, 19);
-                if (lootContainerWidget != null) {
-                    parseLootItems(lootContainerWidget);
-                }
-            }
-
+        if (update.isLootWindowVisible()) {
             updateLootWindowDisplayedValue();
         }
-
-        // Update window visibility state
-        lootWindowWasVisible = lootWindowVisible;
     }
 
     private void updateLootWindowDisplayedValue() {
@@ -1061,190 +703,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return itemValue;
     }
 
-    private void parseLootItems(Widget containerWidget) {
-        if (containerWidget == null) {
-            return;
-        }
-
-        Widget[] children = containerWidget.getChildren();
-        if (children == null) {
-            return;
-        }
-
-        // Build current loot snapshot
-        Map<Integer, Integer> currentLoot = new HashMap<>();
-        Map<String, Integer> currentLootByName = new HashMap<>();
-        for (Widget child : children) {
-            if (child == null || child.isHidden()) {
-                continue;
-            }
-
-            int itemId = child.getItemId();
-            int itemQuantity = child.getItemQuantity();
-
-            if (itemId > 0 && itemQuantity > 0) {
-                String itemName = itemManager.getItemComposition(itemId).getName();
-                // Filter out null, empty, or "null" items
-                if (itemName != null && !itemName.isEmpty() && !itemName.equalsIgnoreCase("null")) {
-                    currentLoot.put(itemId, itemQuantity);
-                    String nameKey = itemName.toLowerCase();
-                    currentLootByName.put(nameKey, currentLootByName.getOrDefault(nameKey, 0) + itemQuantity);
-                }
-            }
-        }
-
-        // Notify if any configured loot alert thresholds are met
-        notifyLootAlerts(currentLootByName);
-
-        // Determine NEW loot items for this wave by comparing with previous snapshot
-        List<LootItem> newLootThisWave = new ArrayList<>();
-        for (Map.Entry<Integer, Integer> entry : currentLoot.entrySet()) {
-            int itemId = entry.getKey();
-            int currentQty = entry.getValue();
-            int previousQty = previousLootSnapshot.getOrDefault(itemId, 0);
-
-            if (currentQty > previousQty) {
-                int newQty = currentQty - previousQty;
-                String itemName = itemManager.getItemComposition(itemId).getName();
-                int itemValue = calculateTrackedLootItemValue(itemId, itemName, newQty);
-
-                newLootThisWave.add(new LootItem(itemName, newQty, itemValue));
-            }
-        }
-
-        // Store new loot for this wave
-        if (!newLootThisWave.isEmpty()) {
-            lootByWave.put(currentWaveNumber, newLootThisWave);
-
-            // Update panel when new loot is captured
-            updatePanelData();
-        }
-
-        // Update previous loot snapshot
-        previousLootSnapshot.clear();
-        previousLootSnapshot.putAll(currentLoot);
-    }
-
-    private List<LootAlertRule> parseLootAlertRules() {
-        List<LootAlertRule> rules = new ArrayList<>();
-        String raw = config.lootAlertLines();
-        if (raw == null || raw.trim().isEmpty()) {
-            return rules;
-        }
-
-        String[] lines = raw.split("\\r?\\n");
-        for (String line : lines) {
-            String trimmed = line.trim();
-            if (trimmed.isEmpty() || trimmed.startsWith("#")) {
-                continue;
-            }
-
-            int commaIndex = trimmed.indexOf(',');
-            if (commaIndex < 0) {
-                log.warn("[Mokha] Loot alert line missing comma: {}", trimmed);
-                continue;
-            }
-
-            String name = trimmed.substring(0, commaIndex).trim();
-            String qtyText = trimmed.substring(commaIndex + 1).trim();
-            if (name.isEmpty() || qtyText.isEmpty()) {
-                log.warn("[Mokha] Loot alert line missing name or quantity: {}", trimmed);
-                continue;
-            }
-
-            int minQty;
-            try {
-                minQty = Integer.parseInt(qtyText);
-            } catch (NumberFormatException e) {
-                log.warn("[Mokha] Loot alert quantity is not a number: {}", trimmed);
-                continue;
-            }
-
-            if (minQty <= 0) {
-                log.warn("[Mokha] Loot alert quantity must be positive: {}", trimmed);
-                continue;
-            }
-
-            rules.add(new LootAlertRule(name, minQty));
-        }
-
-        return rules;
-    }
-
-    private void notifyLootAlerts(Map<String, Integer> currentLootByName) {
-        if (currentLootByName.isEmpty()) {
-            return;
-        }
-
-        List<LootAlertRule> rules = parseLootAlertRules();
-        if (rules.isEmpty()) {
-            return;
-        }
-
-        for (LootAlertRule rule : rules) {
-            Integer qty = currentLootByName.get(rule.nameKey);
-            if (qty != null && qty >= rule.minQty) {
-                String message = String.format(
-                        "[Mokha Tracker] Loot alert: %s x%d (>= %d)",
-                        rule.name,
-                        qty,
-                        rule.minQty);
-                client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", message, null);
-                client.playSoundEffect(4039); // Short beep notification
-            }
-        }
-    }
-
-    /**
-     * Extract wave number from the loot window widget
-     * Searches through widget text for patterns like "Wave 1", "Wave 2", etc.
-     */
-    private int extractWaveNumber(Widget mainWidget) {
-        if (mainWidget == null) {
-            return 0;
-        }
-
-        // Check main widget text
-        String text = mainWidget.getText();
-        if (text != null && text.toLowerCase().contains("wave")) {
-            try {
-                // Extract number after "Wave"
-                String[] parts = text.split("\\s+");
-                for (int i = 0; i < parts.length - 1; i++) {
-                    if (parts[i].equalsIgnoreCase("wave")) {
-                        return Integer.parseInt(parts[i + 1].replaceAll("[^0-9]", ""));
-                    }
-                }
-            } catch (Exception e) {
-                // Ignore parsing errors
-            }
-        }
-
-        // Check children widgets
-        Widget[] children = mainWidget.getChildren();
-        if (children != null) {
-            for (Widget child : children) {
-                if (child != null) {
-                    String childText = child.getText();
-                    if (childText != null && childText.toLowerCase().contains("wave")) {
-                        try {
-                            String[] parts = childText.split("\\s+");
-                            for (int i = 0; i < parts.length - 1; i++) {
-                                if (parts[i].equalsIgnoreCase("wave")) {
-                                    return Integer.parseInt(parts[i + 1].replaceAll("[^0-9]", ""));
-                                }
-                            }
-                        } catch (Exception e) {
-                            // Ignore parsing errors
-                        }
-                    }
-                }
-            }
-        }
-
-        return 0;
-    }
-
     private void debugLocation() {
         if (client.getLocalPlayer() == null) {
             return;
@@ -1267,10 +725,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
         }
         return null;
-    }
-
-    private boolean isBossPresent() {
-        return getBoss() != null;
     }
 
     /**
@@ -1407,24 +861,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             return itemName.replaceAll("\\(\\d+\\)$", "").trim();
         }
         return itemName;
-    }
-
-    /**
-     * Extract the number of doses from a potion name.
-     * If no dose count found, defaults to 4.
-     * Examples: "Super Restore(4)" -> 4, "Stamina Mix(2)" -> 2
-     */
-    private int getPotionDoseCount(String itemName) {
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\((\\d+)\\)$");
-        java.util.regex.Matcher matcher = pattern.matcher(itemName);
-        if (matcher.find()) {
-            try {
-                return Integer.parseInt(matcher.group(1));
-            } catch (NumberFormatException e) {
-                return 4; // Default to 4
-            }
-        }
-        return 4; // Default to 4 if no dose count found
     }
 
     /**
@@ -1797,7 +1233,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Fallback for future waves/regions: while a run is active, treat any instanced
         // region as arena so we do not miss wave 6+ segments that have not been mapped
-        // yet.
         return client.isInInstancedRegion();
     }
 
