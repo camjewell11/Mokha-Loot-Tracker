@@ -37,6 +37,11 @@ public interface MokhaLootTrackerConfig extends Config {
 		return "";
 	}
 
+	@ConfigItem(keyName = "recordCoordinates", name = "Record Location Data", description = "Enable logging of world coordinates, region IDs, and plane data for arena boundary mapping", position = 30)
+	default boolean recordCoordinates() {
+		return false;
+	}
+
 	// Internal persistence properties (not exposed in settings UI)
 	// These use direct ConfigManager access, not @ConfigItem
 

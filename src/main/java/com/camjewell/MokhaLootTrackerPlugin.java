@@ -87,6 +87,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private boolean bossDefeatedThisWave = false;
     private boolean bossWasEverPresentThisWave = false; // Track if boss appeared this wave (for teleport detection)
     private boolean lastDescendClickJustHappened = false; // Track if Descend was just clicked
+    private long lastArenaExitTime = 0; // Track when player last exited arena to detect stale snapshot usage
+
+    // Coordinate recording for arena boundary mapping
+    private int lastRecordedRegionId = -1; // Track last region to avoid spam logging region transitions
+    private WorldPoint lastRecordedLocation = null; // Track last location logged
 
     // Entrance coordinates (for future use)
     private final int entrance_centerX = 1311;
@@ -281,12 +286,20 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 bossDefeatedThisWave = false;
                 bossWasEverPresentThisWave = false;
                 currentWaveNumber = 1; // Start at wave 1
+                lastArenaExitTime = 0; // Reset exit time on entry
+                lastRecordedRegionId = -1; // Reset coordinate recording for this session
+                lastRecordedLocation = null;
                 lootByWave.clear();
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
                 // Take initial snapshot when entering arena
                 lastCombinedSnapshot.clear();
                 lastCombinedSnapshot.putAll(buildCombinedSnapshot());
+                log.info("[Mokha] Arena entry complete. Initial snapshot captured: {} items",
+                        lastCombinedSnapshot.size());
+                if (config.recordCoordinates()) {
+                    log.info("[COORD] ===== RECORDING SESSION START - Arena Entry =====");
+                }
                 // Take initial supply snapshot
                 initialSupplySnapshot.clear();
                 initialSupplySnapshot.putAll(buildCombinedSnapshot());
@@ -310,8 +323,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Detect "Leave" button - player exits arena (loot is claimed, whether taken to
         // inv/bank or not)
         if (option != null && option.equals("Leave")) {
-            log.info("[Mokha] Leave button pressed - player leaving arena with claimed loot");
+            log.info("[Mokha] ===== LEAVE BUTTON DETECTED - player leaving arena with claimed loot");
             if (inMokhaArena) {
+                log.info("[Mokha] Arena state cleared: transitioning from inMokhaArena=true to false");
                 // Print supplies consumed and claimed loot before clearing state
                 printSuppliesConsumed();
                 printAccumulatedLoot();
@@ -322,20 +336,35 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // Save historical data immediately after claiming
                 saveHistoricalData();
 
+                if (config.recordCoordinates()) {
+                    log.info("[COORD] ===== RECORDING SESSION END - Leave Button Pressed at Wave {} =====",
+                            currentWaveNumber);
+                }
+
                 // Clear all tracking state
                 inMokhaArena = false;
                 isDead = false;
                 currentWaveNumber = 1;
                 bossDefeatedThisWave = false;
                 bossWasEverPresentThisWave = false;
+                lastArenaExitTime = System.currentTimeMillis();
+                lastRecordedRegionId = -1; // Reset coordinate recording state
+                lastRecordedLocation = null;
                 lastCombinedSnapshot.clear();
                 lootByWave.clear();
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
                 initialSupplySnapshot.clear();
 
+                log.info("[Mokha] All arena state cleared. Snapshot size: {}, Supplies consumed size: {}",
+                        lastCombinedSnapshot.size(), totalSuppliesConsumed.size());
+
                 // Update panel to show cleared current run data
                 updatePanelData();
+            } else {
+                log.warn(
+                        "[Mokha] Leave button pressed but inMokhaArena=false! This should not happen. Current state: inMokhaArena={}, isDead={}",
+                        inMokhaArena, isDead);
             }
         }
     }
@@ -351,6 +380,26 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (client.getLocalPlayer() != null) {
             location = client.getLocalPlayer().getWorldLocation();
         }
+
+        // Record location data for arena boundary mapping if enabled
+        if (config.recordCoordinates() && location != null) {
+            int regionId = location.getRegionID();
+            int plane = location.getPlane();
+
+            // Log location every tick with wave number and region transitions
+            if (lastRecordedLocation == null || !lastRecordedLocation.equals(location)) {
+                if (lastRecordedRegionId != regionId) {
+                    log.info("[COORD] REGION_TRANSITION | Wave: {} | RegionID: {} → {} | Location: ({}, {}, {})",
+                            currentWaveNumber, lastRecordedRegionId, regionId, location.getX(), location.getY(), plane);
+                    lastRecordedRegionId = regionId;
+                } else {
+                    log.info("[COORD] Wave: {} | RegionID: {} | Location: ({}, {}, {})",
+                            currentWaveNumber, regionId, location.getX(), location.getY(), plane);
+                }
+                lastRecordedLocation = location;
+            }
+        }
+
         boolean shouldCheckBoss = inMokhaArena || (location != null && isAtEntrance(location));
         NPC boss = shouldCheckBoss ? getBoss() : null;
         boolean bossCurrentlyPresent = (boss != null);
@@ -438,7 +487,15 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // unclaimed forever)
                 moveCurrentRunUnclaimedToHistorical();
 
+                if (config.recordCoordinates()) {
+                    log.info("[COORD] ===== RECORDING SESSION END - Player Death at Wave {} =====", currentWaveNumber);
+                }
+
                 inMokhaArena = false; // Exit arena on death
+                isDead = false;
+                lastArenaExitTime = System.currentTimeMillis();
+                lastRecordedRegionId = -1; // Reset coordinate recording state
+                lastRecordedLocation = null;
                 bossDefeatedThisWave = false;
                 bossWasEverPresentThisWave = false;
                 // Clear all tracking data
@@ -516,6 +573,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
     public void onItemContainerChanged(ItemContainerChanged event) {
         // Only track item changes while in arena and alive
         if (!inMokhaArena || isDead) {
+            // DEFENSIVE: Log if we're not in arena but have a stale snapshot (corruption
+            // indicator)
+            if (!inMokhaArena && !lastCombinedSnapshot.isEmpty()) {
+                long timeSinceExit = System.currentTimeMillis() - lastArenaExitTime;
+                log.warn(
+                        "[Mokha] WARNING: Item container changed outside arena with stale snapshot. Time since exit: {}ms, Snapshot size: {}, Supplies consumed: {}",
+                        timeSinceExit, lastCombinedSnapshot.size(), totalSuppliesConsumed.size());
+            }
             return;
         }
 
@@ -600,6 +665,17 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private void checkForConsumption(Map<Integer, Integer> currentCombined) {
+        // DEFENSIVE: Verify we're still in arena before processing (snapshot safety
+        // check)
+        if (!inMokhaArena) {
+            log.error(
+                    "[Mokha] CRITICAL: checkForConsumption called outside arena! inMokhaArena={}, Snapshot size={}, Time since exit: {}ms",
+                    inMokhaArena, lastCombinedSnapshot.size(), System.currentTimeMillis() - lastArenaExitTime);
+            // Clear stale snapshot to prevent further corruption
+            lastCombinedSnapshot.clear();
+            return;
+        }
+
         // Only log if we have a previous snapshot
         if (!lastCombinedSnapshot.isEmpty()) {
             StringBuilder consumed = new StringBuilder();
@@ -1055,9 +1131,16 @@ public class MokhaLootTrackerPlugin extends Plugin {
         printAccumulatedLoot();
         moveCurrentRunUnclaimedToHistorical();
 
+        if (config.recordCoordinates()) {
+            log.info("[COORD] ===== RECORDING SESSION END - Teleport Exit at Wave {} =====", currentWaveNumber);
+        }
+
         // Clear arena state
         inMokhaArena = false;
         isDead = false;
+        lastArenaExitTime = System.currentTimeMillis();
+        lastRecordedRegionId = -1; // Reset coordinate recording state
+        lastRecordedLocation = null;
         currentWaveNumber = 1;
         bossSeenThisRun = false;
         bossDefeatedThisWave = false;
