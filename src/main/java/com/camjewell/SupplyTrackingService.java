@@ -196,6 +196,7 @@ class SupplyTrackingService {
         return combined;
     }
 
+    @SuppressWarnings("deprecation")
     private Map<Integer, Integer> readRunePouch() {
         Map<Integer, Integer> map = new HashMap<>();
         int[] runeVarbits = new int[] { Varbits.RUNE_POUCH_RUNE1, Varbits.RUNE_POUCH_RUNE2, Varbits.RUNE_POUCH_RUNE3,

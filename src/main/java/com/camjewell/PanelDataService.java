@@ -1,0 +1,185 @@
+package com.camjewell;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.IntFunction;
+import java.util.function.IntUnaryOperator;
+
+class PanelDataService {
+    static final class PanelData {
+        long currentRunValue;
+        long totalUnclaimed;
+        long currentSuppliesTotalValue;
+        long historicalSuppliesTotalValue;
+
+        Map<String, MokhaLootPanel.ItemData> currentRunItems = new HashMap<>();
+        Map<String, MokhaLootPanel.ItemData> currentSuppliesData = new HashMap<>();
+        Map<String, MokhaLootPanel.ItemData> historicalSuppliesData = new HashMap<>();
+
+        Map<Integer, Map<String, MokhaLootPanel.ItemData>> claimedItemsByWave = new HashMap<>();
+        Map<Integer, Long> claimedTotalsByWave = new HashMap<>();
+
+        Map<Integer, Map<String, MokhaLootPanel.ItemData>> unclaimedItemsByWave = new HashMap<>();
+        Map<Integer, Long> unclaimedTotalsByWave = new HashMap<>();
+    }
+
+    PanelData buildPanelData(
+            Map<Integer, List<MokhaLootTrackerPlugin.LootItem>> lootByWave,
+            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalClaimedItemsByWave,
+            Map<Integer, Long> historicalClaimedByWave,
+            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalUnclaimedItemsByWave,
+            Map<Integer, Long> historicalUnclaimedByWave,
+            Map<Integer, Integer> totalSuppliesConsumed,
+            Map<String, MokhaLootTrackerPlugin.ItemAggregate> historicalSuppliesUsed,
+            MokhaLootTrackerConfig config,
+            ValueCalculationService valueCalculationService,
+            IntFunction<String> getBasePotionNameByItemId,
+            IntUnaryOperator getPricePerDoseByItemId) {
+        PanelData data = new PanelData();
+
+        data.currentRunValue = valueCalculationService.calculateCurrentRunLootValue(lootByWave, config);
+        data.totalUnclaimed = valueCalculationService.calculateTotalUnclaimed(
+                historicalUnclaimedItemsByWave,
+                historicalUnclaimedByWave,
+                config);
+
+        for (List<MokhaLootTrackerPlugin.LootItem> waveItems : lootByWave.values()) {
+            for (MokhaLootTrackerPlugin.LootItem item : waveItems) {
+                long itemValue = valueCalculationService.getAdjustedLootItemValue(item.name, item.value, config);
+
+                MokhaLootPanel.ItemData itemData = data.currentRunItems.getOrDefault(item.name,
+                        new MokhaLootPanel.ItemData(item.name, 0, 0, 0));
+                itemData.quantity += item.quantity;
+                itemData.totalValue += itemValue;
+                if (item.quantity > 0) {
+                    itemData.pricePerItem = (int) (itemValue / item.quantity);
+                }
+                data.currentRunItems.put(item.name, itemData);
+            }
+        }
+
+        for (int wave = 1; wave <= 10; wave++) {
+            Map<String, MokhaLootPanel.ItemData> claimedItems = buildWaveItemData(
+                    wave,
+                    historicalClaimedItemsByWave,
+                    true);
+            long claimedWaveTotal = calculateClaimedWaveTotal(
+                    wave,
+                    historicalClaimedByWave,
+                    historicalClaimedItemsByWave);
+            data.claimedItemsByWave.put(wave, claimedItems);
+            data.claimedTotalsByWave.put(wave, claimedWaveTotal);
+
+            Map<String, MokhaLootPanel.ItemData> unclaimedItems = buildWaveItemData(
+                    wave,
+                    historicalUnclaimedItemsByWave,
+                    false);
+            long unclaimedWaveTotal = historicalUnclaimedByWave.getOrDefault(wave, 0L);
+            data.unclaimedItemsByWave.put(wave, unclaimedItems);
+            data.unclaimedTotalsByWave.put(wave, unclaimedWaveTotal);
+        }
+
+        for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
+            int itemId = entry.getKey();
+            int quantity = entry.getValue();
+            String baseName = getBasePotionNameByItemId.apply(itemId);
+            int pricePerItem = getPricePerDoseByItemId.applyAsInt(itemId);
+            long totalValue = (long) pricePerItem * quantity;
+            data.currentSuppliesTotalValue += totalValue;
+
+            if (data.currentSuppliesData.containsKey(baseName)) {
+                MokhaLootPanel.ItemData existing = data.currentSuppliesData.get(baseName);
+                data.currentSuppliesData.put(baseName, new MokhaLootPanel.ItemData(
+                        baseName,
+                        existing.quantity + quantity,
+                        pricePerItem,
+                        existing.totalValue + totalValue));
+            } else {
+                data.currentSuppliesData.put(baseName,
+                        new MokhaLootPanel.ItemData(baseName, quantity, pricePerItem, totalValue));
+            }
+        }
+
+        for (MokhaLootTrackerPlugin.ItemAggregate agg : historicalSuppliesUsed.values()) {
+            data.historicalSuppliesData.put(agg.name,
+                    new MokhaLootPanel.ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue));
+            data.historicalSuppliesTotalValue += agg.totalValue;
+        }
+
+        return data;
+    }
+
+    private Map<String, MokhaLootPanel.ItemData> buildWaveItemData(
+            int wave,
+            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> source,
+            boolean combineNinePlus) {
+        Map<String, MokhaLootPanel.ItemData> itemData = new HashMap<>();
+
+        if (wave <= 9 || !combineNinePlus) {
+            Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveItems = source.getOrDefault(wave, new HashMap<>());
+            for (MokhaLootTrackerPlugin.ItemAggregate agg : waveItems.values()) {
+                mergeItemData(itemData, agg);
+            }
+            return itemData;
+        }
+
+        for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : source.entrySet()) {
+            if (waveEntry.getKey() < 9) {
+                continue;
+            }
+            for (MokhaLootTrackerPlugin.ItemAggregate agg : waveEntry.getValue().values()) {
+                mergeItemData(itemData, agg);
+            }
+        }
+
+        return itemData;
+    }
+
+    private long calculateClaimedWaveTotal(
+            int wave,
+            Map<Integer, Long> historicalClaimedByWave,
+            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalClaimedItemsByWave) {
+        if (wave <= 9) {
+            return historicalClaimedByWave.getOrDefault(wave, 0L);
+        }
+
+        long total = 0;
+        for (Map.Entry<Integer, Long> waveTotalEntry : historicalClaimedByWave.entrySet()) {
+            if (waveTotalEntry.getKey() >= 9) {
+                total += waveTotalEntry.getValue();
+            }
+        }
+
+        if (total > 0) {
+            return total;
+        }
+
+        for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : historicalClaimedItemsByWave
+                .entrySet()) {
+            if (waveEntry.getKey() < 9) {
+                continue;
+            }
+            for (MokhaLootTrackerPlugin.ItemAggregate agg : waveEntry.getValue().values()) {
+                total += agg.totalValue;
+            }
+        }
+
+        return total;
+    }
+
+    private void mergeItemData(Map<String, MokhaLootPanel.ItemData> itemData,
+            MokhaLootTrackerPlugin.ItemAggregate agg) {
+        if (itemData.containsKey(agg.name)) {
+            MokhaLootPanel.ItemData existing = itemData.get(agg.name);
+            itemData.put(agg.name, new MokhaLootPanel.ItemData(
+                    agg.name,
+                    existing.quantity + agg.totalQuantity,
+                    agg.pricePerItem,
+                    existing.totalValue + agg.totalValue));
+        } else {
+            itemData.put(agg.name,
+                    new MokhaLootPanel.ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue));
+        }
+    }
+}
