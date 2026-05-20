@@ -163,6 +163,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private static final int DIZANAS_QUIVER_TEMP_AMMO_AMOUNT = 4141; // Quiver ammo quantity
     private static final String WEAPON_CHARGES_CONFIG_GROUP = "tictac7x-charges";
     private static final String BLOWPIPE_STORAGE_CONFIG_KEY = "toxic_blowpipe_storage";
+    private static final String CAMPHOR_BLOWPIPE_STORAGE_CONFIG_KEY = "camphor_blowpipe_storage";
+    private static final String IRONWOOD_BLOWPIPE_STORAGE_CONFIG_KEY = "ironwood_blowpipe_storage";
+    private static final String ROSEWOOD_BLOWPIPE_STORAGE_CONFIG_KEY = "rosewood_blowpipe_storage";
+    private static final String BLAZING_BLOWPIPE_STORAGE_CONFIG_KEY = "blazing_blowpipe_storage";
 
     // Rune pouch mapping (varbit values to item IDs)
     private static final int[] RUNE_POUCH_ITEM_IDS = new int[] {
@@ -763,16 +767,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
         Map<Integer, Integer> map = new HashMap<>();
         boolean hasBlowpipeAmmoFromVarps = false;
 
-        // Check if player has a blowpipe or similar weapon equipped
+        // Read weapon ammo varps directly. Variant weapon IDs can change, but these
+        // varps are authoritative when populated.
         int equippedWeapon = client.getVarpValue(BUFF_BAR_WEAPON);
-        if (equippedWeapon > 0 && BLOWPIPE_WEAPON_IDS.contains(equippedWeapon)) {
-            // Blowpipe is equipped - read darts/scales from varps when available
-            int ammoType = client.getVarpValue(BUFF_BAR_AMMO_TYPE);
-            int ammoCount = client.getVarpValue(BUFF_BAR_AMMO_AMOUNT);
-            if (ammoType > 0 && ammoCount > 0) {
-                map.put(ammoType, ammoCount);
-                hasBlowpipeAmmoFromVarps = true;
-            }
+        int ammoType = client.getVarpValue(BUFF_BAR_AMMO_TYPE);
+        int ammoCount = client.getVarpValue(BUFF_BAR_AMMO_AMOUNT);
+        if (ammoType > 0 && ammoCount > 0) {
+            map.put(ammoType, ammoCount);
+            hasBlowpipeAmmoFromVarps = true;
         }
 
         // Also check for quiver ammo if equipped
@@ -785,23 +787,57 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Fallback: read blowpipe storage from Weapon Charges plugin config.
         // Do this when blowpipe varps are unavailable (common in some sessions).
         if (!hasBlowpipeAmmoFromVarps) {
-            String serialized = configManager.getConfiguration(WEAPON_CHARGES_CONFIG_GROUP,
-                    BLOWPIPE_STORAGE_CONFIG_KEY);
-            if (serialized == null || serialized.isEmpty()) {
-                return map;
+            // Try a weapon-specific key first when known, then common variant keys.
+            String preferredKey = null;
+            if (equippedWeapon == 12926) {
+                preferredKey = BLOWPIPE_STORAGE_CONFIG_KEY;
+            } else if (equippedWeapon == 31575) {
+                preferredKey = CAMPHOR_BLOWPIPE_STORAGE_CONFIG_KEY;
+            } else if (equippedWeapon == 31579) {
+                preferredKey = IRONWOOD_BLOWPIPE_STORAGE_CONFIG_KEY;
+            } else if (equippedWeapon == 31583) {
+                preferredKey = ROSEWOOD_BLOWPIPE_STORAGE_CONFIG_KEY;
+            } else if (equippedWeapon == 28687) {
+                preferredKey = BLAZING_BLOWPIPE_STORAGE_CONFIG_KEY;
             }
 
-            try {
-                BlowpipeStorageEntry[] entries = gson.fromJson(serialized, BlowpipeStorageEntry[].class);
-                if (entries != null) {
-                    for (BlowpipeStorageEntry entry : entries) {
-                        if (entry != null && entry.itemId > 0 && entry.quantity > 0) {
-                            map.put(entry.itemId, map.getOrDefault(entry.itemId, 0) + entry.quantity);
+            String[] fallbackKeys = new String[] {
+                    preferredKey,
+                    BLOWPIPE_STORAGE_CONFIG_KEY,
+                    CAMPHOR_BLOWPIPE_STORAGE_CONFIG_KEY,
+                    IRONWOOD_BLOWPIPE_STORAGE_CONFIG_KEY,
+                    ROSEWOOD_BLOWPIPE_STORAGE_CONFIG_KEY,
+                    BLAZING_BLOWPIPE_STORAGE_CONFIG_KEY
+            };
+
+            for (String key : fallbackKeys) {
+                if (key == null) {
+                    continue;
+                }
+
+                String serialized = configManager.getConfiguration(WEAPON_CHARGES_CONFIG_GROUP, key);
+                if (serialized == null || serialized.isEmpty()) {
+                    continue;
+                }
+
+                try {
+                    BlowpipeStorageEntry[] entries = gson.fromJson(serialized, BlowpipeStorageEntry[].class);
+                    boolean hadEntries = false;
+                    if (entries != null) {
+                        for (BlowpipeStorageEntry entry : entries) {
+                            if (entry != null && entry.itemId > 0 && entry.quantity > 0) {
+                                map.put(entry.itemId, map.getOrDefault(entry.itemId, 0) + entry.quantity);
+                                hadEntries = true;
+                            }
                         }
                     }
+
+                    if (hadEntries) {
+                        break;
+                    }
+                } catch (Exception ex) {
+                    // Ignore malformed external config payloads and continue trying keys.
                 }
-            } catch (Exception ex) {
-                // Ignore malformed external config payloads and fall back to current map state.
             }
         }
 
