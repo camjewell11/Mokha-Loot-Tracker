@@ -33,8 +33,7 @@ class ValueCalculationService {
     }
 
     boolean shouldIgnoreLootItem(String itemName, MokhaLootTrackerConfig config) {
-        return (config.ignoreSpiritSeedsValue() && itemName.equals("Spirit seed")) ||
-                (config.ignoreSunKissedBonesValue() && itemName.equals("Sun-kissed bones"));
+        return config.ignoreSpiritSeedsValue() && itemName.equals("Spirit seed");
     }
 
     void applyIgnoreSettingsToHistoricalItems(
@@ -44,8 +43,6 @@ class ValueCalculationService {
             for (MokhaLootTrackerPlugin.ItemAggregate item : waveItems.values()) {
                 if (item.name.equals("Spirit seed")) {
                     item.totalValue = config.ignoreSpiritSeedsValue() ? 0 : 140000L * item.totalQuantity;
-                } else if (item.name.equals("Sun-kissed bones")) {
-                    item.totalValue = config.ignoreSunKissedBonesValue() ? 0 : 8000L * item.totalQuantity;
                 }
             }
         }
@@ -126,5 +123,20 @@ class ValueCalculationService {
             }
             historicalUnclaimedByWave.put(waveEntry.getKey(), waveTotal);
         }
+    }
+
+    long calculateHistoricalUniqueClaimCount(
+            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalClaimedItemsByWave) {
+        long uniqueCount = 0;
+
+        for (Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
+            for (MokhaLootTrackerPlugin.ItemAggregate item : waveItems.values()) {
+                if (item.pricePerItem > ULTRA_VALUABLE_THRESHOLD) {
+                    uniqueCount += item.totalQuantity;
+                }
+            }
+        }
+
+        return uniqueCount;
     }
 }

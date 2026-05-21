@@ -29,6 +29,8 @@ import net.runelite.client.ui.PluginPanel;
 
 public class MokhaLootPanel extends PluginPanel {
     private static final int ACTION_BUTTON_HEIGHT = 30;
+    private static final int ULTRA_VALUABLE_THRESHOLD = 20_000_000;
+    private static final Color UNIQUE_GOLD_COLOR = new Color(218, 165, 32);
 
     /**
      * Represents item data for display (name, quantity, price per item, total
@@ -49,8 +51,7 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     private final MokhaLootTrackerConfig config;
-    private final Runnable onDebugLocation;
-    private java.util.function.BooleanSupplier isInRun;
+    private final java.util.function.BooleanSupplier isInRun;
 
     // Profit/Loss section
     private JLabel totalClaimedLabel;
@@ -60,9 +61,11 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel claimUnclaimRatioLabel;
     private JLabel claimedCountLabel;
     private JLabel deathCountLabel;
+    private JLabel uniqueClaimsCountLabel;
 
     // Current Run section
     private JLabel potentialValueLabel;
+    private JLabel cumulativeUniqueChanceLabel;
     private JPanel currentRunItemsPanel;
 
     // Claimed Loot by Wave - now stores panels for dynamic item lists
@@ -102,11 +105,11 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel suppliesTotalHeaderLabel; // Collapsed view total label
 
     private final JPanel statsPanel = new JPanel();
-    private Runnable onClearData;
-    private Runnable onRecalculateTotals;
-    private Runnable onClearClaimedHistoricalData;
-    private Runnable onClearUnclaimedHistoricalData;
-    private Runnable onClearSuppliesHistoricalData;
+    private final Runnable onClearData;
+    private final Runnable onRecalculateTotals;
+    private final Runnable onClearClaimedHistoricalData;
+    private final Runnable onClearUnclaimedHistoricalData;
+    private final Runnable onClearSuppliesHistoricalData;
     private java.util.function.BiConsumer<Integer, String> onRemoveClaimedHistoricalItem;
     private java.util.function.BiConsumer<Integer, String> onRemoveUnclaimedHistoricalItem;
     private java.util.function.Consumer<String> onRemoveClaimedHistoricalItemAllWaves;
@@ -118,27 +121,27 @@ public class MokhaLootPanel extends PluginPanel {
     private Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalClaimedItemsByWave;
     private Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalUnclaimedItemsByWave;
 
-    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation) {
-        this(config, onDebugLocation, null, null, null, null, null, null, null, null, null, null, null);
+    public MokhaLootPanel(MokhaLootTrackerConfig config) {
+        this(config, null, null, null, null, null, null, null, null, null, null, null);
     }
 
-    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData) {
-        this(config, onDebugLocation, onClearData, null, null, null, null, null, null, null, null, null, null);
+    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData) {
+        this(config, onClearData, null, null, null, null, null, null, null, null, null, null);
     }
 
-    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData,
+    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
             Runnable onRecalculateTotals) {
-        this(config, onDebugLocation, onClearData, onRecalculateTotals, null, null, null, null, null, null, null,
+        this(config, onClearData, onRecalculateTotals, null, null, null, null, null, null, null,
                 null, null);
     }
 
-    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData,
+    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
             Runnable onRecalculateTotals, java.util.function.BooleanSupplier isInRun) {
-        this(config, onDebugLocation, onClearData, onRecalculateTotals, isInRun, null, null, null, null, null, null,
+        this(config, onClearData, onRecalculateTotals, isInRun, null, null, null, null, null, null,
                 null, null);
     }
 
-    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData,
+    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
             Runnable onRecalculateTotals, java.util.function.BooleanSupplier isInRun,
             Runnable onClearClaimedHistoricalData, Runnable onClearUnclaimedHistoricalData,
             Runnable onClearSuppliesHistoricalData,
@@ -148,7 +151,6 @@ public class MokhaLootPanel extends PluginPanel {
             java.util.function.Consumer<String> onRemoveUnclaimedHistoricalItemAllWaves,
             java.util.function.Consumer<String> onRemoveHistoricalSupplyItem) {
         this.config = config;
-        this.onDebugLocation = onDebugLocation;
         this.onClearData = onClearData;
         this.onRecalculateTotals = onRecalculateTotals;
         this.isInRun = isInRun;
@@ -192,7 +194,7 @@ public class MokhaLootPanel extends PluginPanel {
         configureActionButton(recalculateButton, new Color(0, 100, 50));
         recalculateButton.addActionListener(e -> {
             // Check if currently in a run
-            if (isInRun != null && isInRun.getAsBoolean()) {
+            if (this.isInRun != null && this.isInRun.getAsBoolean()) {
                 // Show error dialog - cannot recalculate during run
                 JOptionPane.showMessageDialog(this,
                         "Will not recalculate during a run.\nFinish your run and try again.",
@@ -205,8 +207,8 @@ public class MokhaLootPanel extends PluginPanel {
                         "Confirm Recalculate Totals",
                         JOptionPane.YES_NO_OPTION,
                         JOptionPane.QUESTION_MESSAGE);
-                if (response == JOptionPane.YES_OPTION && onRecalculateTotals != null) {
-                    onRecalculateTotals.run();
+                if (response == JOptionPane.YES_OPTION && this.onRecalculateTotals != null) {
+                    this.onRecalculateTotals.run();
                 }
             }
         });
@@ -221,8 +223,8 @@ public class MokhaLootPanel extends PluginPanel {
                     "Confirm Clear Claimed Historical",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE);
-            if (response == JOptionPane.YES_OPTION && onClearClaimedHistoricalData != null) {
-                onClearClaimedHistoricalData.run();
+            if (response == JOptionPane.YES_OPTION && this.onClearClaimedHistoricalData != null) {
+                this.onClearClaimedHistoricalData.run();
             }
         });
         buttonPanel.add(clearClaimedButton);
@@ -236,8 +238,8 @@ public class MokhaLootPanel extends PluginPanel {
                     "Confirm Clear Unclaimed Historical",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE);
-            if (response == JOptionPane.YES_OPTION && onClearUnclaimedHistoricalData != null) {
-                onClearUnclaimedHistoricalData.run();
+            if (response == JOptionPane.YES_OPTION && this.onClearUnclaimedHistoricalData != null) {
+                this.onClearUnclaimedHistoricalData.run();
             }
         });
         buttonPanel.add(clearUnclaimedButton);
@@ -251,8 +253,8 @@ public class MokhaLootPanel extends PluginPanel {
                     "Confirm Clear Supplies Historical",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE);
-            if (response == JOptionPane.YES_OPTION && onClearSuppliesHistoricalData != null) {
-                onClearSuppliesHistoricalData.run();
+            if (response == JOptionPane.YES_OPTION && this.onClearSuppliesHistoricalData != null) {
+                this.onClearSuppliesHistoricalData.run();
             }
         });
         buttonPanel.add(clearSuppliesButton);
@@ -266,8 +268,8 @@ public class MokhaLootPanel extends PluginPanel {
                     "Confirm Clear All Data",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE);
-            if (response == JOptionPane.YES_OPTION && onClearData != null) {
-                onClearData.run();
+            if (response == JOptionPane.YES_OPTION && this.onClearData != null) {
+                this.onClearData.run();
             }
         });
         buttonPanel.add(clearButton);
@@ -341,7 +343,7 @@ public class MokhaLootPanel extends PluginPanel {
 
         JLabel title = new JLabel("Summary:");
         title.setFont(FontManager.getRunescapeBoldFont());
-        title.setForeground(new Color(218, 165, 32)); // Gold
+        title.setForeground(UNIQUE_GOLD_COLOR); // Gold
         JPanel titleRow = new JPanel(new BorderLayout());
         titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
         titleRow.setBorder(new EmptyBorder(1, 0, 0, 0));
@@ -388,6 +390,13 @@ public class MokhaLootPanel extends PluginPanel {
         deathCountLabel.setForeground(Color.WHITE);
         panel.add(createStatRow("Total Deaths:", deathCountLabel));
 
+        panel.add(createInternalSeparator());
+
+        uniqueClaimsCountLabel = new JLabel("0");
+        uniqueClaimsCountLabel.setFont(FontManager.getRunescapeFont());
+        uniqueClaimsCountLabel.setForeground(UNIQUE_GOLD_COLOR);
+        panel.add(createStatRow("Uniques Claimed:", uniqueClaimsCountLabel));
+
         return panel;
     }
 
@@ -403,6 +412,11 @@ public class MokhaLootPanel extends PluginPanel {
         title.setForeground(new Color(0, 200, 255)); // Cyan
         titleRow.add(title, BorderLayout.WEST);
         panel.add(titleRow);
+
+        cumulativeUniqueChanceLabel = new JLabel("N/A");
+        cumulativeUniqueChanceLabel.setFont(FontManager.getRunescapeFont());
+        cumulativeUniqueChanceLabel.setForeground(Color.LIGHT_GRAY);
+        panel.add(createStatRow("Unique Chance (Cumulative):", cumulativeUniqueChanceLabel));
 
         potentialValueLabel = new JLabel("0 gp");
         potentialValueLabel.setFont(FontManager.getRunescapeFont());
@@ -670,7 +684,7 @@ public class MokhaLootPanel extends PluginPanel {
                     : ColorScheme.LIGHT_GRAY_COLOR;
             itemLabel.setForeground(itemColor);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
-            String pricePerItemText = agg.pricePerItem > 0 ? (formatGp(agg.pricePerItem) + "/ea") : "N/A";
+            String pricePerItemText = formatPricePerItemTooltip(agg.pricePerItem);
             itemRow.setToolTipText("Price per item: " + pricePerItemText);
             itemRow.add(itemLabel, java.awt.BorderLayout.WEST);
             JLabel itemValueLabel = new JLabel(formatGp(agg.totalValue));
@@ -736,7 +750,7 @@ public class MokhaLootPanel extends PluginPanel {
                     : ColorScheme.LIGHT_GRAY_COLOR;
             itemLabel.setForeground(itemColor);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
-            String pricePerItemText = agg.pricePerItem > 0 ? (formatGp(agg.pricePerItem) + "/ea") : "N/A";
+            String pricePerItemText = formatPricePerItemTooltip(agg.pricePerItem);
             itemRow.setToolTipText("Price per item: " + pricePerItemText);
             itemRow.add(itemLabel, java.awt.BorderLayout.WEST);
             JLabel itemValueLabel = new JLabel(formatGp(agg.totalValue));
@@ -1042,7 +1056,7 @@ public class MokhaLootPanel extends PluginPanel {
 
     // Update methods to be called from plugin
     public void updateProfitLoss(long totalClaimed, long supplyCost, long totalUnclaimed, long claimedCount,
-            long deathCount) {
+            long deathCount, long uniqueClaimsCount) {
         totalClaimedLabel.setText(formatGp(totalClaimed));
         totalClaimedLabel.setForeground(new Color(0, 200, 0)); // Green
 
@@ -1058,6 +1072,7 @@ public class MokhaLootPanel extends PluginPanel {
 
         claimedCountLabel.setText(String.valueOf((int) claimedCount));
         deathCountLabel.setText(String.valueOf((int) deathCount));
+        uniqueClaimsCountLabel.setText(String.valueOf((int) uniqueClaimsCount));
 
         // Calculate and display claim/unclaim ratio with muted colors
         if (totalUnclaimed > 0) {
@@ -1074,7 +1089,58 @@ public class MokhaLootPanel extends PluginPanel {
 
     public void updateCurrentRun(long potentialValue, Map<String, ItemData> itemData) {
         potentialValueLabel.setText(formatGp(potentialValue));
-        updateSuppliesPanel(currentRunItemsPanel, itemData, false);
+        updateSuppliesPanel(currentRunItemsPanel, itemData, false, true);
+    }
+
+    public void updateCurrentRunUniqueChance(int currentDepth, double cumulativeUniqueChancePercent,
+            double clothCumulativePercent,
+            double eyeCumulativePercent,
+            double treadsCumulativePercent,
+            double domCumulativePercent) {
+        if (isInRun == null || !isInRun.getAsBoolean() || currentDepth < 2) {
+            cumulativeUniqueChanceLabel.setText("N/A");
+            cumulativeUniqueChanceLabel.setForeground(Color.LIGHT_GRAY);
+            cumulativeUniqueChanceLabel.setToolTipText(null);
+            return;
+        }
+
+        int displayDepth = Math.max(2, currentDepth);
+        double clothDisplay = toFlooredOneInNDecimal(clothCumulativePercent);
+        double eyeDisplay = toFlooredOneInNDecimal(eyeCumulativePercent);
+        double treadsDisplay = toFlooredOneInNDecimal(treadsCumulativePercent);
+        double domDisplay = toFlooredOneInNDecimal(domCumulativePercent);
+        double totalExcludingDomDisplay = clothDisplay + eyeDisplay + treadsDisplay;
+
+        cumulativeUniqueChanceLabel
+                .setText(String.format("%.2f%% (Delve %d)", cumulativeUniqueChancePercent, displayDepth));
+        cumulativeUniqueChanceLabel.setForeground(UNIQUE_GOLD_COLOR);
+        cumulativeUniqueChanceLabel.setToolTipText(String.format(
+                "<html>Per-unique cumulative by delve %d:<br>"
+                        + "Mokhaiotl cloth: %.2f<br>"
+                        + "Eye of ayak: %s<br>"
+                        + "Avernic treads: %s<br>"
+                        + "Dom: %s<br>"
+                        + "Total (excluding Dom): %.2f</html>",
+                displayDepth,
+                clothDisplay,
+                displayDepth >= 3 ? String.format("%.2f", eyeDisplay) : "N/A (unlocks at 3)",
+                displayDepth >= 4 ? String.format("%.2f", treadsDisplay) : "N/A (unlocks at 4)",
+                displayDepth >= 6 ? String.format("%.2f", domDisplay) : "N/A (unlocks at 6)",
+                totalExcludingDomDisplay));
+    }
+
+    private double toFlooredOneInNDecimal(double cumulativePercent) {
+        if (cumulativePercent <= 0) {
+            return 0;
+        }
+
+        double probability = cumulativePercent / 100.0;
+        int flooredDenominator = (int) Math.floor(1.0 / probability);
+        if (flooredDenominator <= 0) {
+            return 0;
+        }
+
+        return 1.0 / flooredDenominator;
     }
 
     public void updateClaimedWave(int wave, Map<String, ItemData> itemData) {
@@ -1114,13 +1180,13 @@ public class MokhaLootPanel extends PluginPanel {
         suppliesCurrentRunTotalLabel.setText(formatGp(totalValue));
         suppliesCurrentRunHeaderLabel.setText(formatGp(totalValue)); // Also update header label
         // Update items
-        updateSuppliesPanel(suppliesCurrentRunPanel, itemData, false);
+        updateSuppliesPanel(suppliesCurrentRunPanel, itemData, false, false);
     }
 
     public void updateSuppliesTotal(long totalValue, Map<String, ItemData> itemData) {
         suppliesTotalValueLabel.setText(formatGp(totalValue));
         suppliesTotalHeaderLabel.setText(formatGp(totalValue)); // Also update header label
-        updateSuppliesPanel(suppliesTotalItemsPanel, itemData, true);
+        updateSuppliesPanel(suppliesTotalItemsPanel, itemData, true, false);
     }
 
     /**
@@ -1154,6 +1220,8 @@ public class MokhaLootPanel extends PluginPanel {
 
         // Clear Current Run section
         potentialValueLabel.setText("0 gp");
+        cumulativeUniqueChanceLabel.setText("N/A");
+        cumulativeUniqueChanceLabel.setForeground(Color.LIGHT_GRAY);
         currentRunItemsPanel.removeAll();
 
         // Clear all claimed wave panels
@@ -1215,7 +1283,7 @@ public class MokhaLootPanel extends PluginPanel {
         valueLabel.setText(formatGp(totalValue));
 
         for (ItemData item : sortItemDataForDisplay(itemData.values())) {
-            String pricePerItemText = item.pricePerItem > 0 ? (formatGp(item.pricePerItem) + "/ea") : "N/A";
+            String pricePerItemText = formatPricePerItemTooltip(item.pricePerItem);
 
             JPanel itemRow = new JPanel(new BorderLayout());
             itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -1257,7 +1325,8 @@ public class MokhaLootPanel extends PluginPanel {
         itemsPanel.repaint();
     }
 
-    private void updateSuppliesPanel(JPanel suppliesPanel, Map<String, ItemData> itemData, boolean isHistorical) {
+    private void updateSuppliesPanel(JPanel suppliesPanel, Map<String, ItemData> itemData, boolean isHistorical,
+            boolean highlightCurrentRunUniques) {
         // Clear existing items
         suppliesPanel.removeAll();
 
@@ -1270,7 +1339,7 @@ public class MokhaLootPanel extends PluginPanel {
 
         // Add item entries
         for (ItemData item : sortItemDataForDisplay(itemData.values())) {
-            String pricePerItemText = item.pricePerItem > 0 ? (formatGp(item.pricePerItem) + "/ea") : "N/A";
+            String pricePerItemText = formatPricePerItemTooltip(item.pricePerItem);
 
             // Create item row with BorderLayout for left/right alignment
             JPanel itemRow = new JPanel(new BorderLayout());
@@ -1281,13 +1350,16 @@ public class MokhaLootPanel extends PluginPanel {
 
             // Left side: item name and quantity
             JLabel itemLabel = new JLabel("- " + item.name + " x" + item.quantity);
-            itemLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+            Color itemColor = highlightCurrentRunUniques && isUniqueLootItem(item)
+                    ? UNIQUE_GOLD_COLOR
+                    : ColorScheme.LIGHT_GRAY_COLOR;
+            itemLabel.setForeground(itemColor);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemLabel, BorderLayout.WEST);
 
             // Right side: value
             JLabel itemValueLabel = new JLabel(formatGp(item.totalValue));
-            itemValueLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+            itemValueLabel.setForeground(itemColor);
             itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemValueLabel, BorderLayout.EAST);
 
@@ -1301,6 +1373,14 @@ public class MokhaLootPanel extends PluginPanel {
 
         suppliesPanel.revalidate();
         suppliesPanel.repaint();
+    }
+
+    private boolean isUniqueLootItem(ItemData item) {
+        if (item == null) {
+            return false;
+        }
+
+        return item.pricePerItem > ULTRA_VALUABLE_THRESHOLD || "Dom".equalsIgnoreCase(item.name);
     }
 
     private void addHistoricalRemovalInteraction(JPanel itemRow, String itemName, String scope, Runnable onConfirm) {
@@ -1356,13 +1436,23 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     private String formatGp(long value) {
-        if (value >= 1_000_000 || value <= -1_000_000) {
+        if (value >= 1_000_000_000 || value <= -1_000_000_000) {
+            return String.format("%.3fB gp", value / 1_000_000_000.0);
+        } else if (value >= 1_000_000 || value <= -1_000_000) {
             return String.format("%.2fM gp", value / 1_000_000.0);
         } else if (value >= 1_000 || value <= -1_000) {
             return String.format("%.1fK gp", value / 1_000.0);
         } else {
             return value + " gp";
         }
+    }
+
+    private String formatPricePerItemTooltip(long pricePerItem) {
+        if (pricePerItem < 0) {
+            return "N/A";
+        }
+
+        return formatGp(pricePerItem) + "/ea";
     }
 
     private void customizeScrollBar() {

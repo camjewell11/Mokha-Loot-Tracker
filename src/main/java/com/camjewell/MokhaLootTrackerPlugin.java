@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.IntToDoubleFunction;
 
 import javax.inject.Inject;
 
@@ -46,6 +47,25 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private static final String MOKHA_CLOTH_NAME = "Mokhaiotl cloth";
     private static final String DEFAULT_PLAYER_PROFILE_KEY = "default";
     private static final int ARENA_EXIT_GRACE_TICKS = 5;
+    private static final double UNIQUE_CHANCE_DELVE_2 = 1.0 / 2500.0;
+    private static final double UNIQUE_CHANCE_DELVE_3 = 1.0 / 1000.0;
+    private static final double UNIQUE_CHANCE_DELVE_4 = 1.0 / 450.0;
+    private static final double UNIQUE_CHANCE_DELVE_5 = 1.0 / 270.0;
+    private static final double UNIQUE_CHANCE_DELVE_6 = 1.0 / 255.0;
+    private static final double UNIQUE_CHANCE_DELVE_7 = 1.0 / 240.0;
+    private static final double UNIQUE_CHANCE_DELVE_8 = 1.0 / 210.0;
+    private static final double UNIQUE_CHANCE_DELVE_9_PLUS = 1.0 / 180.0;
+    private static final double UNIQUE_CHANCE_STANDARD_DELVE_3 = 1.0 / 2000.0;
+    private static final double UNIQUE_CHANCE_STANDARD_DELVE_4 = 1.0 / 1350.0;
+    private static final double UNIQUE_CHANCE_STANDARD_DELVE_5 = 1.0 / 810.0;
+    private static final double UNIQUE_CHANCE_STANDARD_DELVE_6 = 1.0 / 765.0;
+    private static final double UNIQUE_CHANCE_STANDARD_DELVE_7 = 1.0 / 720.0;
+    private static final double UNIQUE_CHANCE_STANDARD_DELVE_8 = 1.0 / 630.0;
+    private static final double UNIQUE_CHANCE_STANDARD_DELVE_9_PLUS = 1.0 / 540.0;
+    private static final double UNIQUE_CHANCE_DOM_DELVE_6 = 1.0 / 1000.0;
+    private static final double UNIQUE_CHANCE_DOM_DELVE_7 = 1.0 / 750.0;
+    private static final double UNIQUE_CHANCE_DOM_DELVE_8 = 1.0 / 500.0;
+    private static final double UNIQUE_CHANCE_DOM_DELVE_9_PLUS = 1.0 / 250.0;
 
     /**
      * Region IDs observed during Doom runs from location recorder logs.
@@ -186,13 +206,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     @Override
     protected void startUp() throws Exception {
-        panel = new MokhaLootPanel(config, this::debugLocation, this::clearAllData, this::recalculateAllTotals,
+        panel = new MokhaLootPanel(config, this::clearAllData, this::recalculateAllTotals,
                 () -> inMokhaArena,
                 this::clearClaimedHistoricalData,
                 this::clearUnclaimedHistoricalData,
                 this::clearSuppliesHistoricalData,
-                this::removeHistoricalClaimedWaveItem,
-                this::removeHistoricalUnclaimedWaveItem,
+                (wave, itemName) -> this.removeHistoricalClaimedWaveItem(wave == null ? 0 : wave, itemName),
+                (wave, itemName) -> this.removeHistoricalUnclaimedWaveItem(wave == null ? 0 : wave, itemName),
                 this::removeHistoricalClaimedItemAllWaves,
                 this::removeHistoricalUnclaimedItemAllWaves,
                 this::removeHistoricalSupplyItem);
@@ -480,8 +500,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     public void onConfigChanged(ConfigChanged event) {
         // When ignore settings are toggled, update panel immediately
         if (event.getGroup().equals("mokhaloot")) {
-            if (event.getKey().equals("ignoreSunKissedBonesValue") ||
-                    event.getKey().equals("ignoreSpiritSeedsValue") ||
+            if (event.getKey().equals("ignoreSpiritSeedsValue") ||
                     event.getKey().equals("excludeUltraValuableItems")) {
                 // Trigger complete recalculation with new config settings
                 recalculateAllTotals();
@@ -643,23 +662,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (itemValue == 0) {
             if (itemName.equals("Spirit seed")) {
                 itemValue = 140_000 * quantity;
-            } else if (itemName.equals("Sun-kissed bones")) {
-                itemValue = 8_000 * quantity;
             }
         }
 
         return itemValue;
-    }
-
-    private void debugLocation() {
-        if (client.getLocalPlayer() == null) {
-            return;
-        }
-
-        net.runelite.api.coords.WorldPoint location = client.getLocalPlayer().getWorldLocation();
-        if (location == null) {
-            return;
-        }
     }
 
     @SuppressWarnings("deprecation")
@@ -1423,11 +1429,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 itemId -> getBasePotionName(itemManager.getItemComposition(itemId).getName()),
                 this::getPricePerDose);
 
+        long uniqueClaimsCount = valueCalculationService
+                .calculateHistoricalUniqueClaimCount(historicalClaimedItemsByWave);
+
         // Update Profit/Loss section
         panel.updateProfitLoss(historicalTotalClaimed, historicalSupplyCost, panelData.totalUnclaimed,
-                historicalClaims, historicalDeaths);
+                historicalClaims, historicalDeaths, uniqueClaimsCount);
 
         panel.updateCurrentRun(panelData.currentRunValue, panelData.currentRunItems);
+        panel.updateCurrentRunUniqueChance(
+                currentWaveNumber,
+                calculateCumulativeUniqueChancePercent(currentWaveNumber),
+                calculateCumulativeUniqueChancePercent(2, currentWaveNumber, this::getClothUniqueChanceForDelve),
+                calculateCumulativeUniqueChancePercent(3, currentWaveNumber, this::getStandardUniqueChanceForDelve),
+                calculateCumulativeUniqueChancePercent(4, currentWaveNumber, this::getStandardUniqueChanceForDelve),
+                calculateCumulativeUniqueChancePercent(6, currentWaveNumber, this::getDomUniqueChanceForDelve));
 
         for (int wave = 1; wave <= 10; wave++) {
             panel.updateClaimedWave(
@@ -1449,6 +1465,84 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Force panel refresh after all updates
         panel.revalidate();
         panel.repaint();
+    }
+
+    private double calculateCumulativeUniqueChancePercent(int currentDepth) {
+        return calculateCumulativeUniqueChancePercent(2, currentDepth, this::getOverallUniqueChanceForDelve);
+    }
+
+    private double calculateCumulativeUniqueChancePercent(int unlockDepth, int currentDepth,
+            IntToDoubleFunction chanceByDelve) {
+        if (currentDepth < unlockDepth) {
+            return 0;
+        }
+
+        double chanceNoUnique = 1.0;
+        for (int delve = unlockDepth; delve <= currentDepth; delve++) {
+            chanceNoUnique *= (1.0 - chanceByDelve.applyAsDouble(delve));
+        }
+
+        return (1.0 - chanceNoUnique) * 100.0;
+    }
+
+    private double getOverallUniqueChanceForDelve(int delve) {
+        switch (delve) {
+            case 2:
+                return UNIQUE_CHANCE_DELVE_2;
+            case 3:
+                return UNIQUE_CHANCE_DELVE_3;
+            case 4:
+                return UNIQUE_CHANCE_DELVE_4;
+            case 5:
+                return UNIQUE_CHANCE_DELVE_5;
+            case 6:
+                return UNIQUE_CHANCE_DELVE_6;
+            case 7:
+                return UNIQUE_CHANCE_DELVE_7;
+            case 8:
+                return UNIQUE_CHANCE_DELVE_8;
+            default:
+                return UNIQUE_CHANCE_DELVE_9_PLUS;
+        }
+    }
+
+    private double getClothUniqueChanceForDelve(int delve) {
+        if (delve <= 2) {
+            return UNIQUE_CHANCE_DELVE_2;
+        }
+        return getStandardUniqueChanceForDelve(delve);
+    }
+
+    private double getStandardUniqueChanceForDelve(int delve) {
+        switch (delve) {
+            case 3:
+                return UNIQUE_CHANCE_STANDARD_DELVE_3;
+            case 4:
+                return UNIQUE_CHANCE_STANDARD_DELVE_4;
+            case 5:
+                return UNIQUE_CHANCE_STANDARD_DELVE_5;
+            case 6:
+                return UNIQUE_CHANCE_STANDARD_DELVE_6;
+            case 7:
+                return UNIQUE_CHANCE_STANDARD_DELVE_7;
+            case 8:
+                return UNIQUE_CHANCE_STANDARD_DELVE_8;
+            default:
+                return UNIQUE_CHANCE_STANDARD_DELVE_9_PLUS;
+        }
+    }
+
+    private double getDomUniqueChanceForDelve(int delve) {
+        switch (delve) {
+            case 6:
+                return UNIQUE_CHANCE_DOM_DELVE_6;
+            case 7:
+                return UNIQUE_CHANCE_DOM_DELVE_7;
+            case 8:
+                return UNIQUE_CHANCE_DOM_DELVE_8;
+            default:
+                return UNIQUE_CHANCE_DOM_DELVE_9_PLUS;
+        }
     }
 
     /**
