@@ -65,6 +65,7 @@ public class MokhaLootPanel extends PluginPanel {
 
     // Current Run section
     private JLabel potentialValueLabel;
+    private JLabel cumulativeUniqueChanceLabel;
     private JPanel currentRunItemsPanel;
 
     // Claimed Loot by Wave - now stores panels for dynamic item lists
@@ -411,6 +412,11 @@ public class MokhaLootPanel extends PluginPanel {
         title.setForeground(new Color(0, 200, 255)); // Cyan
         titleRow.add(title, BorderLayout.WEST);
         panel.add(titleRow);
+
+        cumulativeUniqueChanceLabel = new JLabel("N/A");
+        cumulativeUniqueChanceLabel.setFont(FontManager.getRunescapeFont());
+        cumulativeUniqueChanceLabel.setForeground(Color.LIGHT_GRAY);
+        panel.add(createStatRow("Unique Chance (Cumulative):", cumulativeUniqueChanceLabel));
 
         potentialValueLabel = new JLabel("0 gp");
         potentialValueLabel.setFont(FontManager.getRunescapeFont());
@@ -1086,6 +1092,57 @@ public class MokhaLootPanel extends PluginPanel {
         updateSuppliesPanel(currentRunItemsPanel, itemData, false, true);
     }
 
+    public void updateCurrentRunUniqueChance(int currentDepth, double cumulativeUniqueChancePercent,
+            double clothCumulativePercent,
+            double eyeCumulativePercent,
+            double treadsCumulativePercent,
+            double domCumulativePercent) {
+        if (isInRun == null || !isInRun.getAsBoolean() || currentDepth < 2) {
+            cumulativeUniqueChanceLabel.setText("N/A");
+            cumulativeUniqueChanceLabel.setForeground(Color.LIGHT_GRAY);
+            cumulativeUniqueChanceLabel.setToolTipText(null);
+            return;
+        }
+
+        int displayDepth = Math.max(2, currentDepth);
+        double clothDisplay = toFlooredOneInNDecimal(clothCumulativePercent);
+        double eyeDisplay = toFlooredOneInNDecimal(eyeCumulativePercent);
+        double treadsDisplay = toFlooredOneInNDecimal(treadsCumulativePercent);
+        double domDisplay = toFlooredOneInNDecimal(domCumulativePercent);
+        double totalExcludingDomDisplay = clothDisplay + eyeDisplay + treadsDisplay;
+
+        cumulativeUniqueChanceLabel
+                .setText(String.format("%.2f%% (Delve %d)", cumulativeUniqueChancePercent, displayDepth));
+        cumulativeUniqueChanceLabel.setForeground(UNIQUE_GOLD_COLOR);
+        cumulativeUniqueChanceLabel.setToolTipText(String.format(
+                "<html>Per-unique cumulative by delve %d:<br>"
+                        + "Mokhaiotl cloth: %.2f<br>"
+                        + "Eye of ayak: %s<br>"
+                        + "Avernic treads: %s<br>"
+                        + "Dom: %s<br>"
+                        + "Total (excluding Dom): %.2f</html>",
+                displayDepth,
+                clothDisplay,
+                displayDepth >= 3 ? String.format("%.2f", eyeDisplay) : "N/A (unlocks at 3)",
+                displayDepth >= 4 ? String.format("%.2f", treadsDisplay) : "N/A (unlocks at 4)",
+                displayDepth >= 6 ? String.format("%.2f", domDisplay) : "N/A (unlocks at 6)",
+                totalExcludingDomDisplay));
+    }
+
+    private double toFlooredOneInNDecimal(double cumulativePercent) {
+        if (cumulativePercent <= 0) {
+            return 0;
+        }
+
+        double probability = cumulativePercent / 100.0;
+        int flooredDenominator = (int) Math.floor(1.0 / probability);
+        if (flooredDenominator <= 0) {
+            return 0;
+        }
+
+        return 1.0 / flooredDenominator;
+    }
+
     public void updateClaimedWave(int wave, Map<String, ItemData> itemData) {
         updateClaimedWave(wave, itemData, -1);
     }
@@ -1163,6 +1220,8 @@ public class MokhaLootPanel extends PluginPanel {
 
         // Clear Current Run section
         potentialValueLabel.setText("0 gp");
+        cumulativeUniqueChanceLabel.setText("N/A");
+        cumulativeUniqueChanceLabel.setForeground(Color.LIGHT_GRAY);
         currentRunItemsPanel.removeAll();
 
         // Clear all claimed wave panels
