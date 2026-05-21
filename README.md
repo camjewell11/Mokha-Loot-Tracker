@@ -12,8 +12,10 @@ A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during D
 - **Lost Loot Monitoring**: Tracks the value and item breakdown of unclaimed loot lost on death, per wave.
 - **Claimed Loot Tracking**: Tracks loot successfully claimed, with per-wave and combined breakdowns.
 - **Per-Wave & Combined Views**: Expandable/collapsible sections for claimed and unclaimed loot by wave, plus a combined all-waves view with bullet-style formatting and tooltips.
+- **Display Sorting Options**: Sort displayed loot and supplies alphabetically or by total value, including per-wave and combined views (default: value-descending).
 - **Profit/Loss Calculation**: Shows total claimed minus supply cost, color-coded (green for profit, red for loss).
 - **Supplies Tracking**: Tracks supplies consumed per run (live) and across all runs (historical), including potions (dose-normalized), runes (including rune pouch and Dizana's quiver), and other consumables.
+- **Historical Entry Editing**: Optional edit mode allows removing historical claimed/unclaimed/supply entries directly from the side panel with confirmation and immediate total recalculation.
 - **Configurable Item Value Exclusion**: Toggles to ignore Sun-kissed Bones and Spirit Seeds (untradable) in calculations.
 - **Adjusted Loot Screen Display**: Optional loot-window value rewrite showing both totals: `original gp (adjusted gp)`.
 - **Mokhaiotl Cloth Value Override**: Supports manual cloth value from settings, with automatic component-based calculation as fallback when left blank.
@@ -74,6 +76,12 @@ All sections support:
 - **Clear Supplies Historical Data**: Clears historical supplies usage only (with confirmation), then refreshes panel values.
 - **Clear All Data**: Removes all tracked data for the current account (with confirmation).
 
+When **Enable Historical Edit Mode** is on in plugin settings:
+
+- Click historical item rows (left or right click) in claimed/unclaimed wave breakdowns, combined views, or historical supplies.
+- Confirm removal in the prompt.
+- The plugin removes the historical entry, updates affected totals/values, refreshes the panel, and persists changes immediately.
+
 ## Loot Alerts
 
 Configure custom notifications to alert you when specific loot items meet or exceed a quantity threshold:
@@ -98,6 +106,8 @@ Accessible via RuneLite Configuration panel → Mokha Loot Tracker:
 - **Show Adjusted Loot Value Display**: Rewrites the collect-loot window value text to show `original gp (adjusted gp)` using ignore toggles.
 - **Mokhaiotl Cloth Value**: Manual override for cloth value. Leave blank to use automatic calculation based on component prices (Confliction Gauntlets - 10000×Demon Tear - Tormented Bracelet).
 - **Loot Alerts**: Configure custom notifications for specific loot items. Format: `Item Name, Minimum Quantity` (one per line). Triggers chat message and sound when threshold is met.
+- **Display Sort Mode**: Choose how displayed loot/supplies are ordered (`By Value` or `Alphabetical`). Default is `By Value`.
+- **Enable Historical Edit Mode**: Enables click-to-remove for historical entries in the side panel with confirmation and immediate recalculation.
 
 ## Data Storage & Persistence
 
@@ -162,6 +172,12 @@ Please include:
 This plugin is open source and available under standard RuneLite plugin licensing.
 
 ## Changelog
+
+### Latest (v6.0)
+
+- Added display sort mode for loot/supplies views (default: by value)
+- Added historical edit mode toggle for click-to-remove entry correction in panel
+- Added per-entry historical deletion flow with immediate totals/value refresh and persistence
 
 ### Latest (v2.0)
 
