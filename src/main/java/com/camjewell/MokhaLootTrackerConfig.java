@@ -7,27 +7,22 @@ import net.runelite.client.config.ConfigItem;
 @ConfigGroup("mokhaloot")
 public interface MokhaLootTrackerConfig extends Config {
 
-	@ConfigItem(keyName = "ignoreSunKissedBonesValue", name = "Ignore Sun-kissed Bones Value", description = "Set sun-kissed bones value to 0 (they are untradable but have 8000 gp base value)", position = 10)
-	default boolean ignoreSunKissedBonesValue() {
-		return false;
-	}
-
-	@ConfigItem(keyName = "ignoreSpiritSeedsValue", name = "Ignore Spirit Seeds Value", description = "Set spirit seeds value to 0 (they are untradable but have 140000 gp base value)", position = 11)
+	@ConfigItem(keyName = "ignoreSpiritSeedsValue", name = "Ignore Spirit Seeds Value", description = "Set spirit seeds value to 0 (they are untradable but have 140000 gp base value)", position = 10)
 	default boolean ignoreSpiritSeedsValue() {
 		return false;
 	}
 
-	@ConfigItem(keyName = "excludeUltraValuableItems", name = "Exclude Uniques", description = "Exclude items worth more than 20 million gp from claimed/unclaimed totals (uniques)", position = 12)
+	@ConfigItem(keyName = "excludeUltraValuableItems", name = "Exclude Uniques", description = "Exclude items worth more than 20 million gp from claimed/unclaimed totals (uniques)", position = 11)
 	default boolean excludeUltraValuableItems() {
 		return false;
 	}
 
-	@ConfigItem(keyName = "showAdjustedLootValueDisplay", name = "Show Adjusted Loot Value Display", description = "Show loot value as original and adjusted totals in the delve/claim loot screen", position = 13)
+	@ConfigItem(keyName = "showAdjustedLootValueDisplay", name = "Show Adjusted Loot Value Display", description = "Show loot value as original and adjusted totals in the delve/claim loot screen", position = 12)
 	default boolean showAdjustedLootValueDisplay() {
 		return false;
 	}
 
-	@ConfigItem(keyName = "mokhaClothValue", name = "Mokhaiotl Cloth Value", description = "Manual override for Mokhaiotl Cloth value. Leave blank to use automatic calculation.", position = 14)
+	@ConfigItem(keyName = "mokhaClothValue", name = "Mokhaiotl Cloth Value", description = "Manual override for Mokhaiotl Cloth value. Leave blank to use automatic calculation.", position = 13)
 	default String mokhaClothValue() {
 		return "";
 	}

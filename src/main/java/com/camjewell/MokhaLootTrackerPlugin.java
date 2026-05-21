@@ -480,8 +480,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     public void onConfigChanged(ConfigChanged event) {
         // When ignore settings are toggled, update panel immediately
         if (event.getGroup().equals("mokhaloot")) {
-            if (event.getKey().equals("ignoreSunKissedBonesValue") ||
-                    event.getKey().equals("ignoreSpiritSeedsValue") ||
+            if (event.getKey().equals("ignoreSpiritSeedsValue") ||
                     event.getKey().equals("excludeUltraValuableItems")) {
                 // Trigger complete recalculation with new config settings
                 recalculateAllTotals();
@@ -643,8 +642,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (itemValue == 0) {
             if (itemName.equals("Spirit seed")) {
                 itemValue = 140_000 * quantity;
-            } else if (itemName.equals("Sun-kissed bones")) {
-                itemValue = 8_000 * quantity;
             }
         }
 
@@ -1423,9 +1420,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 itemId -> getBasePotionName(itemManager.getItemComposition(itemId).getName()),
                 this::getPricePerDose);
 
+        long uniqueClaimsCount = valueCalculationService
+                .calculateHistoricalUniqueClaimCount(historicalClaimedItemsByWave);
+
         // Update Profit/Loss section
         panel.updateProfitLoss(historicalTotalClaimed, historicalSupplyCost, panelData.totalUnclaimed,
-                historicalClaims, historicalDeaths);
+                historicalClaims, historicalDeaths, uniqueClaimsCount);
 
         panel.updateCurrentRun(panelData.currentRunValue, panelData.currentRunItems);
 

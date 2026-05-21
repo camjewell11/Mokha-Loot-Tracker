@@ -29,6 +29,8 @@ import net.runelite.client.ui.PluginPanel;
 
 public class MokhaLootPanel extends PluginPanel {
     private static final int ACTION_BUTTON_HEIGHT = 30;
+    private static final int ULTRA_VALUABLE_THRESHOLD = 20_000_000;
+    private static final Color UNIQUE_GOLD_COLOR = new Color(218, 165, 32);
 
     /**
      * Represents item data for display (name, quantity, price per item, total
@@ -60,6 +62,7 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel claimUnclaimRatioLabel;
     private JLabel claimedCountLabel;
     private JLabel deathCountLabel;
+    private JLabel uniqueClaimsCountLabel;
 
     // Current Run section
     private JLabel potentialValueLabel;
@@ -341,7 +344,7 @@ public class MokhaLootPanel extends PluginPanel {
 
         JLabel title = new JLabel("Summary:");
         title.setFont(FontManager.getRunescapeBoldFont());
-        title.setForeground(new Color(218, 165, 32)); // Gold
+        title.setForeground(UNIQUE_GOLD_COLOR); // Gold
         JPanel titleRow = new JPanel(new BorderLayout());
         titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
         titleRow.setBorder(new EmptyBorder(1, 0, 0, 0));
@@ -387,6 +390,13 @@ public class MokhaLootPanel extends PluginPanel {
         deathCountLabel.setFont(FontManager.getRunescapeFont());
         deathCountLabel.setForeground(Color.WHITE);
         panel.add(createStatRow("Total Deaths:", deathCountLabel));
+
+        panel.add(createInternalSeparator());
+
+        uniqueClaimsCountLabel = new JLabel("0");
+        uniqueClaimsCountLabel.setFont(FontManager.getRunescapeFont());
+        uniqueClaimsCountLabel.setForeground(UNIQUE_GOLD_COLOR);
+        panel.add(createStatRow("Uniques Claimed:", uniqueClaimsCountLabel));
 
         return panel;
     }
@@ -670,7 +680,7 @@ public class MokhaLootPanel extends PluginPanel {
                     : ColorScheme.LIGHT_GRAY_COLOR;
             itemLabel.setForeground(itemColor);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
-            String pricePerItemText = agg.pricePerItem > 0 ? (formatGp(agg.pricePerItem) + "/ea") : "N/A";
+            String pricePerItemText = formatPricePerItemTooltip(agg.pricePerItem);
             itemRow.setToolTipText("Price per item: " + pricePerItemText);
             itemRow.add(itemLabel, java.awt.BorderLayout.WEST);
             JLabel itemValueLabel = new JLabel(formatGp(agg.totalValue));
@@ -736,7 +746,7 @@ public class MokhaLootPanel extends PluginPanel {
                     : ColorScheme.LIGHT_GRAY_COLOR;
             itemLabel.setForeground(itemColor);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
-            String pricePerItemText = agg.pricePerItem > 0 ? (formatGp(agg.pricePerItem) + "/ea") : "N/A";
+            String pricePerItemText = formatPricePerItemTooltip(agg.pricePerItem);
             itemRow.setToolTipText("Price per item: " + pricePerItemText);
             itemRow.add(itemLabel, java.awt.BorderLayout.WEST);
             JLabel itemValueLabel = new JLabel(formatGp(agg.totalValue));
@@ -1042,7 +1052,7 @@ public class MokhaLootPanel extends PluginPanel {
 
     // Update methods to be called from plugin
     public void updateProfitLoss(long totalClaimed, long supplyCost, long totalUnclaimed, long claimedCount,
-            long deathCount) {
+            long deathCount, long uniqueClaimsCount) {
         totalClaimedLabel.setText(formatGp(totalClaimed));
         totalClaimedLabel.setForeground(new Color(0, 200, 0)); // Green
 
@@ -1058,6 +1068,7 @@ public class MokhaLootPanel extends PluginPanel {
 
         claimedCountLabel.setText(String.valueOf((int) claimedCount));
         deathCountLabel.setText(String.valueOf((int) deathCount));
+        uniqueClaimsCountLabel.setText(String.valueOf((int) uniqueClaimsCount));
 
         // Calculate and display claim/unclaim ratio with muted colors
         if (totalUnclaimed > 0) {
@@ -1074,7 +1085,7 @@ public class MokhaLootPanel extends PluginPanel {
 
     public void updateCurrentRun(long potentialValue, Map<String, ItemData> itemData) {
         potentialValueLabel.setText(formatGp(potentialValue));
-        updateSuppliesPanel(currentRunItemsPanel, itemData, false);
+        updateSuppliesPanel(currentRunItemsPanel, itemData, false, true);
     }
 
     public void updateClaimedWave(int wave, Map<String, ItemData> itemData) {
@@ -1114,13 +1125,13 @@ public class MokhaLootPanel extends PluginPanel {
         suppliesCurrentRunTotalLabel.setText(formatGp(totalValue));
         suppliesCurrentRunHeaderLabel.setText(formatGp(totalValue)); // Also update header label
         // Update items
-        updateSuppliesPanel(suppliesCurrentRunPanel, itemData, false);
+        updateSuppliesPanel(suppliesCurrentRunPanel, itemData, false, false);
     }
 
     public void updateSuppliesTotal(long totalValue, Map<String, ItemData> itemData) {
         suppliesTotalValueLabel.setText(formatGp(totalValue));
         suppliesTotalHeaderLabel.setText(formatGp(totalValue)); // Also update header label
-        updateSuppliesPanel(suppliesTotalItemsPanel, itemData, true);
+        updateSuppliesPanel(suppliesTotalItemsPanel, itemData, true, false);
     }
 
     /**
@@ -1215,7 +1226,7 @@ public class MokhaLootPanel extends PluginPanel {
         valueLabel.setText(formatGp(totalValue));
 
         for (ItemData item : sortItemDataForDisplay(itemData.values())) {
-            String pricePerItemText = item.pricePerItem > 0 ? (formatGp(item.pricePerItem) + "/ea") : "N/A";
+            String pricePerItemText = formatPricePerItemTooltip(item.pricePerItem);
 
             JPanel itemRow = new JPanel(new BorderLayout());
             itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -1257,7 +1268,8 @@ public class MokhaLootPanel extends PluginPanel {
         itemsPanel.repaint();
     }
 
-    private void updateSuppliesPanel(JPanel suppliesPanel, Map<String, ItemData> itemData, boolean isHistorical) {
+    private void updateSuppliesPanel(JPanel suppliesPanel, Map<String, ItemData> itemData, boolean isHistorical,
+            boolean highlightCurrentRunUniques) {
         // Clear existing items
         suppliesPanel.removeAll();
 
@@ -1270,7 +1282,7 @@ public class MokhaLootPanel extends PluginPanel {
 
         // Add item entries
         for (ItemData item : sortItemDataForDisplay(itemData.values())) {
-            String pricePerItemText = item.pricePerItem > 0 ? (formatGp(item.pricePerItem) + "/ea") : "N/A";
+            String pricePerItemText = formatPricePerItemTooltip(item.pricePerItem);
 
             // Create item row with BorderLayout for left/right alignment
             JPanel itemRow = new JPanel(new BorderLayout());
@@ -1281,13 +1293,16 @@ public class MokhaLootPanel extends PluginPanel {
 
             // Left side: item name and quantity
             JLabel itemLabel = new JLabel("- " + item.name + " x" + item.quantity);
-            itemLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+            Color itemColor = highlightCurrentRunUniques && isUniqueLootItem(item)
+                    ? UNIQUE_GOLD_COLOR
+                    : ColorScheme.LIGHT_GRAY_COLOR;
+            itemLabel.setForeground(itemColor);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemLabel, BorderLayout.WEST);
 
             // Right side: value
             JLabel itemValueLabel = new JLabel(formatGp(item.totalValue));
-            itemValueLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+            itemValueLabel.setForeground(itemColor);
             itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemValueLabel, BorderLayout.EAST);
 
@@ -1301,6 +1316,14 @@ public class MokhaLootPanel extends PluginPanel {
 
         suppliesPanel.revalidate();
         suppliesPanel.repaint();
+    }
+
+    private boolean isUniqueLootItem(ItemData item) {
+        if (item == null) {
+            return false;
+        }
+
+        return item.pricePerItem > ULTRA_VALUABLE_THRESHOLD || "Dom".equalsIgnoreCase(item.name);
     }
 
     private void addHistoricalRemovalInteraction(JPanel itemRow, String itemName, String scope, Runnable onConfirm) {
@@ -1356,13 +1379,23 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     private String formatGp(long value) {
-        if (value >= 1_000_000 || value <= -1_000_000) {
+        if (value >= 1_000_000_000 || value <= -1_000_000_000) {
+            return String.format("%.3fB gp", value / 1_000_000_000.0);
+        } else if (value >= 1_000_000 || value <= -1_000_000) {
             return String.format("%.2fM gp", value / 1_000_000.0);
         } else if (value >= 1_000 || value <= -1_000) {
             return String.format("%.1fK gp", value / 1_000.0);
         } else {
             return value + " gp";
         }
+    }
+
+    private String formatPricePerItemTooltip(long pricePerItem) {
+        if (pricePerItem < 0) {
+            return "N/A";
+        }
+
+        return formatGp(pricePerItem) + "/ea";
     }
 
     private void customizeScrollBar() {
