@@ -37,7 +37,7 @@ import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
 
-@PluginDescriptor(name = "Mokha Loot Tracker", description = "Tracks loot obtained from Mokhaiotl encounters", tags = {
+@PluginDescriptor(name = "Mokha Loot Tracker", description = "Tracks loot obtained from Mokhaiotl encounters", enabledByDefault = true, tags = {
         "mokha", "loot", "tracker", "mokhaiotl" })
 public class MokhaLootTrackerPlugin extends Plugin {
 
@@ -482,6 +482,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 recalculateAllTotals();
                 // Save the updated state
                 saveHistoricalData();
+            } else if (event.getKey().equals("displaySortMode")) {
+                // Display-only setting: re-render panel without changing tracked data.
+                updatePanelData();
             }
         }
     }

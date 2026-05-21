@@ -4,6 +4,9 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Insets;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 
 import javax.swing.Box;
@@ -633,7 +636,7 @@ public class MokhaLootPanel extends PluginPanel {
                 }
             }
         }
-        for (MokhaLootTrackerPlugin.ItemAggregate agg : combined.values()) {
+        for (MokhaLootTrackerPlugin.ItemAggregate agg : sortAggregatesForDisplay(combined.values())) {
             JPanel itemRow = new JPanel(new java.awt.BorderLayout());
             itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
             itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
@@ -695,7 +698,7 @@ public class MokhaLootPanel extends PluginPanel {
                 }
             }
         }
-        for (MokhaLootTrackerPlugin.ItemAggregate agg : combined.values()) {
+        for (MokhaLootTrackerPlugin.ItemAggregate agg : sortAggregatesForDisplay(combined.values())) {
             JPanel itemRow = new JPanel(new java.awt.BorderLayout());
             itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
             itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
@@ -1180,7 +1183,7 @@ public class MokhaLootPanel extends PluginPanel {
 
         valueLabel.setText(formatGp(totalValue));
 
-        for (ItemData item : itemData.values()) {
+        for (ItemData item : sortItemDataForDisplay(itemData.values())) {
             String pricePerItemText = item.pricePerItem > 0 ? (formatGp(item.pricePerItem) + "/ea") : "N/A";
 
             JPanel itemRow = new JPanel(new BorderLayout());
@@ -1223,7 +1226,7 @@ public class MokhaLootPanel extends PluginPanel {
         }
 
         // Add item entries
-        for (ItemData item : itemData.values()) {
+        for (ItemData item : sortItemDataForDisplay(itemData.values())) {
             String pricePerItemText = item.pricePerItem > 0 ? (formatGp(item.pricePerItem) + "/ea") : "N/A";
 
             // Create item row with BorderLayout for left/right alignment
@@ -1250,6 +1253,31 @@ public class MokhaLootPanel extends PluginPanel {
 
         suppliesPanel.revalidate();
         suppliesPanel.repaint();
+    }
+
+    private List<ItemData> sortItemDataForDisplay(java.util.Collection<ItemData> items) {
+        List<ItemData> sorted = new ArrayList<>(items);
+        if (config.displaySortMode() == MokhaDisplaySortMode.VALUE_DESC) {
+            sorted.sort(Comparator
+                    .comparingLong((ItemData item) -> item.totalValue).reversed()
+                    .thenComparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
+        } else {
+            sorted.sort(Comparator.comparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
+        }
+        return sorted;
+    }
+
+    private List<MokhaLootTrackerPlugin.ItemAggregate> sortAggregatesForDisplay(
+            java.util.Collection<MokhaLootTrackerPlugin.ItemAggregate> items) {
+        List<MokhaLootTrackerPlugin.ItemAggregate> sorted = new ArrayList<>(items);
+        if (config.displaySortMode() == MokhaDisplaySortMode.VALUE_DESC) {
+            sorted.sort(Comparator
+                    .comparingLong((MokhaLootTrackerPlugin.ItemAggregate item) -> item.totalValue).reversed()
+                    .thenComparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
+        } else {
+            sorted.sort(Comparator.comparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
+        }
+        return sorted;
     }
 
     private String formatGp(long value) {

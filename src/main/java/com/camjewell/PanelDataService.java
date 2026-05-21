@@ -1,6 +1,9 @@
 package com.camjewell;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.IntFunction;
@@ -64,6 +67,7 @@ class PanelDataService {
                     wave,
                     historicalClaimedItemsByWave,
                     true);
+            claimedItems = sortItemDataMapForDisplay(claimedItems, config);
             long claimedWaveTotal = calculateClaimedWaveTotal(
                     wave,
                     historicalClaimedByWave,
@@ -75,6 +79,7 @@ class PanelDataService {
                     wave,
                     historicalUnclaimedItemsByWave,
                     false);
+            unclaimedItems = sortItemDataMapForDisplay(unclaimedItems, config);
             long unclaimedWaveTotal = historicalUnclaimedByWave.getOrDefault(wave, 0L);
             data.unclaimedItemsByWave.put(wave, unclaimedItems);
             data.unclaimedTotalsByWave.put(wave, unclaimedWaveTotal);
@@ -181,5 +186,25 @@ class PanelDataService {
             itemData.put(agg.name,
                     new MokhaLootPanel.ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue));
         }
+    }
+
+    private Map<String, MokhaLootPanel.ItemData> sortItemDataMapForDisplay(
+            Map<String, MokhaLootPanel.ItemData> itemData,
+            MokhaLootTrackerConfig config) {
+        List<MokhaLootPanel.ItemData> sortedItems = new ArrayList<>(itemData.values());
+
+        if (config.displaySortMode() == MokhaDisplaySortMode.VALUE_DESC) {
+            sortedItems.sort(Comparator
+                    .comparingLong((MokhaLootPanel.ItemData item) -> item.totalValue).reversed()
+                    .thenComparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
+        } else {
+            sortedItems.sort(Comparator.comparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
+        }
+
+        Map<String, MokhaLootPanel.ItemData> sortedMap = new LinkedHashMap<>();
+        for (MokhaLootPanel.ItemData item : sortedItems) {
+            sortedMap.put(item.name, item);
+        }
+        return sortedMap;
     }
 }

@@ -37,6 +37,11 @@ public interface MokhaLootTrackerConfig extends Config {
 		return "";
 	}
 
+	@ConfigItem(keyName = "displaySortMode", name = "Display Sort Mode", description = "Sort displayed loot and supplies alphabetically or by total value", position = 21)
+	default MokhaDisplaySortMode displaySortMode() {
+		return MokhaDisplaySortMode.VALUE_DESC;
+	}
+
 	// Internal persistence properties (not exposed in settings UI)
 	// These use direct ConfigManager access, not @ConfigItem
 
