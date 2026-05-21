@@ -2,8 +2,11 @@ package com.camjewell;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Insets;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -17,6 +20,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JSeparator;
+import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 
 import net.runelite.client.ui.ColorScheme;
@@ -103,6 +107,11 @@ public class MokhaLootPanel extends PluginPanel {
     private Runnable onClearClaimedHistoricalData;
     private Runnable onClearUnclaimedHistoricalData;
     private Runnable onClearSuppliesHistoricalData;
+    private java.util.function.BiConsumer<Integer, String> onRemoveClaimedHistoricalItem;
+    private java.util.function.BiConsumer<Integer, String> onRemoveUnclaimedHistoricalItem;
+    private java.util.function.Consumer<String> onRemoveClaimedHistoricalItemAllWaves;
+    private java.util.function.Consumer<String> onRemoveUnclaimedHistoricalItemAllWaves;
+    private java.util.function.Consumer<String> onRemoveHistoricalSupplyItem;
 
     // Add these fields to hold references to the historical data maps (set via
     // setter or constructor)
@@ -110,27 +119,34 @@ public class MokhaLootPanel extends PluginPanel {
     private Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalUnclaimedItemsByWave;
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation) {
-        this(config, onDebugLocation, null, null, null, null, null, null);
+        this(config, onDebugLocation, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData) {
-        this(config, onDebugLocation, onClearData, null, null, null, null, null);
+        this(config, onDebugLocation, onClearData, null, null, null, null, null, null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData,
             Runnable onRecalculateTotals) {
-        this(config, onDebugLocation, onClearData, onRecalculateTotals, null, null, null, null);
+        this(config, onDebugLocation, onClearData, onRecalculateTotals, null, null, null, null, null, null, null,
+                null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData,
             Runnable onRecalculateTotals, java.util.function.BooleanSupplier isInRun) {
-        this(config, onDebugLocation, onClearData, onRecalculateTotals, isInRun, null, null, null);
+        this(config, onDebugLocation, onClearData, onRecalculateTotals, isInRun, null, null, null, null, null, null,
+                null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData,
             Runnable onRecalculateTotals, java.util.function.BooleanSupplier isInRun,
             Runnable onClearClaimedHistoricalData, Runnable onClearUnclaimedHistoricalData,
-            Runnable onClearSuppliesHistoricalData) {
+            Runnable onClearSuppliesHistoricalData,
+            java.util.function.BiConsumer<Integer, String> onRemoveClaimedHistoricalItem,
+            java.util.function.BiConsumer<Integer, String> onRemoveUnclaimedHistoricalItem,
+            java.util.function.Consumer<String> onRemoveClaimedHistoricalItemAllWaves,
+            java.util.function.Consumer<String> onRemoveUnclaimedHistoricalItemAllWaves,
+            java.util.function.Consumer<String> onRemoveHistoricalSupplyItem) {
         this.config = config;
         this.onDebugLocation = onDebugLocation;
         this.onClearData = onClearData;
@@ -139,6 +155,11 @@ public class MokhaLootPanel extends PluginPanel {
         this.onClearClaimedHistoricalData = onClearClaimedHistoricalData;
         this.onClearUnclaimedHistoricalData = onClearUnclaimedHistoricalData;
         this.onClearSuppliesHistoricalData = onClearSuppliesHistoricalData;
+        this.onRemoveClaimedHistoricalItem = onRemoveClaimedHistoricalItem;
+        this.onRemoveUnclaimedHistoricalItem = onRemoveUnclaimedHistoricalItem;
+        this.onRemoveClaimedHistoricalItemAllWaves = onRemoveClaimedHistoricalItemAllWaves;
+        this.onRemoveUnclaimedHistoricalItemAllWaves = onRemoveUnclaimedHistoricalItemAllWaves;
+        this.onRemoveHistoricalSupplyItem = onRemoveHistoricalSupplyItem;
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -656,6 +677,11 @@ public class MokhaLootPanel extends PluginPanel {
             itemValueLabel.setForeground(itemColor);
             itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemValueLabel, java.awt.BorderLayout.EAST);
+
+            if (config.enableHistoricalEdit() && onRemoveClaimedHistoricalItemAllWaves != null) {
+                addHistoricalRemovalInteraction(itemRow, agg.name, "claimed historical loot (all waves)",
+                        () -> onRemoveClaimedHistoricalItemAllWaves.accept(agg.name));
+            }
             claimedCombinedPanel.add(itemRow);
         }
         JLabel totalLabel = new JLabel("Total: " + formatGp(totalValue));
@@ -717,6 +743,11 @@ public class MokhaLootPanel extends PluginPanel {
             itemValueLabel.setForeground(itemColor);
             itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemValueLabel, java.awt.BorderLayout.EAST);
+
+            if (config.enableHistoricalEdit() && onRemoveUnclaimedHistoricalItemAllWaves != null) {
+                addHistoricalRemovalInteraction(itemRow, agg.name, "unclaimed historical loot (all waves)",
+                        () -> onRemoveUnclaimedHistoricalItemAllWaves.accept(agg.name));
+            }
             unclaimedCombinedPanel.add(itemRow);
         }
         JLabel totalLabel = new JLabel("Total: " + formatGp(totalValue));
@@ -1043,7 +1074,7 @@ public class MokhaLootPanel extends PluginPanel {
 
     public void updateCurrentRun(long potentialValue, Map<String, ItemData> itemData) {
         potentialValueLabel.setText(formatGp(potentialValue));
-        updateSuppliesPanel(currentRunItemsPanel, itemData);
+        updateSuppliesPanel(currentRunItemsPanel, itemData, false);
     }
 
     public void updateClaimedWave(int wave, Map<String, ItemData> itemData) {
@@ -1054,7 +1085,7 @@ public class MokhaLootPanel extends PluginPanel {
         int index = wave >= 9 ? 8 : wave - 1;
         if (index >= 0 && index < claimedWavePanels.length) {
             updateWavePanel(claimedWaveValueLabels[index], claimedWaveItemPanels[index],
-                    claimedWaveCollapsed[index], itemData, explicitTotal);
+                    claimedWaveCollapsed[index], itemData, explicitTotal, true, wave >= 9 ? 9 : wave);
             updateClaimedSectionTotal();
             if (claimedSectionState == 2) {
                 populateClaimedCombinedPanel();
@@ -1070,7 +1101,7 @@ public class MokhaLootPanel extends PluginPanel {
         int index = wave >= 9 ? 8 : wave - 1;
         if (index >= 0 && index < unclaimedWavePanels.length) {
             updateWavePanel(unclaimedWaveValueLabels[index], unclaimedWaveItemPanels[index],
-                    unclaimedWaveCollapsed[index], itemData, explicitTotal);
+                    unclaimedWaveCollapsed[index], itemData, explicitTotal, false, wave >= 9 ? 9 : wave);
             updateUnclaimedSectionTotal();
             if (unclaimedSectionState == 2) {
                 populateUnclaimedCombinedPanel();
@@ -1083,13 +1114,13 @@ public class MokhaLootPanel extends PluginPanel {
         suppliesCurrentRunTotalLabel.setText(formatGp(totalValue));
         suppliesCurrentRunHeaderLabel.setText(formatGp(totalValue)); // Also update header label
         // Update items
-        updateSuppliesPanel(suppliesCurrentRunPanel, itemData);
+        updateSuppliesPanel(suppliesCurrentRunPanel, itemData, false);
     }
 
     public void updateSuppliesTotal(long totalValue, Map<String, ItemData> itemData) {
         suppliesTotalValueLabel.setText(formatGp(totalValue));
         suppliesTotalHeaderLabel.setText(formatGp(totalValue)); // Also update header label
-        updateSuppliesPanel(suppliesTotalItemsPanel, itemData);
+        updateSuppliesPanel(suppliesTotalItemsPanel, itemData, true);
     }
 
     /**
@@ -1163,7 +1194,7 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     private void updateWavePanel(JLabel valueLabel, JPanel itemsPanel, boolean isCollapsed,
-            Map<String, ItemData> itemData, long explicitTotal) {
+            Map<String, ItemData> itemData, long explicitTotal, boolean isClaimed, int wave) {
         itemsPanel.removeAll();
 
         if (itemData == null || itemData.isEmpty()) {
@@ -1206,6 +1237,18 @@ public class MokhaLootPanel extends PluginPanel {
             itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemValueLabel, BorderLayout.EAST);
 
+            if (config.enableHistoricalEdit()) {
+                if (isClaimed && onRemoveClaimedHistoricalItem != null) {
+                    addHistoricalRemovalInteraction(itemRow, item.name,
+                            "claimed historical loot (Wave " + (wave >= 9 ? "9+" : wave) + ")",
+                            () -> onRemoveClaimedHistoricalItem.accept(wave, item.name));
+                } else if (!isClaimed && onRemoveUnclaimedHistoricalItem != null) {
+                    addHistoricalRemovalInteraction(itemRow, item.name,
+                            "unclaimed historical loot (Wave " + (wave >= 9 ? "9+" : wave) + ")",
+                            () -> onRemoveUnclaimedHistoricalItem.accept(wave, item.name));
+                }
+            }
+
             itemsPanel.add(itemRow);
         }
 
@@ -1214,7 +1257,7 @@ public class MokhaLootPanel extends PluginPanel {
         itemsPanel.repaint();
     }
 
-    private void updateSuppliesPanel(JPanel suppliesPanel, Map<String, ItemData> itemData) {
+    private void updateSuppliesPanel(JPanel suppliesPanel, Map<String, ItemData> itemData, boolean isHistorical) {
         // Clear existing items
         suppliesPanel.removeAll();
 
@@ -1248,11 +1291,43 @@ public class MokhaLootPanel extends PluginPanel {
             itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
             itemRow.add(itemValueLabel, BorderLayout.EAST);
 
+            if (isHistorical && config.enableHistoricalEdit() && onRemoveHistoricalSupplyItem != null) {
+                addHistoricalRemovalInteraction(itemRow, item.name, "historical supplies",
+                        () -> onRemoveHistoricalSupplyItem.accept(item.name));
+            }
+
             suppliesPanel.add(itemRow);
         }
 
         suppliesPanel.revalidate();
         suppliesPanel.repaint();
+    }
+
+    private void addHistoricalRemovalInteraction(JPanel itemRow, String itemName, String scope, Runnable onConfirm) {
+        itemRow.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        String baseTooltip = itemRow.getToolTipText();
+        String editHint = "Click to remove from " + scope;
+        itemRow.setToolTipText(
+                baseTooltip == null || baseTooltip.isEmpty() ? editHint : (baseTooltip + " | " + editHint));
+        itemRow.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent event) {
+                if (!SwingUtilities.isLeftMouseButton(event) && !SwingUtilities.isRightMouseButton(event)) {
+                    return;
+                }
+
+                int response = JOptionPane.showConfirmDialog(
+                        MokhaLootPanel.this,
+                        "Remove '" + itemName + "' from " + scope + "?\nThis updates historical totals immediately.",
+                        "Remove Historical Entry",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE);
+
+                if (response == JOptionPane.YES_OPTION) {
+                    onConfirm.run();
+                }
+            }
+        });
     }
 
     private List<ItemData> sortItemDataForDisplay(java.util.Collection<ItemData> items) {

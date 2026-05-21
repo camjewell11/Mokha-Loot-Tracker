@@ -42,6 +42,11 @@ public interface MokhaLootTrackerConfig extends Config {
 		return MokhaDisplaySortMode.VALUE_DESC;
 	}
 
+	@ConfigItem(keyName = "enableHistoricalEdit", name = "Enable Historical Edit Mode", description = "Allow clicking historical entries in the panel to remove them and recalculate totals", position = 22)
+	default boolean enableHistoricalEdit() {
+		return false;
+	}
+
 	// Internal persistence properties (not exposed in settings UI)
 	// These use direct ConfigManager access, not @ConfigItem
 

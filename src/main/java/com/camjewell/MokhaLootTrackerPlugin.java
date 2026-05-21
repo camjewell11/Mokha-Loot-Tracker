@@ -190,7 +190,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 () -> inMokhaArena,
                 this::clearClaimedHistoricalData,
                 this::clearUnclaimedHistoricalData,
-                this::clearSuppliesHistoricalData);
+                this::clearSuppliesHistoricalData,
+                this::removeHistoricalClaimedWaveItem,
+                this::removeHistoricalUnclaimedWaveItem,
+                this::removeHistoricalClaimedItemAllWaves,
+                this::removeHistoricalUnclaimedItemAllWaves,
+                this::removeHistoricalSupplyItem);
 
         final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/48icon.png");
 
@@ -484,6 +489,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 saveHistoricalData();
             } else if (event.getKey().equals("displaySortMode")) {
                 // Display-only setting: re-render panel without changing tracked data.
+                updatePanelData();
+            } else if (event.getKey().equals("enableHistoricalEdit")) {
                 updatePanelData();
             }
         }
@@ -981,6 +988,167 @@ public class MokhaLootTrackerPlugin extends Plugin {
         updatePanelData();
         saveHistoricalData();
 
+    }
+
+    private void removeHistoricalClaimedWaveItem(int wave, String itemName) {
+        clientThread.invoke(() -> {
+            if (!removeHistoricalItemFromWaveMap(historicalClaimedItemsByWave, wave, itemName)) {
+                return;
+            }
+
+            recalculateWaveTotals();
+            recalculateHistoricalTotalClaimed();
+            saveHistoricalData();
+            updatePanelData();
+        });
+    }
+
+    private void removeHistoricalUnclaimedWaveItem(int wave, String itemName) {
+        clientThread.invoke(() -> {
+            if (!removeHistoricalItemFromWaveMap(historicalUnclaimedItemsByWave, wave, itemName)) {
+                return;
+            }
+
+            recalculateWaveTotals();
+            recalculateHistoricalTotalClaimed();
+            saveHistoricalData();
+            updatePanelData();
+        });
+    }
+
+    private void removeHistoricalClaimedItemAllWaves(String itemName) {
+        clientThread.invoke(() -> {
+            if (!removeHistoricalItemFromAllWaves(historicalClaimedItemsByWave, itemName)) {
+                return;
+            }
+
+            recalculateWaveTotals();
+            recalculateHistoricalTotalClaimed();
+            saveHistoricalData();
+            updatePanelData();
+        });
+    }
+
+    private void removeHistoricalUnclaimedItemAllWaves(String itemName) {
+        clientThread.invoke(() -> {
+            if (!removeHistoricalItemFromAllWaves(historicalUnclaimedItemsByWave, itemName)) {
+                return;
+            }
+
+            recalculateWaveTotals();
+            recalculateHistoricalTotalClaimed();
+            saveHistoricalData();
+            updatePanelData();
+        });
+    }
+
+    private void removeHistoricalSupplyItem(String itemName) {
+        clientThread.invoke(() -> {
+            if (!removeHistoricalItemByName(historicalSuppliesUsed, itemName)) {
+                return;
+            }
+
+            historicalSupplyCost = 0;
+            for (ItemAggregate item : historicalSuppliesUsed.values()) {
+                historicalSupplyCost += item.totalValue;
+            }
+
+            saveHistoricalData();
+            updatePanelData();
+        });
+    }
+
+    private boolean removeHistoricalItemFromWaveMap(Map<Integer, Map<String, ItemAggregate>> byWave,
+            int wave,
+            String itemName) {
+        if (wave >= 9) {
+            return removeHistoricalItemFromNinePlusWaves(byWave, itemName);
+        }
+
+        Map<String, ItemAggregate> waveItems = byWave.get(wave);
+        if (waveItems == null) {
+            return false;
+        }
+
+        boolean removed = removeHistoricalItemByName(waveItems, itemName);
+        if (removed && waveItems.isEmpty()) {
+            byWave.remove(wave);
+        }
+        return removed;
+    }
+
+    private boolean removeHistoricalItemFromAllWaves(Map<Integer, Map<String, ItemAggregate>> byWave, String itemName) {
+        boolean removedAny = false;
+        List<Integer> emptyWaves = new ArrayList<>();
+
+        for (Map.Entry<Integer, Map<String, ItemAggregate>> waveEntry : byWave.entrySet()) {
+            Map<String, ItemAggregate> waveItems = waveEntry.getValue();
+            if (removeHistoricalItemByName(waveItems, itemName)) {
+                removedAny = true;
+            }
+            if (waveItems.isEmpty()) {
+                emptyWaves.add(waveEntry.getKey());
+            }
+        }
+
+        for (Integer wave : emptyWaves) {
+            byWave.remove(wave);
+        }
+
+        return removedAny;
+    }
+
+    private boolean removeHistoricalItemFromNinePlusWaves(Map<Integer, Map<String, ItemAggregate>> byWave,
+            String itemName) {
+        boolean removedAny = false;
+        List<Integer> emptyWaves = new ArrayList<>();
+
+        for (Map.Entry<Integer, Map<String, ItemAggregate>> waveEntry : byWave.entrySet()) {
+            if (waveEntry.getKey() < 9) {
+                continue;
+            }
+
+            Map<String, ItemAggregate> waveItems = waveEntry.getValue();
+            if (removeHistoricalItemByName(waveItems, itemName)) {
+                removedAny = true;
+            }
+            if (waveItems.isEmpty()) {
+                emptyWaves.add(waveEntry.getKey());
+            }
+        }
+
+        for (Integer wave : emptyWaves) {
+            byWave.remove(wave);
+        }
+
+        return removedAny;
+    }
+
+    private boolean removeHistoricalItemByName(Map<String, ItemAggregate> items, String itemName) {
+        if (items == null || itemName == null) {
+            return false;
+        }
+
+        String keyToRemove = null;
+        for (Map.Entry<String, ItemAggregate> itemEntry : items.entrySet()) {
+            if (itemEntry.getValue() != null && itemEntry.getValue().name != null
+                    && itemEntry.getValue().name.equalsIgnoreCase(itemName)) {
+                keyToRemove = itemEntry.getKey();
+                break;
+            }
+
+            if (itemEntry.getKey() != null && itemEntry.getKey().equalsIgnoreCase(itemName)) {
+                keyToRemove = itemEntry.getKey();
+                break;
+            }
+        }
+
+        if (keyToRemove == null) {
+            return false;
+        }
+
+        items.remove(keyToRemove);
+        return true;
     }
 
     /**
