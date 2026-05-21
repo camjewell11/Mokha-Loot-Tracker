@@ -186,13 +186,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     @Override
     protected void startUp() throws Exception {
-        panel = new MokhaLootPanel(config, this::debugLocation, this::clearAllData, this::recalculateAllTotals,
+        panel = new MokhaLootPanel(config, this::clearAllData, this::recalculateAllTotals,
                 () -> inMokhaArena,
                 this::clearClaimedHistoricalData,
                 this::clearUnclaimedHistoricalData,
                 this::clearSuppliesHistoricalData,
-                this::removeHistoricalClaimedWaveItem,
-                this::removeHistoricalUnclaimedWaveItem,
+                (wave, itemName) -> this.removeHistoricalClaimedWaveItem(wave == null ? 0 : wave, itemName),
+                (wave, itemName) -> this.removeHistoricalUnclaimedWaveItem(wave == null ? 0 : wave, itemName),
                 this::removeHistoricalClaimedItemAllWaves,
                 this::removeHistoricalUnclaimedItemAllWaves,
                 this::removeHistoricalSupplyItem);
@@ -646,17 +646,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
 
         return itemValue;
-    }
-
-    private void debugLocation() {
-        if (client.getLocalPlayer() == null) {
-            return;
-        }
-
-        net.runelite.api.coords.WorldPoint location = client.getLocalPlayer().getWorldLocation();
-        if (location == null) {
-            return;
-        }
     }
 
     @SuppressWarnings("deprecation")

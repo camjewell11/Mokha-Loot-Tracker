@@ -51,8 +51,7 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     private final MokhaLootTrackerConfig config;
-    private final Runnable onDebugLocation;
-    private java.util.function.BooleanSupplier isInRun;
+    private final java.util.function.BooleanSupplier isInRun;
 
     // Profit/Loss section
     private JLabel totalClaimedLabel;
@@ -105,11 +104,11 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel suppliesTotalHeaderLabel; // Collapsed view total label
 
     private final JPanel statsPanel = new JPanel();
-    private Runnable onClearData;
-    private Runnable onRecalculateTotals;
-    private Runnable onClearClaimedHistoricalData;
-    private Runnable onClearUnclaimedHistoricalData;
-    private Runnable onClearSuppliesHistoricalData;
+    private final Runnable onClearData;
+    private final Runnable onRecalculateTotals;
+    private final Runnable onClearClaimedHistoricalData;
+    private final Runnable onClearUnclaimedHistoricalData;
+    private final Runnable onClearSuppliesHistoricalData;
     private java.util.function.BiConsumer<Integer, String> onRemoveClaimedHistoricalItem;
     private java.util.function.BiConsumer<Integer, String> onRemoveUnclaimedHistoricalItem;
     private java.util.function.Consumer<String> onRemoveClaimedHistoricalItemAllWaves;
@@ -121,27 +120,27 @@ public class MokhaLootPanel extends PluginPanel {
     private Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalClaimedItemsByWave;
     private Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalUnclaimedItemsByWave;
 
-    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation) {
-        this(config, onDebugLocation, null, null, null, null, null, null, null, null, null, null, null);
+    public MokhaLootPanel(MokhaLootTrackerConfig config) {
+        this(config, null, null, null, null, null, null, null, null, null, null, null);
     }
 
-    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData) {
-        this(config, onDebugLocation, onClearData, null, null, null, null, null, null, null, null, null, null);
+    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData) {
+        this(config, onClearData, null, null, null, null, null, null, null, null, null, null);
     }
 
-    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData,
+    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
             Runnable onRecalculateTotals) {
-        this(config, onDebugLocation, onClearData, onRecalculateTotals, null, null, null, null, null, null, null,
+        this(config, onClearData, onRecalculateTotals, null, null, null, null, null, null, null,
                 null, null);
     }
 
-    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData,
+    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
             Runnable onRecalculateTotals, java.util.function.BooleanSupplier isInRun) {
-        this(config, onDebugLocation, onClearData, onRecalculateTotals, isInRun, null, null, null, null, null, null,
+        this(config, onClearData, onRecalculateTotals, isInRun, null, null, null, null, null, null,
                 null, null);
     }
 
-    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onDebugLocation, Runnable onClearData,
+    public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
             Runnable onRecalculateTotals, java.util.function.BooleanSupplier isInRun,
             Runnable onClearClaimedHistoricalData, Runnable onClearUnclaimedHistoricalData,
             Runnable onClearSuppliesHistoricalData,
@@ -151,7 +150,6 @@ public class MokhaLootPanel extends PluginPanel {
             java.util.function.Consumer<String> onRemoveUnclaimedHistoricalItemAllWaves,
             java.util.function.Consumer<String> onRemoveHistoricalSupplyItem) {
         this.config = config;
-        this.onDebugLocation = onDebugLocation;
         this.onClearData = onClearData;
         this.onRecalculateTotals = onRecalculateTotals;
         this.isInRun = isInRun;
@@ -195,7 +193,7 @@ public class MokhaLootPanel extends PluginPanel {
         configureActionButton(recalculateButton, new Color(0, 100, 50));
         recalculateButton.addActionListener(e -> {
             // Check if currently in a run
-            if (isInRun != null && isInRun.getAsBoolean()) {
+            if (this.isInRun != null && this.isInRun.getAsBoolean()) {
                 // Show error dialog - cannot recalculate during run
                 JOptionPane.showMessageDialog(this,
                         "Will not recalculate during a run.\nFinish your run and try again.",
@@ -208,8 +206,8 @@ public class MokhaLootPanel extends PluginPanel {
                         "Confirm Recalculate Totals",
                         JOptionPane.YES_NO_OPTION,
                         JOptionPane.QUESTION_MESSAGE);
-                if (response == JOptionPane.YES_OPTION && onRecalculateTotals != null) {
-                    onRecalculateTotals.run();
+                if (response == JOptionPane.YES_OPTION && this.onRecalculateTotals != null) {
+                    this.onRecalculateTotals.run();
                 }
             }
         });
@@ -224,8 +222,8 @@ public class MokhaLootPanel extends PluginPanel {
                     "Confirm Clear Claimed Historical",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE);
-            if (response == JOptionPane.YES_OPTION && onClearClaimedHistoricalData != null) {
-                onClearClaimedHistoricalData.run();
+            if (response == JOptionPane.YES_OPTION && this.onClearClaimedHistoricalData != null) {
+                this.onClearClaimedHistoricalData.run();
             }
         });
         buttonPanel.add(clearClaimedButton);
@@ -239,8 +237,8 @@ public class MokhaLootPanel extends PluginPanel {
                     "Confirm Clear Unclaimed Historical",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE);
-            if (response == JOptionPane.YES_OPTION && onClearUnclaimedHistoricalData != null) {
-                onClearUnclaimedHistoricalData.run();
+            if (response == JOptionPane.YES_OPTION && this.onClearUnclaimedHistoricalData != null) {
+                this.onClearUnclaimedHistoricalData.run();
             }
         });
         buttonPanel.add(clearUnclaimedButton);
@@ -254,8 +252,8 @@ public class MokhaLootPanel extends PluginPanel {
                     "Confirm Clear Supplies Historical",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE);
-            if (response == JOptionPane.YES_OPTION && onClearSuppliesHistoricalData != null) {
-                onClearSuppliesHistoricalData.run();
+            if (response == JOptionPane.YES_OPTION && this.onClearSuppliesHistoricalData != null) {
+                this.onClearSuppliesHistoricalData.run();
             }
         });
         buttonPanel.add(clearSuppliesButton);
@@ -269,8 +267,8 @@ public class MokhaLootPanel extends PluginPanel {
                     "Confirm Clear All Data",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE);
-            if (response == JOptionPane.YES_OPTION && onClearData != null) {
-                onClearData.run();
+            if (response == JOptionPane.YES_OPTION && this.onClearData != null) {
+                this.onClearData.run();
             }
         });
         buttonPanel.add(clearButton);
