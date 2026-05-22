@@ -232,7 +232,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Initialize historical data manager
         historicalDataManager = new HistoricalDataManager(net.runelite.client.RuneLite.RUNELITE_DIR, gson);
         supplyTrackingService = new SupplyTrackingService(client, itemManager, configManager, gson, log,
-                lastCombinedSnapshot, lastWeaponAmmoSnapshot, totalSuppliesConsumed, this::updatePanelData);
+                lastCombinedSnapshot, lastWeaponAmmoSnapshot, totalSuppliesConsumed, this::updateSuppliesPanelData);
         lootTrackingService = new LootTrackingService(client, itemManager, config, log, previousLootSnapshot);
         arenaStateService = new ArenaStateService();
         historicalRunService = new HistoricalRunService();
@@ -1399,6 +1399,25 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
 
         return totalCost;
+    }
+
+    /**
+     * Update only supplies sections to avoid full panel redraw on ammo consumption
+     * ticks.
+     */
+    private void updateSuppliesPanelData() {
+        if (panel == null) {
+            return;
+        }
+
+        PanelDataService.SuppliesPanelData suppliesData = panelDataService.buildSuppliesPanelData(
+                totalSuppliesConsumed,
+                historicalSuppliesUsed,
+                itemId -> getBasePotionName(itemManager.getItemComposition(itemId).getName()),
+                this::getPricePerDose);
+
+        panel.updateSuppliesCurrentRun(suppliesData.currentSuppliesTotalValue, suppliesData.currentSuppliesData);
+        panel.updateSuppliesTotal(suppliesData.historicalSuppliesTotalValue, suppliesData.historicalSuppliesData);
     }
 
     /**

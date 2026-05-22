@@ -1,102 +1,4400 @@
 {
-  "description": "Test data backup for Mokha Loot Tracker plugin",
-  "timestamp": "2026-01-04T16:02:23Z",
-  "testData": {
-    "historicalClaimedByWaveJson": {
-      "1": 140000,
-      "2": 520000,
-      "3": 1520000
+  "players": {
+    "default": {
+      "historicalClaimedItemsByWave": {},
+      "historicalClaimedByWave": {},
+      "historicalUnclaimedItemsByWave": {},
+      "historicalUnclaimedByWave": {},
+      "historicalSuppliesUsed": {},
+      "historicalTotalClaimed": 0,
+      "historicalClaims": 0,
+      "historicalDeaths": 1
     },
-    "historicalClaimedItemsByWaveJson": {
-      "1": {
-        "Spirit seed": {
-          "name": "Spirit seed",
-          "totalQuantity": 10,
-          "pricePerItem": 14000,
-          "totalValue": 140000,
-          "originalTotalValue": 140000
+    "theprestiege": {
+      "historicalClaimedItemsByWave": {
+        "1": {
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 3502,
+            "pricePerItem": 365,
+            "totalValue": 1278230,
+            "originalTotalValue": 1278230
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 10,
+            "pricePerItem": 22570,
+            "totalValue": 225700,
+            "originalTotalValue": 225700
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 654,
+            "pricePerItem": 102,
+            "totalValue": 66708,
+            "originalTotalValue": 66708
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 464,
+            "pricePerItem": 170,
+            "totalValue": 78880,
+            "originalTotalValue": 78880
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 586,
+            "pricePerItem": 203,
+            "totalValue": 118958,
+            "originalTotalValue": 118958
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 19357,
+            "pricePerItem": 328,
+            "totalValue": 6349096,
+            "originalTotalValue": 6349096
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 284,
+            "pricePerItem": 1581,
+            "totalValue": 449004,
+            "originalTotalValue": 449004
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 18,
+            "pricePerItem": 58807,
+            "totalValue": 1058526,
+            "originalTotalValue": 1058526
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 9,
+            "pricePerItem": 161064,
+            "totalValue": 1449576,
+            "originalTotalValue": 1449576
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 11061,
+            "pricePerItem": 5,
+            "totalValue": 55305,
+            "originalTotalValue": 55305
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 11834,
+            "pricePerItem": 4,
+            "totalValue": 47336,
+            "originalTotalValue": 47336
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 413,
+            "pricePerItem": 157,
+            "totalValue": 64841,
+            "originalTotalValue": 64841
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 25,
+            "pricePerItem": 57484,
+            "totalValue": 1437100,
+            "originalTotalValue": 1437100
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 7,
+            "pricePerItem": 25250,
+            "totalValue": 176750,
+            "originalTotalValue": 176750
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 95,
+            "pricePerItem": 8599,
+            "totalValue": 816905,
+            "originalTotalValue": 816905
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 13,
+            "pricePerItem": 27315,
+            "totalValue": 355095,
+            "originalTotalValue": 355095
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 240,
+            "pricePerItem": 685,
+            "totalValue": 164400,
+            "originalTotalValue": 164400
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 28,
+            "pricePerItem": 18700,
+            "totalValue": 523600,
+            "originalTotalValue": 523600
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 60,
+            "pricePerItem": 10483,
+            "totalValue": 628980,
+            "originalTotalValue": 628980
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 5,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 300,
+            "pricePerItem": 349,
+            "totalValue": 104700,
+            "originalTotalValue": 104700
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 10,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 140000
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 3913,
+            "pricePerItem": 269,
+            "totalValue": 1052597,
+            "originalTotalValue": 1052597
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 514,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 112000
+          },
+          "Sunfire splinter": {
+            "name": "Sunfire splinter",
+            "totalQuantity": 197,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 3,
+            "pricePerItem": 11307,
+            "totalValue": 33921,
+            "originalTotalValue": 33921
+          }
+        },
+        "2": {
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 2681,
+            "pricePerItem": 365,
+            "totalValue": 978565,
+            "originalTotalValue": 978565
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 1,
+            "pricePerItem": 22570,
+            "totalValue": 22570,
+            "originalTotalValue": 22570
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 596,
+            "pricePerItem": 102,
+            "totalValue": 60792,
+            "originalTotalValue": 60792
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 435,
+            "pricePerItem": 170,
+            "totalValue": 73950,
+            "originalTotalValue": 73950
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 787,
+            "pricePerItem": 203,
+            "totalValue": 159761,
+            "originalTotalValue": 159761
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 12071,
+            "pricePerItem": 328,
+            "totalValue": 3959288,
+            "originalTotalValue": 3959288
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 530,
+            "pricePerItem": 1581,
+            "totalValue": 837930,
+            "originalTotalValue": 837930
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 14,
+            "pricePerItem": 58807,
+            "totalValue": 823298,
+            "originalTotalValue": 823298
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 5,
+            "pricePerItem": 161064,
+            "totalValue": 805320,
+            "originalTotalValue": 805320
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 3468,
+            "pricePerItem": 5,
+            "totalValue": 17340,
+            "originalTotalValue": 17340
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 8609,
+            "pricePerItem": 4,
+            "totalValue": 34436,
+            "originalTotalValue": 34436
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 371,
+            "pricePerItem": 157,
+            "totalValue": 58247,
+            "originalTotalValue": 58247
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 18,
+            "pricePerItem": 57484,
+            "totalValue": 1034712,
+            "originalTotalValue": 1034712
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 7,
+            "pricePerItem": 25250,
+            "totalValue": 176750,
+            "originalTotalValue": 176750
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 68,
+            "pricePerItem": 8599,
+            "totalValue": 584732,
+            "originalTotalValue": 584732
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 11,
+            "pricePerItem": 27315,
+            "totalValue": 300465,
+            "originalTotalValue": 300465
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 147,
+            "pricePerItem": 685,
+            "totalValue": 100695,
+            "originalTotalValue": 100695
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 24,
+            "pricePerItem": 18700,
+            "totalValue": 448800,
+            "originalTotalValue": 448800
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 56,
+            "pricePerItem": 10483,
+            "totalValue": 587048,
+            "originalTotalValue": 587048
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 3,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 388,
+            "pricePerItem": 349,
+            "totalValue": 135412,
+            "originalTotalValue": 135412
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 10,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 1400000
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 4789,
+            "pricePerItem": 269,
+            "totalValue": 1288241,
+            "originalTotalValue": 1288241
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 649,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Sunfire splinter": {
+            "name": "Sunfire splinter",
+            "totalQuantity": 255,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 2,
+            "pricePerItem": 11307,
+            "totalValue": 22614,
+            "originalTotalValue": 22614
+          }
+        },
+        "3": {
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 2702,
+            "pricePerItem": 365,
+            "totalValue": 986230,
+            "originalTotalValue": 986230
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 7,
+            "pricePerItem": 22570,
+            "totalValue": 157990,
+            "originalTotalValue": 157990
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 382,
+            "pricePerItem": 102,
+            "totalValue": 38964,
+            "originalTotalValue": 38964
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 270,
+            "pricePerItem": 170,
+            "totalValue": 45900,
+            "originalTotalValue": 45900
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 236,
+            "pricePerItem": 203,
+            "totalValue": 47908,
+            "originalTotalValue": 47908
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 15821,
+            "pricePerItem": 328,
+            "totalValue": 5189288,
+            "originalTotalValue": 5189288
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 689,
+            "pricePerItem": 1581,
+            "totalValue": 1089309,
+            "originalTotalValue": 1089309
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 10,
+            "pricePerItem": 58807,
+            "totalValue": 588070,
+            "originalTotalValue": 588070
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 6716,
+            "pricePerItem": 5,
+            "totalValue": 33580,
+            "originalTotalValue": 33580
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 6910,
+            "pricePerItem": 4,
+            "totalValue": 27640,
+            "originalTotalValue": 27640
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 298,
+            "pricePerItem": 157,
+            "totalValue": 46786,
+            "originalTotalValue": 46786
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 24,
+            "pricePerItem": 57484,
+            "totalValue": 1379616,
+            "originalTotalValue": 1379616
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 13,
+            "pricePerItem": 25250,
+            "totalValue": 328250,
+            "originalTotalValue": 328250
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 51,
+            "pricePerItem": 8599,
+            "totalValue": 438549,
+            "originalTotalValue": 438549
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 4,
+            "pricePerItem": 27315,
+            "totalValue": 109260,
+            "originalTotalValue": 109260
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 151,
+            "pricePerItem": 685,
+            "totalValue": 103435,
+            "originalTotalValue": 103435
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 26,
+            "pricePerItem": 18700,
+            "totalValue": 486200,
+            "originalTotalValue": 486200
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 39,
+            "pricePerItem": 10483,
+            "totalValue": 408837,
+            "originalTotalValue": 408837
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 2,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 285,
+            "pricePerItem": 349,
+            "totalValue": 99465,
+            "originalTotalValue": 99465
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 8,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 1120000
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 5031,
+            "pricePerItem": 269,
+            "totalValue": 1353339,
+            "originalTotalValue": 1353339
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 462,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 336000
+          },
+          "Sunfire splinter": {
+            "name": "Sunfire splinter",
+            "totalQuantity": 71,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 2,
+            "pricePerItem": 11307,
+            "totalValue": 22614,
+            "originalTotalValue": 22614
+          }
+        },
+        "4": {
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 758,
+            "pricePerItem": 365,
+            "totalValue": 276670,
+            "originalTotalValue": 276670
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 5,
+            "pricePerItem": 22570,
+            "totalValue": 112850,
+            "originalTotalValue": 112850
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 649,
+            "pricePerItem": 102,
+            "totalValue": 66198,
+            "originalTotalValue": 66198
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 340,
+            "pricePerItem": 170,
+            "totalValue": 57800,
+            "originalTotalValue": 57800
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 480,
+            "pricePerItem": 203,
+            "totalValue": 97440,
+            "originalTotalValue": 97440
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 15318,
+            "pricePerItem": 328,
+            "totalValue": 5024304,
+            "originalTotalValue": 5024304
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 317,
+            "pricePerItem": 1581,
+            "totalValue": 501177,
+            "originalTotalValue": 501177
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 17,
+            "pricePerItem": 58807,
+            "totalValue": 999719,
+            "originalTotalValue": 999719
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 3,
+            "pricePerItem": 161064,
+            "totalValue": 483192,
+            "originalTotalValue": 483192
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 7900,
+            "pricePerItem": 5,
+            "totalValue": 39500,
+            "originalTotalValue": 39500
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 5497,
+            "pricePerItem": 4,
+            "totalValue": 21988,
+            "originalTotalValue": 21988
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 199,
+            "pricePerItem": 157,
+            "totalValue": 31243,
+            "originalTotalValue": 31243
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 16,
+            "pricePerItem": 57484,
+            "totalValue": 919744,
+            "originalTotalValue": 919744
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 7,
+            "pricePerItem": 25250,
+            "totalValue": 176750,
+            "originalTotalValue": 176750
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 56,
+            "pricePerItem": 8599,
+            "totalValue": 481544,
+            "originalTotalValue": 481544
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 12,
+            "pricePerItem": 27315,
+            "totalValue": 327780,
+            "originalTotalValue": 327780
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 117,
+            "pricePerItem": 685,
+            "totalValue": 80145,
+            "originalTotalValue": 80145
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 19,
+            "pricePerItem": 18700,
+            "totalValue": 355300,
+            "originalTotalValue": 355300
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 25,
+            "pricePerItem": 10483,
+            "totalValue": 262075,
+            "originalTotalValue": 262075
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 3,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 365,
+            "pricePerItem": 349,
+            "totalValue": 127385,
+            "originalTotalValue": 127385
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 7,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 140000
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 1748,
+            "pricePerItem": 269,
+            "totalValue": 470212,
+            "originalTotalValue": 470212
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 773,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 560000
+          },
+          "Sunfire splinter": {
+            "name": "Sunfire splinter",
+            "totalQuantity": 492,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          }
+        },
+        "5": {
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 2637,
+            "pricePerItem": 365,
+            "totalValue": 962505,
+            "originalTotalValue": 962505
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 6,
+            "pricePerItem": 22570,
+            "totalValue": 135420,
+            "originalTotalValue": 135420
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 411,
+            "pricePerItem": 102,
+            "totalValue": 41922,
+            "originalTotalValue": 41922
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 256,
+            "pricePerItem": 170,
+            "totalValue": 43520,
+            "originalTotalValue": 43520
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 389,
+            "pricePerItem": 203,
+            "totalValue": 78967,
+            "originalTotalValue": 78967
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 14399,
+            "pricePerItem": 328,
+            "totalValue": 4722872,
+            "originalTotalValue": 4722872
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 410,
+            "pricePerItem": 1581,
+            "totalValue": 648210,
+            "originalTotalValue": 648210
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 7,
+            "pricePerItem": 58807,
+            "totalValue": 411649,
+            "originalTotalValue": 411649
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 7,
+            "pricePerItem": 161064,
+            "totalValue": 1127448,
+            "originalTotalValue": 1127448
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 2596,
+            "pricePerItem": 5,
+            "totalValue": 12980,
+            "originalTotalValue": 12980
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 3172,
+            "pricePerItem": 4,
+            "totalValue": 12688,
+            "originalTotalValue": 12688
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 322,
+            "pricePerItem": 157,
+            "totalValue": 50554,
+            "originalTotalValue": 50554
+          },
+          "Mokhaiotl cloth": {
+            "name": "Mokhaiotl cloth",
+            "totalQuantity": 1,
+            "pricePerItem": 69000000,
+            "totalValue": 69000000,
+            "originalTotalValue": 69000000
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 17,
+            "pricePerItem": 57484,
+            "totalValue": 977228,
+            "originalTotalValue": 977228
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 20,
+            "pricePerItem": 25250,
+            "totalValue": 505000,
+            "originalTotalValue": 505000
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 112,
+            "pricePerItem": 8599,
+            "totalValue": 963088,
+            "originalTotalValue": 963088
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 4,
+            "pricePerItem": 27315,
+            "totalValue": 109260,
+            "originalTotalValue": 109260
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 222,
+            "pricePerItem": 685,
+            "totalValue": 152070,
+            "originalTotalValue": 152070
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 16,
+            "pricePerItem": 18700,
+            "totalValue": 299200,
+            "originalTotalValue": 299200
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 46,
+            "pricePerItem": 10483,
+            "totalValue": 482218,
+            "originalTotalValue": 482218
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 5,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 276,
+            "pricePerItem": 349,
+            "totalValue": 96324,
+            "originalTotalValue": 96324
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 4,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 560000
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 3348,
+            "pricePerItem": 269,
+            "totalValue": 900612,
+            "originalTotalValue": 900612
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 516,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 616000
+          }
+        },
+        "6": {
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 2541,
+            "pricePerItem": 365,
+            "totalValue": 927465,
+            "originalTotalValue": 927465
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 6,
+            "pricePerItem": 22570,
+            "totalValue": 135420,
+            "originalTotalValue": 135420
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 482,
+            "pricePerItem": 102,
+            "totalValue": 49164,
+            "originalTotalValue": 49164
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 208,
+            "pricePerItem": 170,
+            "totalValue": 35360,
+            "originalTotalValue": 35360
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 419,
+            "pricePerItem": 203,
+            "totalValue": 85057,
+            "originalTotalValue": 85057
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 10253,
+            "pricePerItem": 328,
+            "totalValue": 3362984,
+            "originalTotalValue": 3362984
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 518,
+            "pricePerItem": 1581,
+            "totalValue": 818958,
+            "originalTotalValue": 818958
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 7,
+            "pricePerItem": 58807,
+            "totalValue": 411649,
+            "originalTotalValue": 411649
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 10,
+            "pricePerItem": 161064,
+            "totalValue": 1610640,
+            "originalTotalValue": 1610640
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 4396,
+            "pricePerItem": 5,
+            "totalValue": 21980,
+            "originalTotalValue": 21980
+          },
+          "Eye of ayak (uncharged)": {
+            "name": "Eye of ayak (uncharged)",
+            "totalQuantity": 2,
+            "pricePerItem": 54317536,
+            "totalValue": 108635072,
+            "originalTotalValue": 108635072
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 5770,
+            "pricePerItem": 4,
+            "totalValue": 23080,
+            "originalTotalValue": 23080
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 358,
+            "pricePerItem": 157,
+            "totalValue": 56206,
+            "originalTotalValue": 56206
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 22,
+            "pricePerItem": 57484,
+            "totalValue": 1264648,
+            "originalTotalValue": 1264648
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 7,
+            "pricePerItem": 25250,
+            "totalValue": 176750,
+            "originalTotalValue": 176750
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 90,
+            "pricePerItem": 8599,
+            "totalValue": 773910,
+            "originalTotalValue": 773910
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 11,
+            "pricePerItem": 27315,
+            "totalValue": 300465,
+            "originalTotalValue": 300465
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 122,
+            "pricePerItem": 685,
+            "totalValue": 83570,
+            "originalTotalValue": 83570
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 9,
+            "pricePerItem": 18700,
+            "totalValue": 168300,
+            "originalTotalValue": 168300
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 49,
+            "pricePerItem": 10483,
+            "totalValue": 513667,
+            "originalTotalValue": 513667
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 4,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 2,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 280000
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 2315,
+            "pricePerItem": 269,
+            "totalValue": 622735,
+            "originalTotalValue": 622735
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 287,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Sunfire splinter": {
+            "name": "Sunfire splinter",
+            "totalQuantity": 246,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 1,
+            "pricePerItem": 11307,
+            "totalValue": 11307,
+            "originalTotalValue": 11307
+          },
+          "Mokhaiotl cloth": {
+            "name": "Mokhaiotl cloth",
+            "totalQuantity": 1,
+            "pricePerItem": 69000000,
+            "totalValue": 69000000,
+            "originalTotalValue": 69000000
+          }
+        },
+        "7": {
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 325,
+            "pricePerItem": 365,
+            "totalValue": 118625,
+            "originalTotalValue": 118625
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 4,
+            "pricePerItem": 22570,
+            "totalValue": 90280,
+            "originalTotalValue": 90280
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 409,
+            "pricePerItem": 102,
+            "totalValue": 41718,
+            "originalTotalValue": 41718
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 130,
+            "pricePerItem": 170,
+            "totalValue": 22100,
+            "originalTotalValue": 22100
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 387,
+            "pricePerItem": 203,
+            "totalValue": 78561,
+            "originalTotalValue": 78561
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 14070,
+            "pricePerItem": 328,
+            "totalValue": 4614960,
+            "originalTotalValue": 4614960
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 372,
+            "pricePerItem": 1581,
+            "totalValue": 588132,
+            "originalTotalValue": 588132
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 8,
+            "pricePerItem": 58807,
+            "totalValue": 470456,
+            "originalTotalValue": 470456
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 6,
+            "pricePerItem": 161064,
+            "totalValue": 966384,
+            "originalTotalValue": 966384
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 3369,
+            "pricePerItem": 5,
+            "totalValue": 16845,
+            "originalTotalValue": 16845
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 6054,
+            "pricePerItem": 4,
+            "totalValue": 24216,
+            "originalTotalValue": 24216
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 340,
+            "pricePerItem": 157,
+            "totalValue": 53380,
+            "originalTotalValue": 53380
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 10,
+            "pricePerItem": 57484,
+            "totalValue": 574840,
+            "originalTotalValue": 574840
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 7,
+            "pricePerItem": 25250,
+            "totalValue": 176750,
+            "originalTotalValue": 176750
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 83,
+            "pricePerItem": 8599,
+            "totalValue": 713717,
+            "originalTotalValue": 713717
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 2,
+            "pricePerItem": 27315,
+            "totalValue": 54630,
+            "originalTotalValue": 54630
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 144,
+            "pricePerItem": 685,
+            "totalValue": 98640,
+            "originalTotalValue": 98640
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 19,
+            "pricePerItem": 18700,
+            "totalValue": 355300,
+            "originalTotalValue": 355300
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 19,
+            "pricePerItem": 10483,
+            "totalValue": 199177,
+            "originalTotalValue": 199177
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 1,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 163,
+            "pricePerItem": 349,
+            "totalValue": 56887,
+            "originalTotalValue": 56887
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 3,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 420000
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 2550,
+            "pricePerItem": 269,
+            "totalValue": 685950,
+            "originalTotalValue": 685950
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 516,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 592000
+          },
+          "Sunfire splinter": {
+            "name": "Sunfire splinter",
+            "totalQuantity": 145,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          }
+        },
+        "8": {
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 1526,
+            "pricePerItem": 365,
+            "totalValue": 556990,
+            "originalTotalValue": 556990
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 2,
+            "pricePerItem": 22570,
+            "totalValue": 45140,
+            "originalTotalValue": 45140
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 312,
+            "pricePerItem": 102,
+            "totalValue": 31824,
+            "originalTotalValue": 31824
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 185,
+            "pricePerItem": 170,
+            "totalValue": 31450,
+            "originalTotalValue": 31450
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 214,
+            "pricePerItem": 203,
+            "totalValue": 43442,
+            "originalTotalValue": 43442
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 12398,
+            "pricePerItem": 328,
+            "totalValue": 4066544,
+            "originalTotalValue": 4066544
+          },
+          "Dom": {
+            "name": "Dom",
+            "totalQuantity": 1,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 601,
+            "pricePerItem": 1581,
+            "totalValue": 950181,
+            "originalTotalValue": 950181
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 3,
+            "pricePerItem": 58807,
+            "totalValue": 176421,
+            "originalTotalValue": 176421
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 5,
+            "pricePerItem": 161064,
+            "totalValue": 805320,
+            "originalTotalValue": 805320
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 744,
+            "pricePerItem": 4,
+            "totalValue": 2976,
+            "originalTotalValue": 2976
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 234,
+            "pricePerItem": 157,
+            "totalValue": 36738,
+            "originalTotalValue": 36738
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 4,
+            "pricePerItem": 57484,
+            "totalValue": 229936,
+            "originalTotalValue": 229936
+          },
+          "Mokhaiotl cloth": {
+            "name": "Mokhaiotl cloth",
+            "totalQuantity": 1,
+            "pricePerItem": 69000000,
+            "totalValue": 69000000,
+            "originalTotalValue": 69000000
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 75,
+            "pricePerItem": 8599,
+            "totalValue": 644925,
+            "originalTotalValue": 644925
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 8,
+            "pricePerItem": 27315,
+            "totalValue": 218520,
+            "originalTotalValue": 218520
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 56,
+            "pricePerItem": 685,
+            "totalValue": 38360,
+            "originalTotalValue": 38360
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 15,
+            "pricePerItem": 18700,
+            "totalValue": 280500,
+            "originalTotalValue": 280500
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 28,
+            "pricePerItem": 10483,
+            "totalValue": 293524,
+            "originalTotalValue": 293524
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 1,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 1,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 140000
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 2635,
+            "pricePerItem": 269,
+            "totalValue": 708815,
+            "originalTotalValue": 708815
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 384,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 520000
+          },
+          "Sunfire splinter": {
+            "name": "Sunfire splinter",
+            "totalQuantity": 49,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 3,
+            "pricePerItem": 11307,
+            "totalValue": 33921,
+            "originalTotalValue": 33921
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 1,
+            "pricePerItem": 25250,
+            "totalValue": 25250,
+            "originalTotalValue": 25250
+          },
+          "Avernic treads": {
+            "name": "Avernic treads",
+            "totalQuantity": 2,
+            "pricePerItem": 178732542,
+            "totalValue": 357465084,
+            "originalTotalValue": 357465084
+          }
+        },
+        "9": {
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 2535,
+            "pricePerItem": 365,
+            "totalValue": 925275,
+            "originalTotalValue": 925275
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 3,
+            "pricePerItem": 22570,
+            "totalValue": 67710,
+            "originalTotalValue": 67710
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 68,
+            "pricePerItem": 102,
+            "totalValue": 6936,
+            "originalTotalValue": 6936
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 313,
+            "pricePerItem": 170,
+            "totalValue": 53210,
+            "originalTotalValue": 53210
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 751,
+            "pricePerItem": 203,
+            "totalValue": 152453,
+            "originalTotalValue": 152453
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 12507,
+            "pricePerItem": 328,
+            "totalValue": 4102296,
+            "originalTotalValue": 4102296
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 294,
+            "pricePerItem": 1581,
+            "totalValue": 464814,
+            "originalTotalValue": 464814
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 7,
+            "pricePerItem": 58807,
+            "totalValue": 411649,
+            "originalTotalValue": 411649
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 6,
+            "pricePerItem": 161064,
+            "totalValue": 966384,
+            "originalTotalValue": 966384
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 4376,
+            "pricePerItem": 5,
+            "totalValue": 21880,
+            "originalTotalValue": 21880
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 154,
+            "pricePerItem": 157,
+            "totalValue": 24178,
+            "originalTotalValue": 24178
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 15,
+            "pricePerItem": 57484,
+            "totalValue": 862260,
+            "originalTotalValue": 862260
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 35,
+            "pricePerItem": 8599,
+            "totalValue": 300965,
+            "originalTotalValue": 300965
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 10,
+            "pricePerItem": 27315,
+            "totalValue": 273150,
+            "originalTotalValue": 273150
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 111,
+            "pricePerItem": 685,
+            "totalValue": 76035,
+            "originalTotalValue": 76035
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 9,
+            "pricePerItem": 18700,
+            "totalValue": 168300,
+            "originalTotalValue": 168300
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 49,
+            "pricePerItem": 10483,
+            "totalValue": 513667,
+            "originalTotalValue": 513667
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 2,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 280000
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 303,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 360000
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 1,
+            "pricePerItem": 11307,
+            "totalValue": 11307,
+            "originalTotalValue": 11307
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 72,
+            "pricePerItem": 349,
+            "totalValue": 25128,
+            "originalTotalValue": 25128
+          },
+          "Mokhaiotl cloth": {
+            "name": "Mokhaiotl cloth",
+            "totalQuantity": 1,
+            "pricePerItem": 69000000,
+            "totalValue": 69000000,
+            "originalTotalValue": 69000000
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 2,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 2618,
+            "pricePerItem": 4,
+            "totalValue": 10472,
+            "originalTotalValue": 10472
+          },
+          "Dom": {
+            "name": "Dom",
+            "totalQuantity": 2,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 5,
+            "pricePerItem": 25250,
+            "totalValue": 126250,
+            "originalTotalValue": 126250
+          },
+          "Avernic treads": {
+            "name": "Avernic treads",
+            "totalQuantity": 1,
+            "pricePerItem": 178732542,
+            "totalValue": 178732542,
+            "originalTotalValue": 178732542
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 663,
+            "pricePerItem": 269,
+            "totalValue": 178347,
+            "originalTotalValue": 178347
+          }
+        },
+        "10": {
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 65,
+            "pricePerItem": 102,
+            "totalValue": 6630,
+            "originalTotalValue": 6630
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 67,
+            "pricePerItem": 170,
+            "totalValue": 11390,
+            "originalTotalValue": 11390
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 50,
+            "pricePerItem": 203,
+            "totalValue": 10150,
+            "originalTotalValue": 10150
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 1732,
+            "pricePerItem": 328,
+            "totalValue": 568096,
+            "originalTotalValue": 568096
+          },
+          "Dom": {
+            "name": "Dom",
+            "totalQuantity": 1,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 161,
+            "pricePerItem": 1581,
+            "totalValue": 254541,
+            "originalTotalValue": 254541
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 2,
+            "pricePerItem": 58807,
+            "totalValue": 117614,
+            "originalTotalValue": 117614
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 2191,
+            "pricePerItem": 5,
+            "totalValue": 10955,
+            "originalTotalValue": 10955
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 22,
+            "pricePerItem": 157,
+            "totalValue": 3454,
+            "originalTotalValue": 3454
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 2,
+            "pricePerItem": 57484,
+            "totalValue": 114968,
+            "originalTotalValue": 114968
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 7,
+            "pricePerItem": 8599,
+            "totalValue": 60193,
+            "originalTotalValue": 60193
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 4,
+            "pricePerItem": 27315,
+            "totalValue": 109260,
+            "originalTotalValue": 109260
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 47,
+            "pricePerItem": 685,
+            "totalValue": 32195,
+            "originalTotalValue": 32195
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 3,
+            "pricePerItem": 18700,
+            "totalValue": 56100,
+            "originalTotalValue": 56100
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 1,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 55,
+            "pricePerItem": 349,
+            "totalValue": 19195,
+            "originalTotalValue": 19195
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 262,
+            "pricePerItem": 269,
+            "totalValue": 70478,
+            "originalTotalValue": 70478
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 29,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Sunfire splinter": {
+            "name": "Sunfire splinter",
+            "totalQuantity": 70,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 1,
+            "pricePerItem": 11307,
+            "totalValue": 11307,
+            "originalTotalValue": 11307
+          }
+        },
+        "11": {
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 679,
+            "pricePerItem": 365,
+            "totalValue": 247835,
+            "originalTotalValue": 247835
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 131,
+            "pricePerItem": 102,
+            "totalValue": 13362,
+            "originalTotalValue": 13362
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 91,
+            "pricePerItem": 170,
+            "totalValue": 15470,
+            "originalTotalValue": 15470
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 70,
+            "pricePerItem": 203,
+            "totalValue": 14210,
+            "originalTotalValue": 14210
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 1959,
+            "pricePerItem": 328,
+            "totalValue": 642552,
+            "originalTotalValue": 642552
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 141,
+            "pricePerItem": 1581,
+            "totalValue": 222921,
+            "originalTotalValue": 222921
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 2,
+            "pricePerItem": 58807,
+            "totalValue": 117614,
+            "originalTotalValue": 117614
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 1502,
+            "pricePerItem": 5,
+            "totalValue": 7510,
+            "originalTotalValue": 7510
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 570,
+            "pricePerItem": 4,
+            "totalValue": 2280,
+            "originalTotalValue": 2280
+          },
+          "Mokhaiotl cloth": {
+            "name": "Mokhaiotl cloth",
+            "totalQuantity": 1,
+            "pricePerItem": 69000000,
+            "totalValue": 69000000,
+            "originalTotalValue": 69000000
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 1,
+            "pricePerItem": 57484,
+            "totalValue": 57484,
+            "originalTotalValue": 57484
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 3,
+            "pricePerItem": 25250,
+            "totalValue": 75750,
+            "originalTotalValue": 75750
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 13,
+            "pricePerItem": 8599,
+            "totalValue": 111787,
+            "originalTotalValue": 111787
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 6,
+            "pricePerItem": 27315,
+            "totalValue": 163890,
+            "originalTotalValue": 163890
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 27,
+            "pricePerItem": 685,
+            "totalValue": 18495,
+            "originalTotalValue": 18495
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 54,
+            "pricePerItem": 349,
+            "totalValue": 18846,
+            "originalTotalValue": 18846
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 989,
+            "pricePerItem": 269,
+            "totalValue": 266041,
+            "originalTotalValue": 266041
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 57,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Sunfire splinter": {
+            "name": "Sunfire splinter",
+            "totalQuantity": 137,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          }
+        },
+        "12": {
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 902,
+            "pricePerItem": 365,
+            "totalValue": 329230,
+            "originalTotalValue": 329230
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 1,
+            "pricePerItem": 22570,
+            "totalValue": 22570,
+            "originalTotalValue": 22570
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 61,
+            "pricePerItem": 102,
+            "totalValue": 6222,
+            "originalTotalValue": 6222
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 42,
+            "pricePerItem": 170,
+            "totalValue": 7140,
+            "originalTotalValue": 7140
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 951,
+            "pricePerItem": 328,
+            "totalValue": 311928,
+            "originalTotalValue": 311928
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 54,
+            "pricePerItem": 1581,
+            "totalValue": 85374,
+            "originalTotalValue": 85374
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 2,
+            "pricePerItem": 58807,
+            "totalValue": 117614,
+            "originalTotalValue": 117614
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 3,
+            "pricePerItem": 161064,
+            "totalValue": 483192,
+            "originalTotalValue": 483192
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 930,
+            "pricePerItem": 5,
+            "totalValue": 4650,
+            "originalTotalValue": 4650
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 545,
+            "pricePerItem": 4,
+            "totalValue": 2180,
+            "originalTotalValue": 2180
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 1,
+            "pricePerItem": 25250,
+            "totalValue": 25250,
+            "originalTotalValue": 25250
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 13,
+            "pricePerItem": 8599,
+            "totalValue": 111787,
+            "originalTotalValue": 111787
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 1,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 140000
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 65,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          }
+        },
+        "13": {
+          "Avernic treads": {
+            "name": "Avernic treads",
+            "totalQuantity": 1,
+            "pricePerItem": 178732542,
+            "totalValue": 178732542,
+            "originalTotalValue": 178732542
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 59,
+            "pricePerItem": 102,
+            "totalValue": 6018,
+            "originalTotalValue": 6018
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 2,
+            "pricePerItem": 57484,
+            "totalValue": 114968,
+            "originalTotalValue": 114968
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 1,
+            "pricePerItem": 25250,
+            "totalValue": 25250,
+            "originalTotalValue": 25250
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 15,
+            "pricePerItem": 8599,
+            "totalValue": 128985,
+            "originalTotalValue": 128985
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 2,
+            "pricePerItem": 27315,
+            "totalValue": 54630,
+            "originalTotalValue": 54630
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 93,
+            "pricePerItem": 685,
+            "totalValue": 63705,
+            "originalTotalValue": 63705
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 2,
+            "pricePerItem": 18700,
+            "totalValue": 37400,
+            "originalTotalValue": 37400
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 9,
+            "pricePerItem": 10483,
+            "totalValue": 94347,
+            "originalTotalValue": 94347
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 1,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 140000
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 585,
+            "pricePerItem": 269,
+            "totalValue": 157365,
+            "originalTotalValue": 157365
+          }
+        },
+        "14": {
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 174,
+            "pricePerItem": 365,
+            "totalValue": 63510,
+            "originalTotalValue": 63510
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 119,
+            "pricePerItem": 102,
+            "totalValue": 12138,
+            "originalTotalValue": 12138
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 65,
+            "pricePerItem": 1581,
+            "totalValue": 102765,
+            "originalTotalValue": 102765
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 1,
+            "pricePerItem": 58807,
+            "totalValue": 58807,
+            "originalTotalValue": 58807
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 661,
+            "pricePerItem": 5,
+            "totalValue": 3305,
+            "originalTotalValue": 3305
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 841,
+            "pricePerItem": 4,
+            "totalValue": 3364,
+            "originalTotalValue": 3364
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 56,
+            "pricePerItem": 157,
+            "totalValue": 8792,
+            "originalTotalValue": 8792
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 1,
+            "pricePerItem": 27315,
+            "totalValue": 27315,
+            "originalTotalValue": 27315
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 31,
+            "pricePerItem": 685,
+            "totalValue": 21235,
+            "originalTotalValue": 21235
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 5,
+            "pricePerItem": 10483,
+            "totalValue": 52415,
+            "originalTotalValue": 52415
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 333,
+            "pricePerItem": 269,
+            "totalValue": 89577,
+            "originalTotalValue": 89577
+          }
+        },
+        "15": {
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 1,
+            "pricePerItem": 22570,
+            "totalValue": 22570,
+            "originalTotalValue": 22570
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 64,
+            "pricePerItem": 170,
+            "totalValue": 10880,
+            "originalTotalValue": 10880
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 50,
+            "pricePerItem": 203,
+            "totalValue": 10150,
+            "originalTotalValue": 10150
+          },
+          "Dom": {
+            "name": "Dom",
+            "totalQuantity": 1,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 56,
+            "pricePerItem": 1581,
+            "totalValue": 88536,
+            "originalTotalValue": 88536
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 1,
+            "pricePerItem": 58807,
+            "totalValue": 58807,
+            "originalTotalValue": 58807
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 888,
+            "pricePerItem": 5,
+            "totalValue": 4440,
+            "originalTotalValue": 4440
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 1305,
+            "pricePerItem": 4,
+            "totalValue": 5220,
+            "originalTotalValue": 5220
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 27,
+            "pricePerItem": 157,
+            "totalValue": 4239,
+            "originalTotalValue": 4239
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 1,
+            "pricePerItem": 25250,
+            "totalValue": 25250,
+            "originalTotalValue": 25250
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 1,
+            "pricePerItem": 27315,
+            "totalValue": 27315,
+            "originalTotalValue": 27315
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 35,
+            "pricePerItem": 685,
+            "totalValue": 23975,
+            "originalTotalValue": 23975
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 2,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 280000
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 47,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 1,
+            "pricePerItem": 11307,
+            "totalValue": 11307,
+            "originalTotalValue": 11307
+          }
         }
       },
-      "2": {
+      "historicalClaimedByWave": {
+        "1": 16536208,
+        "2": 12510966,
+        "3": 12981230,
+        "4": 10913016,
+        "5": 81733735,
+        "6": 189088387,
+        "7": 10001548,
+        "8": 435685861,
+        "9": 257475208,
+        "10": 1456526,
+        "11": 70996047,
+        "12": 1507137,
+        "13": 179415210,
+        "14": 443223,
+        "15": 292689
+      },
+      "historicalUnclaimedItemsByWave": {
+        "1": {
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 1701,
+            "pricePerItem": 5,
+            "totalValue": 8505,
+            "originalTotalValue": 8505
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 1214,
+            "pricePerItem": 269,
+            "totalValue": 326566,
+            "originalTotalValue": 326566
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 3,
+            "pricePerItem": 57484,
+            "totalValue": 172452,
+            "originalTotalValue": 172452
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 6,
+            "pricePerItem": 58807,
+            "totalValue": 352842,
+            "originalTotalValue": 352842
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 16,
+            "pricePerItem": 685,
+            "totalValue": 10960,
+            "originalTotalValue": 10960
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 63,
+            "pricePerItem": 203,
+            "totalValue": 12789,
+            "originalTotalValue": 12789
+          },
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 454,
+            "pricePerItem": 365,
+            "totalValue": 165710,
+            "originalTotalValue": 165710
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 1,
+            "pricePerItem": 18700,
+            "totalValue": 18700,
+            "originalTotalValue": 18700
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 6,
+            "pricePerItem": 25250,
+            "totalValue": 151500,
+            "originalTotalValue": 151500
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 125,
+            "pricePerItem": 102,
+            "totalValue": 12750,
+            "originalTotalValue": 12750
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 1874,
+            "pricePerItem": 4,
+            "totalValue": 7496,
+            "originalTotalValue": 7496
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 1,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 16,
+            "pricePerItem": 8599,
+            "totalValue": 137584,
+            "originalTotalValue": 137584
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 35,
+            "pricePerItem": 170,
+            "totalValue": 5950,
+            "originalTotalValue": 5950
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 71,
+            "pricePerItem": 157,
+            "totalValue": 11147,
+            "originalTotalValue": 11147
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 154,
+            "pricePerItem": 328,
+            "totalValue": 50512,
+            "originalTotalValue": 50512
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 55,
+            "pricePerItem": 1581,
+            "totalValue": 86955,
+            "originalTotalValue": 86955
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 2,
+            "pricePerItem": 10483,
+            "totalValue": 20966,
+            "originalTotalValue": 20966
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 46,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 104000
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 1,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 140000
+          }
+        },
+        "2": {
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 83,
+            "pricePerItem": 203,
+            "totalValue": 16849,
+            "originalTotalValue": 16849
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 11,
+            "pricePerItem": 57484,
+            "totalValue": 632324,
+            "originalTotalValue": 632324
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 5,
+            "pricePerItem": 18700,
+            "totalValue": 93500,
+            "originalTotalValue": 93500
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 2,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 140000
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 2507,
+            "pricePerItem": 5,
+            "totalValue": 12535,
+            "originalTotalValue": 12535
+          },
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 347,
+            "pricePerItem": 365,
+            "totalValue": 126655,
+            "originalTotalValue": 126655
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 616,
+            "pricePerItem": 328,
+            "totalValue": 202048,
+            "originalTotalValue": 202048
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 2,
+            "pricePerItem": 58807,
+            "totalValue": 117614,
+            "originalTotalValue": 117614
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 5,
+            "pricePerItem": 22570,
+            "totalValue": 112850,
+            "originalTotalValue": 112850
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 116,
+            "pricePerItem": 157,
+            "totalValue": 18212,
+            "originalTotalValue": 18212
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 55,
+            "pricePerItem": 685,
+            "totalValue": 37675,
+            "originalTotalValue": 37675
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 142,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 200000
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 26,
+            "pricePerItem": 170,
+            "totalValue": 4420,
+            "originalTotalValue": 4420
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 1,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 4,
+            "pricePerItem": 8599,
+            "totalValue": 34396,
+            "originalTotalValue": 34396
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 8,
+            "pricePerItem": 10483,
+            "totalValue": 83864,
+            "originalTotalValue": 83864
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 45,
+            "pricePerItem": 102,
+            "totalValue": 4590,
+            "originalTotalValue": 4590
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 2,
+            "pricePerItem": 25250,
+            "totalValue": 50500,
+            "originalTotalValue": 50500
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 1,
+            "pricePerItem": 11307,
+            "totalValue": 11307,
+            "originalTotalValue": 11307
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 78,
+            "pricePerItem": 349,
+            "totalValue": 27222,
+            "originalTotalValue": 27222
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 777,
+            "pricePerItem": 4,
+            "totalValue": 3108,
+            "originalTotalValue": 3108
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 313,
+            "pricePerItem": 269,
+            "totalValue": 84197,
+            "originalTotalValue": 84197
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 3,
+            "pricePerItem": 161064,
+            "totalValue": 483192,
+            "originalTotalValue": 483192
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 2,
+            "pricePerItem": 27315,
+            "totalValue": 54630,
+            "originalTotalValue": 54630
+          }
+        },
+        "3": {
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 3815,
+            "pricePerItem": 328,
+            "totalValue": 1251320,
+            "originalTotalValue": 1251320
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 880,
+            "pricePerItem": 269,
+            "totalValue": 236720,
+            "originalTotalValue": 236720
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 305,
+            "pricePerItem": 157,
+            "totalValue": 47885,
+            "originalTotalValue": 47885
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 1,
+            "pricePerItem": 18700,
+            "totalValue": 18700,
+            "originalTotalValue": 18700
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 4393,
+            "pricePerItem": 5,
+            "totalValue": 21965,
+            "originalTotalValue": 21965
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 6,
+            "pricePerItem": 57484,
+            "totalValue": 344904,
+            "originalTotalValue": 344904
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 55,
+            "pricePerItem": 1581,
+            "totalValue": 86955,
+            "originalTotalValue": 86955
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 222,
+            "pricePerItem": 102,
+            "totalValue": 22644,
+            "originalTotalValue": 22644
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 337,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 448000
+          },
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 958,
+            "pricePerItem": 365,
+            "totalValue": 349670,
+            "originalTotalValue": 349670
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 2,
+            "pricePerItem": 27315,
+            "totalValue": 54630,
+            "originalTotalValue": 54630
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 146,
+            "pricePerItem": 170,
+            "totalValue": 24820,
+            "originalTotalValue": 24820
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 762,
+            "pricePerItem": 4,
+            "totalValue": 3048,
+            "originalTotalValue": 3048
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 2,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 190,
+            "pricePerItem": 203,
+            "totalValue": 38570,
+            "originalTotalValue": 38570
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 1,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 140000
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 48,
+            "pricePerItem": 349,
+            "totalValue": 16752,
+            "originalTotalValue": 16752
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 13,
+            "pricePerItem": 8599,
+            "totalValue": 111787,
+            "originalTotalValue": 111787
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 3,
+            "pricePerItem": 10483,
+            "totalValue": 31449,
+            "originalTotalValue": 31449
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 3,
+            "pricePerItem": 58807,
+            "totalValue": 176421,
+            "originalTotalValue": 176421
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 2,
+            "pricePerItem": 25250,
+            "totalValue": 50500,
+            "originalTotalValue": 50500
+          }
+        },
+        "4": {
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 171,
+            "pricePerItem": 203,
+            "totalValue": 34713,
+            "originalTotalValue": 34713
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 4763,
+            "pricePerItem": 328,
+            "totalValue": 1562264,
+            "originalTotalValue": 1562264
+          },
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 1537,
+            "pricePerItem": 365,
+            "totalValue": 561005,
+            "originalTotalValue": 561005
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 202,
+            "pricePerItem": 349,
+            "totalValue": 70498,
+            "originalTotalValue": 70498
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 141,
+            "pricePerItem": 1581,
+            "totalValue": 222921,
+            "originalTotalValue": 222921
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 377,
+            "pricePerItem": 102,
+            "totalValue": 38454,
+            "originalTotalValue": 38454
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 5,
+            "pricePerItem": 18700,
+            "totalValue": 93500,
+            "originalTotalValue": 93500
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 5,
+            "pricePerItem": 57484,
+            "totalValue": 287420,
+            "originalTotalValue": 287420
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 92,
+            "pricePerItem": 685,
+            "totalValue": 63020,
+            "originalTotalValue": 63020
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 952,
+            "pricePerItem": 269,
+            "totalValue": 256088,
+            "originalTotalValue": 256088
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 189,
+            "pricePerItem": 157,
+            "totalValue": 29673,
+            "originalTotalValue": 29673
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 2,
+            "pricePerItem": 25250,
+            "totalValue": 50500,
+            "originalTotalValue": 50500
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 1854,
+            "pricePerItem": 4,
+            "totalValue": 7416,
+            "originalTotalValue": 7416
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 3,
+            "pricePerItem": 161064,
+            "totalValue": 483192,
+            "originalTotalValue": 483192
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 2378,
+            "pricePerItem": 5,
+            "totalValue": 11890,
+            "originalTotalValue": 11890
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 6,
+            "pricePerItem": 8599,
+            "totalValue": 51594,
+            "originalTotalValue": 51594
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 9,
+            "pricePerItem": 10483,
+            "totalValue": 94347,
+            "originalTotalValue": 94347
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 2,
+            "pricePerItem": 27315,
+            "totalValue": 54630,
+            "originalTotalValue": 54630
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 1,
+            "pricePerItem": 11307,
+            "totalValue": 11307,
+            "originalTotalValue": 11307
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 70,
+            "pricePerItem": 170,
+            "totalValue": 11900,
+            "originalTotalValue": 11900
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 29,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 232000
+          }
+        },
+        "5": {
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 5007,
+            "pricePerItem": 328,
+            "totalValue": 1642296,
+            "originalTotalValue": 1642296
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 12,
+            "pricePerItem": 10483,
+            "totalValue": 125796,
+            "originalTotalValue": 125796
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 141,
+            "pricePerItem": 170,
+            "totalValue": 23970,
+            "originalTotalValue": 23970
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 5,
+            "pricePerItem": 18700,
+            "totalValue": 93500,
+            "originalTotalValue": 93500
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 320,
+            "pricePerItem": 102,
+            "totalValue": 32640,
+            "originalTotalValue": 32640
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 485,
+            "pricePerItem": 1581,
+            "totalValue": 766785,
+            "originalTotalValue": 766785
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 2,
+            "pricePerItem": 27315,
+            "totalValue": 54630,
+            "originalTotalValue": 54630
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 4,
+            "pricePerItem": 57484,
+            "totalValue": 229936,
+            "originalTotalValue": 229936
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 147,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 616000
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 525,
+            "pricePerItem": 269,
+            "totalValue": 141225,
+            "originalTotalValue": 141225
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 94,
+            "pricePerItem": 157,
+            "totalValue": 14758,
+            "originalTotalValue": 14758
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 1090,
+            "pricePerItem": 5,
+            "totalValue": 5450,
+            "originalTotalValue": 5450
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 101,
+            "pricePerItem": 685,
+            "totalValue": 69185,
+            "originalTotalValue": 69185
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 2,
+            "pricePerItem": 11307,
+            "totalValue": 22614,
+            "originalTotalValue": 22614
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 1,
+            "pricePerItem": 58807,
+            "totalValue": 58807,
+            "originalTotalValue": 58807
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 1045,
+            "pricePerItem": 4,
+            "totalValue": 4180,
+            "originalTotalValue": 4180
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 254,
+            "pricePerItem": 203,
+            "totalValue": 51562,
+            "originalTotalValue": 51562
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 20,
+            "pricePerItem": 8599,
+            "totalValue": 171980,
+            "originalTotalValue": 171980
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 56,
+            "pricePerItem": 349,
+            "totalValue": 19544,
+            "originalTotalValue": 19544
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 1,
+            "pricePerItem": 22570,
+            "totalValue": 22570,
+            "originalTotalValue": 22570
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 1,
+            "pricePerItem": 25250,
+            "totalValue": 25250,
+            "originalTotalValue": 25250
+          },
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 246,
+            "pricePerItem": 365,
+            "totalValue": 89790,
+            "originalTotalValue": 89790
+          }
+        },
+        "6": {
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 1,
+            "pricePerItem": 58807,
+            "totalValue": 58807,
+            "originalTotalValue": 58807
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 5005,
+            "pricePerItem": 328,
+            "totalValue": 1641640,
+            "originalTotalValue": 1641640
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 59,
+            "pricePerItem": 8599,
+            "totalValue": 507341,
+            "originalTotalValue": 507341
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 2,
+            "pricePerItem": 22570,
+            "totalValue": 45140,
+            "originalTotalValue": 45140
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 253,
+            "pricePerItem": 157,
+            "totalValue": 39721,
+            "originalTotalValue": 39721
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 5,
+            "pricePerItem": 57484,
+            "totalValue": 287420,
+            "originalTotalValue": 287420
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 4,
+            "pricePerItem": 25250,
+            "totalValue": 101000,
+            "originalTotalValue": 101000
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 995,
+            "pricePerItem": 5,
+            "totalValue": 4975,
+            "originalTotalValue": 4975
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 337,
+            "pricePerItem": 203,
+            "totalValue": 68411,
+            "originalTotalValue": 68411
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 114,
+            "pricePerItem": 170,
+            "totalValue": 19380,
+            "originalTotalValue": 19380
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 60,
+            "pricePerItem": 102,
+            "totalValue": 6120,
+            "originalTotalValue": 6120
+          },
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 1284,
+            "pricePerItem": 365,
+            "totalValue": 468660,
+            "originalTotalValue": 468660
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 1771,
+            "pricePerItem": 4,
+            "totalValue": 7084,
+            "originalTotalValue": 7084
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 3,
+            "pricePerItem": 18700,
+            "totalValue": 56100,
+            "originalTotalValue": 56100
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 180,
+            "pricePerItem": 1581,
+            "totalValue": 284580,
+            "originalTotalValue": 284580
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 7,
+            "pricePerItem": 10483,
+            "totalValue": 73381,
+            "originalTotalValue": 73381
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 1,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 1,
+            "pricePerItem": 11307,
+            "totalValue": 11307,
+            "originalTotalValue": 11307
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 1,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 140000
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 2,
+            "pricePerItem": 161064,
+            "totalValue": 322128,
+            "originalTotalValue": 322128
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 1,
+            "pricePerItem": 27315,
+            "totalValue": 27315,
+            "originalTotalValue": 27315
+          }
+        },
+        "7": {
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 2,
+            "pricePerItem": 58807,
+            "totalValue": 117614,
+            "originalTotalValue": 117614
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 5587,
+            "pricePerItem": 328,
+            "totalValue": 1832536,
+            "originalTotalValue": 1832536
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 63,
+            "pricePerItem": 685,
+            "totalValue": 43155,
+            "originalTotalValue": 43155
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 24,
+            "pricePerItem": 10483,
+            "totalValue": 251592,
+            "originalTotalValue": 251592
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 242,
+            "pricePerItem": 157,
+            "totalValue": 37994,
+            "originalTotalValue": 37994
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 280,
+            "pricePerItem": 102,
+            "totalValue": 28560,
+            "originalTotalValue": 28560
+          },
+          "Spirit seed": {
+            "name": "Spirit seed",
+            "totalQuantity": 2,
+            "pricePerItem": 140000,
+            "totalValue": 0,
+            "originalTotalValue": 140000
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 1149,
+            "pricePerItem": 269,
+            "totalValue": 309081,
+            "originalTotalValue": 309081
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 133,
+            "pricePerItem": 203,
+            "totalValue": 26999,
+            "originalTotalValue": 26999
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 1,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 9,
+            "pricePerItem": 18700,
+            "totalValue": 168300,
+            "originalTotalValue": 168300
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 50,
+            "pricePerItem": 1581,
+            "totalValue": 79050,
+            "originalTotalValue": 79050
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 1,
+            "pricePerItem": 25250,
+            "totalValue": 25250,
+            "originalTotalValue": 25250
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 66,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 528000
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 3,
+            "pricePerItem": 161064,
+            "totalValue": 483192,
+            "originalTotalValue": 483192
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 694,
+            "pricePerItem": 4,
+            "totalValue": 2776,
+            "originalTotalValue": 2776
+          },
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 212,
+            "pricePerItem": 365,
+            "totalValue": 77380,
+            "originalTotalValue": 77380
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 3,
+            "pricePerItem": 57484,
+            "totalValue": 172452,
+            "originalTotalValue": 172452
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 51,
+            "pricePerItem": 170,
+            "totalValue": 8670,
+            "originalTotalValue": 8670
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 1,
+            "pricePerItem": 22570,
+            "totalValue": 22570,
+            "originalTotalValue": 22570
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 11,
+            "pricePerItem": 8599,
+            "totalValue": 94589,
+            "originalTotalValue": 94589
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 982,
+            "pricePerItem": 5,
+            "totalValue": 4910,
+            "originalTotalValue": 4910
+          }
+        },
+        "8": {
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 4980,
+            "pricePerItem": 328,
+            "totalValue": 1633440,
+            "originalTotalValue": 1633440
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 1,
+            "pricePerItem": 11307,
+            "totalValue": 11307,
+            "originalTotalValue": 11307
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 572,
+            "pricePerItem": 269,
+            "totalValue": 153868,
+            "originalTotalValue": 153868
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 177,
+            "pricePerItem": 1581,
+            "totalValue": 279837,
+            "originalTotalValue": 279837
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 11,
+            "pricePerItem": 10483,
+            "totalValue": 115313,
+            "originalTotalValue": 115313
+          },
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 2,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 288,
+            "pricePerItem": 203,
+            "totalValue": 58464,
+            "originalTotalValue": 58464
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 3,
+            "pricePerItem": 22570,
+            "totalValue": 67710,
+            "originalTotalValue": 67710
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 43,
+            "pricePerItem": 8599,
+            "totalValue": 369757,
+            "originalTotalValue": 369757
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 1,
+            "pricePerItem": 25250,
+            "totalValue": 25250,
+            "originalTotalValue": 25250
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 193,
+            "pricePerItem": 102,
+            "totalValue": 19686,
+            "originalTotalValue": 19686
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 1022,
+            "pricePerItem": 5,
+            "totalValue": 5110,
+            "originalTotalValue": 5110
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 3,
+            "pricePerItem": 58807,
+            "totalValue": 176421,
+            "originalTotalValue": 176421
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 38,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 304000
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 1134,
+            "pricePerItem": 4,
+            "totalValue": 4536,
+            "originalTotalValue": 4536
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 112,
+            "pricePerItem": 170,
+            "totalValue": 19040,
+            "originalTotalValue": 19040
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 70,
+            "pricePerItem": 157,
+            "totalValue": 10990,
+            "originalTotalValue": 10990
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 25,
+            "pricePerItem": 685,
+            "totalValue": 17125,
+            "originalTotalValue": 17125
+          }
+        },
+        "9": {
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 4508,
+            "pricePerItem": 328,
+            "totalValue": 1478624,
+            "originalTotalValue": 1478624
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 81,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 360000
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 13,
+            "pricePerItem": 10483,
+            "totalValue": 136279,
+            "originalTotalValue": 136279
+          },
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 408,
+            "pricePerItem": 365,
+            "totalValue": 148920,
+            "originalTotalValue": 148920
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 122,
+            "pricePerItem": 170,
+            "totalValue": 20740,
+            "originalTotalValue": 20740
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 5,
+            "pricePerItem": 57484,
+            "totalValue": 287420,
+            "originalTotalValue": 287420
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 70,
+            "pricePerItem": 1581,
+            "totalValue": 110670,
+            "originalTotalValue": 110670
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 946,
+            "pricePerItem": 269,
+            "totalValue": 254474,
+            "originalTotalValue": 254474
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 48,
+            "pricePerItem": 8599,
+            "totalValue": 412752,
+            "originalTotalValue": 412752
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 123,
+            "pricePerItem": 157,
+            "totalValue": 19311,
+            "originalTotalValue": 19311
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 3,
+            "pricePerItem": 58807,
+            "totalValue": 176421,
+            "originalTotalValue": 176421
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 84,
+            "pricePerItem": 203,
+            "totalValue": 17052,
+            "originalTotalValue": 17052
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 655,
+            "pricePerItem": 5,
+            "totalValue": 3275,
+            "originalTotalValue": 3275
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 67,
+            "pricePerItem": 102,
+            "totalValue": 6834,
+            "originalTotalValue": 6834
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 130,
+            "pricePerItem": 349,
+            "totalValue": 45370,
+            "originalTotalValue": 45370
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 2,
+            "pricePerItem": 27315,
+            "totalValue": 54630,
+            "originalTotalValue": 54630
+          }
+        },
+        "10": {
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 3313,
+            "pricePerItem": 328,
+            "totalValue": 1086664,
+            "originalTotalValue": 1086664
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 51,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 271,
+            "pricePerItem": 365,
+            "totalValue": 98915,
+            "originalTotalValue": 98915
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 4598,
+            "pricePerItem": 4,
+            "totalValue": 18392,
+            "originalTotalValue": 18392
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 56,
+            "pricePerItem": 685,
+            "totalValue": 38360,
+            "originalTotalValue": 38360
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 3,
+            "pricePerItem": 57484,
+            "totalValue": 172452,
+            "originalTotalValue": 172452
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 266,
+            "pricePerItem": 203,
+            "totalValue": 53998,
+            "originalTotalValue": 53998
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 2,
+            "pricePerItem": 58807,
+            "totalValue": 117614,
+            "originalTotalValue": 117614
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 3,
+            "pricePerItem": 25250,
+            "totalValue": 75750,
+            "originalTotalValue": 75750
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 121,
+            "pricePerItem": 1581,
+            "totalValue": 191301,
+            "originalTotalValue": 191301
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 72,
+            "pricePerItem": 157,
+            "totalValue": 11304,
+            "originalTotalValue": 11304
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 62,
+            "pricePerItem": 102,
+            "totalValue": 6324,
+            "originalTotalValue": 6324
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 1159,
+            "pricePerItem": 5,
+            "totalValue": 5795,
+            "originalTotalValue": 5795
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 1,
+            "pricePerItem": 22570,
+            "totalValue": 22570,
+            "originalTotalValue": 22570
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 1,
+            "pricePerItem": 11307,
+            "totalValue": 11307,
+            "originalTotalValue": 11307
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 103,
+            "pricePerItem": 170,
+            "totalValue": 17510,
+            "originalTotalValue": 17510
+          }
+        },
+        "11": {
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 840,
+            "pricePerItem": 5,
+            "totalValue": 4200,
+            "originalTotalValue": 4200
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 2627,
+            "pricePerItem": 328,
+            "totalValue": 861656,
+            "originalTotalValue": 861656
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 3416,
+            "pricePerItem": 4,
+            "totalValue": 13664,
+            "originalTotalValue": 13664
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 33,
+            "pricePerItem": 8599,
+            "totalValue": 283767,
+            "originalTotalValue": 283767
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 3,
+            "pricePerItem": 161064,
+            "totalValue": 483192,
+            "originalTotalValue": 483192
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 11,
+            "pricePerItem": 10483,
+            "totalValue": 115313,
+            "originalTotalValue": 115313
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 3,
+            "pricePerItem": 27315,
+            "totalValue": 81945,
+            "originalTotalValue": 81945
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 1,
+            "pricePerItem": 22570,
+            "totalValue": 22570,
+            "originalTotalValue": 22570
+          },
+          "Dragon med helm": {
+            "name": "Dragon med helm",
+            "totalQuantity": 2,
+            "pricePerItem": 58807,
+            "totalValue": 117614,
+            "originalTotalValue": 117614
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 27,
+            "pricePerItem": 685,
+            "totalValue": 18495,
+            "originalTotalValue": 18495
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 1,
+            "pricePerItem": 57484,
+            "totalValue": 57484,
+            "originalTotalValue": 57484
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 1,
+            "pricePerItem": 18700,
+            "totalValue": 18700,
+            "originalTotalValue": 18700
+          },
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 447,
+            "pricePerItem": 365,
+            "totalValue": 163155,
+            "originalTotalValue": 163155
+          },
+          "Tooth half of key": {
+            "name": "Tooth half of key",
+            "totalQuantity": 2,
+            "pricePerItem": 11307,
+            "totalValue": 22614,
+            "originalTotalValue": 22614
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 72,
+            "pricePerItem": 102,
+            "totalValue": 7344,
+            "originalTotalValue": 7344
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 70,
+            "pricePerItem": 157,
+            "totalValue": 10990,
+            "originalTotalValue": 10990
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 50,
+            "pricePerItem": 349,
+            "totalValue": 17450,
+            "originalTotalValue": 17450
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 58,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 464000
+          }
+        },
+        "12": {
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 1900,
+            "pricePerItem": 328,
+            "totalValue": 623200,
+            "originalTotalValue": 623200
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 4,
+            "pricePerItem": 10483,
+            "totalValue": 41932,
+            "originalTotalValue": 41932
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 1279,
+            "pricePerItem": 269,
+            "totalValue": 344051,
+            "originalTotalValue": 344051
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 1,
+            "pricePerItem": 25250,
+            "totalValue": 25250,
+            "originalTotalValue": 25250
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 1875,
+            "pricePerItem": 5,
+            "totalValue": 9375,
+            "originalTotalValue": 9375
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 13,
+            "pricePerItem": 8599,
+            "totalValue": 111787,
+            "originalTotalValue": 111787
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 133,
+            "pricePerItem": 102,
+            "totalValue": 13566,
+            "originalTotalValue": 13566
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 1477,
+            "pricePerItem": 4,
+            "totalValue": 5908,
+            "originalTotalValue": 5908
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 3,
+            "pricePerItem": 18700,
+            "totalValue": 56100,
+            "originalTotalValue": 56100
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 84,
+            "pricePerItem": 203,
+            "totalValue": 17052,
+            "originalTotalValue": 17052
+          },
+          "Ranarr seed": {
+            "name": "Ranarr seed",
+            "totalQuantity": 1,
+            "pricePerItem": 27315,
+            "totalValue": 27315,
+            "originalTotalValue": 27315
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 72,
+            "pricePerItem": 685,
+            "totalValue": 49320,
+            "originalTotalValue": 49320
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 70,
+            "pricePerItem": 1581,
+            "totalValue": 110670,
+            "originalTotalValue": 110670
+          },
+          "Dragon platelegs": {
+            "name": "Dragon platelegs",
+            "totalQuantity": 2,
+            "pricePerItem": 161064,
+            "totalValue": 322128,
+            "originalTotalValue": 322128
+          }
+        },
+        "13": {
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 1739,
+            "pricePerItem": 328,
+            "totalValue": 570392,
+            "originalTotalValue": 570392
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 2,
+            "pricePerItem": 57484,
+            "totalValue": 114968,
+            "originalTotalValue": 114968
+          },
+          "Dragon dart tip": {
+            "name": "Dragon dart tip",
+            "totalQuantity": 87,
+            "pricePerItem": 1581,
+            "totalValue": 137547,
+            "originalTotalValue": 137547
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 82,
+            "pricePerItem": 102,
+            "totalValue": 8364,
+            "originalTotalValue": 8364
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 2495,
+            "pricePerItem": 4,
+            "totalValue": 9980,
+            "originalTotalValue": 9980
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 132,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 552000
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 39,
+            "pricePerItem": 170,
+            "totalValue": 6630,
+            "originalTotalValue": 6630
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 6,
+            "pricePerItem": 10483,
+            "totalValue": 62898,
+            "originalTotalValue": 62898
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 24,
+            "pricePerItem": 685,
+            "totalValue": 16440,
+            "originalTotalValue": 16440
+          }
+        },
+        "14": {
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 2,
+            "pricePerItem": 25250,
+            "totalValue": 50500,
+            "originalTotalValue": 50500
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 1000,
+            "pricePerItem": 328,
+            "totalValue": 328000,
+            "originalTotalValue": 328000
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 68,
+            "pricePerItem": 102,
+            "totalValue": 6936,
+            "originalTotalValue": 6936
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 2,
+            "pricePerItem": 18700,
+            "totalValue": 37400,
+            "originalTotalValue": 37400
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 7,
+            "pricePerItem": 10483,
+            "totalValue": 73381,
+            "originalTotalValue": 73381
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 55,
+            "pricePerItem": 170,
+            "totalValue": 9350,
+            "originalTotalValue": 9350
+          },
+          "Earth rune": {
+            "name": "Earth rune",
+            "totalQuantity": 796,
+            "pricePerItem": 5,
+            "totalValue": 3980,
+            "originalTotalValue": 3980
+          },
+          "Fire rune": {
+            "name": "Fire rune",
+            "totalQuantity": 799,
+            "pricePerItem": 4,
+            "totalValue": 3196,
+            "originalTotalValue": 3196
+          },
+          "Steel cannonball": {
+            "name": "Steel cannonball",
+            "totalQuantity": 530,
+            "pricePerItem": 269,
+            "totalValue": 142570,
+            "originalTotalValue": 142570
+          },
+          "Celastrus seed": {
+            "name": "Celastrus seed",
+            "totalQuantity": 1,
+            "pricePerItem": 22570,
+            "totalValue": 22570,
+            "originalTotalValue": 22570
+          }
+        },
+        "15": {
+          "Scroll box (elite)": {
+            "name": "Scroll box (elite)",
+            "totalQuantity": 1,
+            "pricePerItem": 0,
+            "totalValue": 0,
+            "originalTotalValue": 0
+          },
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 700,
+            "pricePerItem": 328,
+            "totalValue": 229600,
+            "originalTotalValue": 229600
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 39,
+            "pricePerItem": 685,
+            "totalValue": 26715,
+            "originalTotalValue": 26715
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 50,
+            "pricePerItem": 349,
+            "totalValue": 17450,
+            "originalTotalValue": 17450
+          },
+          "Gold ore": {
+            "name": "Gold ore",
+            "totalQuantity": 61,
+            "pricePerItem": 157,
+            "totalValue": 9577,
+            "originalTotalValue": 9577
+          },
+          "Chaos rune": {
+            "name": "Chaos rune",
+            "totalQuantity": 80,
+            "pricePerItem": 102,
+            "totalValue": 8160,
+            "originalTotalValue": 8160
+          },
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 188,
+            "pricePerItem": 365,
+            "totalValue": 68620,
+            "originalTotalValue": 68620
+          },
+          "Runite ore": {
+            "name": "Runite ore",
+            "totalQuantity": 4,
+            "pricePerItem": 10483,
+            "totalValue": 41932,
+            "originalTotalValue": 41932
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 1,
+            "pricePerItem": 25250,
+            "totalValue": 25250,
+            "originalTotalValue": 25250
+          }
+        },
+        "16": {
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 300,
+            "pricePerItem": 328,
+            "totalValue": 98400,
+            "originalTotalValue": 98400
+          },
+          "Raw shark": {
+            "name": "Raw shark",
+            "totalQuantity": 33,
+            "pricePerItem": 685,
+            "totalValue": 22605,
+            "originalTotalValue": 22605
+          },
+          "Death rune": {
+            "name": "Death rune",
+            "totalQuantity": 76,
+            "pricePerItem": 203,
+            "totalValue": 15428,
+            "originalTotalValue": 15428
+          },
+          "Aether catalyst": {
+            "name": "Aether catalyst",
+            "totalQuantity": 231,
+            "pricePerItem": 365,
+            "totalValue": 84315,
+            "originalTotalValue": 84315
+          }
+        },
+        "17": {
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 200,
+            "pricePerItem": 328,
+            "totalValue": 65600,
+            "originalTotalValue": 65600
+          },
+          "Shark lure": {
+            "name": "Shark lure",
+            "totalQuantity": 60,
+            "pricePerItem": 349,
+            "totalValue": 20940,
+            "originalTotalValue": 20940
+          },
+          "Onyx bolts": {
+            "name": "Onyx bolts",
+            "totalQuantity": 9,
+            "pricePerItem": 8599,
+            "totalValue": 77391,
+            "originalTotalValue": 77391
+          }
+        },
+        "18": {
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 200,
+            "pricePerItem": 328,
+            "totalValue": 65600,
+            "originalTotalValue": 65600
+          },
+          "Coal": {
+            "name": "Coal",
+            "totalQuantity": 33,
+            "pricePerItem": 170,
+            "totalValue": 5610,
+            "originalTotalValue": 5610
+          },
+          "Mystic earth staff": {
+            "name": "Mystic earth staff",
+            "totalQuantity": 1,
+            "pricePerItem": 25250,
+            "totalValue": 25250,
+            "originalTotalValue": 25250
+          }
+        },
+        "19": {
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 200,
+            "pricePerItem": 328,
+            "totalValue": 65600,
+            "originalTotalValue": 65600
+          },
+          "Mokhaiotl waystone": {
+            "name": "Mokhaiotl waystone",
+            "totalQuantity": 1,
+            "pricePerItem": 57484,
+            "totalValue": 57484,
+            "originalTotalValue": 57484
+          },
+          "Sun-kissed bones": {
+            "name": "Sun-kissed bones",
+            "totalQuantity": 40,
+            "pricePerItem": 8000,
+            "totalValue": 0,
+            "originalTotalValue": 320000
+          }
+        },
+        "20": {
+          "Demon tear": {
+            "name": "Demon tear",
+            "totalQuantity": 100,
+            "pricePerItem": 328,
+            "totalValue": 32800,
+            "originalTotalValue": 32800
+          },
+          "Rune pickaxe": {
+            "name": "Rune pickaxe",
+            "totalQuantity": 2,
+            "pricePerItem": 18700,
+            "totalValue": 37400,
+            "originalTotalValue": 37400
+          }
+        }
+      },
+      "historicalUnclaimedByWave": {
+        "1": 1553384,
+        "2": 2211688,
+        "3": 2888740,
+        "4": 3996332,
+        "5": 3666468,
+        "6": 4030510,
+        "7": 3786670,
+        "8": 2967854,
+        "9": 3172772,
+        "10": 1928256,
+        "11": 2300153,
+        "12": 1757654,
+        "13": 927219,
+        "14": 677883,
+        "15": 427304,
+        "16": 220748,
+        "17": 163931,
+        "18": 96460,
+        "19": 123084,
+        "20": 70200
+      },
+      "historicalSuppliesUsed": {
         "Death rune": {
           "name": "Death rune",
-          "totalQuantity": 400,
-          "pricePerItem": 1000,
-          "totalValue": 400000,
-          "originalTotalValue": 400000
+          "totalQuantity": 11,
+          "pricePerItem": 214,
+          "totalValue": 2334,
+          "originalTotalValue": 2334
         },
-        "Bastion potion": {
-          "name": "Bastion potion",
+        "Blood rune": {
+          "name": "Blood rune",
+          "totalQuantity": 11,
+          "pricePerItem": 297,
+          "totalValue": 3245,
+          "originalTotalValue": 3245
+        },
+        "Prayer regeneration potion": {
+          "name": "Prayer regeneration potion",
           "totalQuantity": 4,
-          "pricePerItem": 30000,
-          "totalValue": 120000,
-          "originalTotalValue": 120000
+          "pricePerItem": 16693,
+          "totalValue": 65896,
+          "originalTotalValue": 65896
+        },
+        "Prayer potion": {
+          "name": "Prayer potion",
+          "totalQuantity": 23,
+          "pricePerItem": 2047,
+          "totalValue": 47071,
+          "originalTotalValue": 47071
+        },
+        "Dragon arrow": {
+          "name": "Dragon arrow",
+          "totalQuantity": 111,
+          "pricePerItem": 2954,
+          "totalValue": 328209,
+          "originalTotalValue": 328209
+        },
+        "Soul rune": {
+          "name": "Soul rune",
+          "totalQuantity": 76,
+          "pricePerItem": 379,
+          "totalValue": 28685,
+          "originalTotalValue": 28685
+        },
+        "Divine ranging potion": {
+          "name": "Divine ranging potion",
+          "totalQuantity": 8,
+          "pricePerItem": 1747,
+          "totalValue": 12968,
+          "originalTotalValue": 12968
+        },
+        "Fire rune": {
+          "name": "Fire rune",
+          "totalQuantity": 325,
+          "pricePerItem": 4,
+          "totalValue": 1410,
+          "originalTotalValue": 1410
+        },
+        "Extended anti-venom+": {
+          "name": "Extended anti-venom+",
+          "totalQuantity": 2,
+          "pricePerItem": 4654,
+          "totalValue": 9426,
+          "originalTotalValue": 9426
         }
       },
-      "3": {
-        "Sun-kissed bones": {
-          "name": "Sun-kissed bones",
-          "totalQuantity": 20,
-          "pricePerItem": 76000,
-          "totalValue": 1520000,
-          "originalTotalValue": 1520000
-        }
-      }
-    },
-    "historicalSuppliesUsedJson": {
-      "Blighted minnow": {
-        "name": "Blighted minnow",
-        "totalQuantity": 500,
-        "pricePerItem": 570,
-        "totalValue": 285000,
-        "originalTotalValue": 0
-      },
-      "Basalt dust": {
-        "name": "Basalt dust",
-        "totalQuantity": 200,
-        "pricePerItem": 500,
-        "totalValue": 100000,
-        "originalTotalValue": 0
-      }
-    },
-    "historicalSupplyCost": 385000,
-    "historicalTotalClaimed": 2180000,
-    "historicalUnclaimedByWaveJson": {
-      "1": 500000,
-      "2": 300000
-    },
-    "historicalUnclaimedItemsByWaveJson": {
-      "1": {
-        "Loot chest": {
-          "name": "Loot chest",
-          "totalQuantity": 1,
-          "pricePerItem": 500000,
-          "totalValue": 500000,
-          "originalTotalValue": 500000
-        }
-      },
-      "2": {
-        "Loot chest": {
-          "name": "Loot chest",
-          "totalQuantity": 1,
-          "pricePerItem": 300000,
-          "totalValue": 300000,
-          "originalTotalValue": 300000
-        }
-      }
-    },
-    "currentRunLootByWaveJson": {},
-    "configSettings": {
-      "ignoreSpiritSeedsValue": false,
-      "ignoreSunKissedBonesValue": false,
-      "minItemValueThreshold": 0,
-      "showChatNotifications": true,
-      "showOverlay": false,
-      "showSuppliesUsedBeta": true,
-      "testMode": true,
-      "debugLogging": true,
-      "debugItemValueLogging": true,
-      "exampleToggle": false
+      "historicalTotalClaimed": 1281036991,
+      "historicalClaims": 428,
+      "historicalDeaths": 277
     }
-  }
+  },
+  "historicalTotalClaimed": 0,
+  "historicalClaims": 0,
+  "historicalDeaths": 0
 }

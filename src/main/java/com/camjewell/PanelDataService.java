@@ -27,6 +27,13 @@ class PanelDataService {
         Map<Integer, Long> unclaimedTotalsByWave = new HashMap<>();
     }
 
+    static final class SuppliesPanelData {
+        long currentSuppliesTotalValue;
+        long historicalSuppliesTotalValue;
+        Map<String, MokhaLootPanel.ItemData> currentSuppliesData = new HashMap<>();
+        Map<String, MokhaLootPanel.ItemData> historicalSuppliesData = new HashMap<>();
+    }
+
     PanelData buildPanelData(
             Map<Integer, List<MokhaLootTrackerPlugin.LootItem>> lootByWave,
             Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalClaimedItemsByWave,
@@ -84,6 +91,26 @@ class PanelDataService {
             data.unclaimedItemsByWave.put(wave, unclaimedItems);
             data.unclaimedTotalsByWave.put(wave, unclaimedWaveTotal);
         }
+
+        SuppliesPanelData suppliesData = buildSuppliesPanelData(
+                totalSuppliesConsumed,
+                historicalSuppliesUsed,
+                getBasePotionNameByItemId,
+                getPricePerDoseByItemId);
+        data.currentSuppliesTotalValue = suppliesData.currentSuppliesTotalValue;
+        data.historicalSuppliesTotalValue = suppliesData.historicalSuppliesTotalValue;
+        data.currentSuppliesData = suppliesData.currentSuppliesData;
+        data.historicalSuppliesData = suppliesData.historicalSuppliesData;
+
+        return data;
+    }
+
+    SuppliesPanelData buildSuppliesPanelData(
+            Map<Integer, Integer> totalSuppliesConsumed,
+            Map<String, MokhaLootTrackerPlugin.ItemAggregate> historicalSuppliesUsed,
+            IntFunction<String> getBasePotionNameByItemId,
+            IntUnaryOperator getPricePerDoseByItemId) {
+        SuppliesPanelData data = new SuppliesPanelData();
 
         for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
             int itemId = entry.getKey();
