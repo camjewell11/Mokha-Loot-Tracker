@@ -131,7 +131,7 @@ class ValueCalculationService {
 
         for (Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
             for (MokhaLootTrackerPlugin.ItemAggregate item : waveItems.values()) {
-                if (item.pricePerItem > ULTRA_VALUABLE_THRESHOLD) {
+                if (item.pricePerItem > ULTRA_VALUABLE_THRESHOLD || "Dom".equalsIgnoreCase(item.name)) {
                     uniqueCount += item.totalQuantity;
                 }
             }
