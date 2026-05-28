@@ -9,6 +9,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -26,8 +27,11 @@ import javax.swing.border.EmptyBorder;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MokhaLootPanel extends PluginPanel {
+    private static final Logger log = LoggerFactory.getLogger(MokhaLootPanel.class);
     private static final int ACTION_BUTTON_HEIGHT = 30;
     private static final int ULTRA_VALUABLE_THRESHOLD = 20_000_000;
     private static final Color UNIQUE_GOLD_COLOR = new Color(218, 165, 32);
@@ -78,6 +82,8 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel cumulativeUniqueChanceLabel;
     private JLabel currentRunWaveLabel;
     private JPanel currentRunItemsPanel;
+    private long currentRunGeTotal;
+    private long currentRunHaTotal;
 
     // Claimed Loot by Wave - now stores panels for dynamic item lists
     private JPanel claimedWavesContainer; // Container for all waves
@@ -89,6 +95,8 @@ public class MokhaLootPanel extends PluginPanel {
     private int claimedSectionState = 1; // Start collapsed
     private JLabel claimedSectionTotalLabel; // Total value label for collapsed view
     private JPanel claimedCombinedPanel; // Panel for combined all-waves view
+    private final long[] claimedWaveHaTotals = new long[9];
+    private long claimedSectionHaTotal;
 
     // Unclaimed Loot by Wave - now stores panels for dynamic item lists
     private JPanel unclaimedWavesContainer; // Container for all waves
@@ -100,6 +108,8 @@ public class MokhaLootPanel extends PluginPanel {
     private int unclaimedSectionState = 1; // Start collapsed
     private JLabel unclaimedSectionTotalLabel; // Total value label for collapsed view
     private JPanel unclaimedCombinedPanel; // Panel for combined all-waves view
+    private final long[] unclaimedWaveHaTotals = new long[9];
+    private long unclaimedSectionHaTotal;
 
     // Supplies Used Current Run
     private JLabel suppliesCurrentRunTotalLabel;
@@ -601,60 +611,72 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     private void updateClaimedSectionView() {
-        switch (claimedSectionState) {
-            case 0: // expanded
-                claimedWavesContainer.setVisible(true);
-                claimedCombinedPanel.setVisible(false);
-                claimedSectionTotalLabel.setVisible(false);
-                setClaimedCollapseButtonText("▾");
-                break;
-            case 1: // collapsed
-                claimedWavesContainer.setVisible(false);
-                claimedCombinedPanel.setVisible(false);
-                claimedSectionTotalLabel.setVisible(true);
-                setClaimedCollapseButtonText("▸");
-                break;
-            default: // combined
-                claimedWavesContainer.setVisible(false);
-                claimedCombinedPanel.setVisible(true);
-                claimedSectionTotalLabel.setVisible(false);
-                setClaimedCollapseButtonText("◂");
-                populateClaimedCombinedPanel();
-                break;
+        try {
+            switch (claimedSectionState) {
+                case 0: // expanded
+                    claimedWavesContainer.setVisible(true);
+                    claimedCombinedPanel.setVisible(false);
+                    claimedSectionTotalLabel.setVisible(false);
+                    setClaimedCollapseButtonText("▾");
+                    break;
+                case 1: // collapsed
+                    claimedWavesContainer.setVisible(false);
+                    claimedCombinedPanel.setVisible(false);
+                    claimedSectionTotalLabel.setVisible(true);
+                    setClaimedCollapseButtonText("▸");
+                    break;
+                default: // combined
+                    claimedWavesContainer.setVisible(false);
+                    claimedCombinedPanel.setVisible(true);
+                    claimedSectionTotalLabel.setVisible(false);
+                    setClaimedCollapseButtonText("◂");
+                    populateClaimedCombinedPanel();
+                    break;
+            }
+        } catch (RuntimeException ex) {
+            logPanelInteractionFailure("updateClaimedSectionView", ex);
         }
     }
 
     // Helper to update unclaimed section view based on state
     private void updateUnclaimedSectionView() {
-        switch (unclaimedSectionState) {
-            case 0: // expanded
-                unclaimedWavesContainer.setVisible(true);
-                unclaimedCombinedPanel.setVisible(false);
-                unclaimedSectionTotalLabel.setVisible(false);
-                setUnclaimedCollapseButtonText("▾");
-                break;
-            case 1: // collapsed
-                unclaimedWavesContainer.setVisible(false);
-                unclaimedCombinedPanel.setVisible(false);
-                unclaimedSectionTotalLabel.setVisible(true);
-                setUnclaimedCollapseButtonText("▸");
-                break;
-            default: // combined
-                unclaimedWavesContainer.setVisible(false);
-                unclaimedCombinedPanel.setVisible(true);
-                unclaimedSectionTotalLabel.setVisible(false);
-                setUnclaimedCollapseButtonText("◂");
-                populateUnclaimedCombinedPanel();
-                break;
+        try {
+            switch (unclaimedSectionState) {
+                case 0: // expanded
+                    unclaimedWavesContainer.setVisible(true);
+                    unclaimedCombinedPanel.setVisible(false);
+                    unclaimedSectionTotalLabel.setVisible(false);
+                    setUnclaimedCollapseButtonText("▾");
+                    break;
+                case 1: // collapsed
+                    unclaimedWavesContainer.setVisible(false);
+                    unclaimedCombinedPanel.setVisible(false);
+                    unclaimedSectionTotalLabel.setVisible(true);
+                    setUnclaimedCollapseButtonText("▸");
+                    break;
+                default: // combined
+                    unclaimedWavesContainer.setVisible(false);
+                    unclaimedCombinedPanel.setVisible(true);
+                    unclaimedSectionTotalLabel.setVisible(false);
+                    setUnclaimedCollapseButtonText("◂");
+                    populateUnclaimedCombinedPanel();
+                    break;
+            }
+        } catch (RuntimeException ex) {
+            logPanelInteractionFailure("updateUnclaimedSectionView", ex);
         }
     }
 
     // Helper to set collapse button text for claimed section
     private void setClaimedCollapseButtonText(String text) {
-        JPanel header = (JPanel) ((JPanel) claimedWavesContainer.getParent()).getComponent(0);
-        JPanel rightPanel = (JPanel) header.getComponent(1);
-        JButton collapseButton = (JButton) rightPanel.getComponent(rightPanel.getComponentCount() - 1);
-        collapseButton.setText(getArrowOrFallback(text, getArrowFallback(text)));
+        try {
+            JPanel header = (JPanel) ((JPanel) claimedWavesContainer.getParent()).getComponent(0);
+            JPanel rightPanel = (JPanel) header.getComponent(1);
+            JButton collapseButton = (JButton) rightPanel.getComponent(rightPanel.getComponentCount() - 1);
+            collapseButton.setText(getArrowOrFallback(text, getArrowFallback(text)));
+        } catch (RuntimeException ex) {
+            logPanelInteractionFailure("setClaimedCollapseButtonText", ex);
+        }
     }
 
     /**
@@ -662,70 +684,108 @@ public class MokhaLootPanel extends PluginPanel {
      * This does not change how data is stored, only how it is shown.
      */
     private void populateClaimedCombinedPanel() {
-        claimedCombinedPanel.removeAll();
-        Map<String, MokhaLootTrackerPlugin.ItemAggregate> combined = new java.util.HashMap<>();
-        long totalValue = 0;
-        if (historicalClaimedItemsByWave != null) {
-            for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : historicalClaimedItemsByWave
-                    .entrySet()) {
-                Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveMap = waveEntry.getValue();
-                if (waveMap != null) {
-                    for (Map.Entry<String, MokhaLootTrackerPlugin.ItemAggregate> itemEntry : waveMap.entrySet()) {
-                        MokhaLootTrackerPlugin.ItemAggregate agg = itemEntry.getValue();
-                        if (agg == null)
-                            continue;
-                        MokhaLootTrackerPlugin.ItemAggregate existing = combined.get(agg.name);
-                        if (existing == null) {
-                            combined.put(agg.name, new MokhaLootTrackerPlugin.ItemAggregate(agg.name, agg.totalQuantity,
-                                    agg.pricePerItem, agg.haPricePerItem));
-                            combined.get(agg.name).totalValue = agg.totalValue;
-                            combined.get(agg.name).totalHaValue = agg.totalHaValue;
-                        } else {
-                            existing.totalQuantity += agg.totalQuantity;
-                            existing.totalValue += agg.totalValue;
-                            existing.totalHaValue += agg.totalHaValue;
-                            existing.haPricePerItem = agg.haPricePerItem;
+        try {
+            claimedCombinedPanel.removeAll();
+            Map<String, MokhaLootTrackerPlugin.ItemAggregate> combined = new HashMap<>();
+            long totalValue = 0;
+            long totalHaValue = 0;
+            if (historicalClaimedItemsByWave != null) {
+                Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> claimedSnapshot = new HashMap<>(
+                        historicalClaimedItemsByWave);
+                for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : claimedSnapshot
+                        .entrySet()) {
+                    Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveMap = waveEntry.getValue();
+                    if (waveMap != null) {
+                        for (Map.Entry<String, MokhaLootTrackerPlugin.ItemAggregate> itemEntry : new HashMap<>(waveMap)
+                                .entrySet()) {
+                            MokhaLootTrackerPlugin.ItemAggregate agg = itemEntry.getValue();
+                            if (agg == null)
+                                continue;
+                            MokhaLootTrackerPlugin.ItemAggregate existing = combined.get(agg.name);
+                            if (existing == null) {
+                                combined.put(agg.name,
+                                        new MokhaLootTrackerPlugin.ItemAggregate(agg.name, agg.totalQuantity,
+                                                agg.pricePerItem, agg.haPricePerItem));
+                                combined.get(agg.name).totalValue = agg.totalValue;
+                                combined.get(agg.name).totalHaValue = agg.totalHaValue;
+                            } else {
+                                existing.totalQuantity += agg.totalQuantity;
+                                existing.totalValue += agg.totalValue;
+                                existing.totalHaValue += agg.totalHaValue;
+                                existing.haPricePerItem = agg.haPricePerItem;
+                            }
+                            totalValue += agg.totalValue;
+                            totalHaValue += agg.totalHaValue;
                         }
-                        totalValue += agg.totalValue;
                     }
                 }
             }
-        }
-        for (MokhaLootTrackerPlugin.ItemAggregate agg : sortAggregatesForDisplay(combined.values())) {
-            JPanel itemRow = new JPanel(new java.awt.BorderLayout());
-            itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-            itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-            itemRow.setBorder(new EmptyBorder(2, 5, 2, 0));
-            String left = "- " + agg.name + " x" + agg.totalQuantity;
-            JLabel itemLabel = new JLabel(left);
-            // Color gold if value > 20m or if item is Dom
-            Color itemColor = (agg.pricePerItem > 20_000_000 || "Dom".equalsIgnoreCase(agg.name))
-                    ? new Color(218, 165, 32)
-                    : ColorScheme.LIGHT_GRAY_COLOR;
-            itemLabel.setForeground(itemColor);
-            itemLabel.setFont(FontManager.getRunescapeSmallFont());
-            String pricePerItemText = formatPricePerItemTooltip(agg.pricePerItem, agg.haPricePerItem,
-                    displayHaValueOnHover);
-            itemRow.setToolTipText("Price per item: " + pricePerItemText);
-            itemRow.add(itemLabel, java.awt.BorderLayout.WEST);
-            JLabel itemValueLabel = new JLabel(formatGp(agg.totalValue));
-            itemValueLabel.setForeground(itemColor);
-            itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
-            itemRow.add(itemValueLabel, java.awt.BorderLayout.EAST);
+            for (MokhaLootTrackerPlugin.ItemAggregate agg : sortAggregatesForDisplay(combined.values())) {
+                JPanel itemRow = new JPanel(new java.awt.BorderLayout());
+                itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+                itemRow.setBorder(new EmptyBorder(2, 5, 2, 0));
+                String left = "- " + agg.name + " x" + agg.totalQuantity;
+                JLabel itemLabel = new JLabel(left);
+                // Color gold if value > 20m or if item is Dom
+                Color itemColor = (agg.pricePerItem > 20_000_000 || "Dom".equalsIgnoreCase(agg.name))
+                        ? new Color(218, 165, 32)
+                        : ColorScheme.LIGHT_GRAY_COLOR;
+                itemLabel.setForeground(itemColor);
+                itemLabel.setFont(FontManager.getRunescapeSmallFont());
+                String pricePerItemText = formatPricePerItemTooltip(agg.pricePerItem, agg.haPricePerItem,
+                        displayHaValueOnHover);
+                itemRow.setToolTipText("Price per item: " + pricePerItemText);
+                itemRow.add(itemLabel, java.awt.BorderLayout.WEST);
+                JLabel itemValueLabel = new JLabel(formatGp(agg.totalValue));
+                itemValueLabel.setForeground(itemColor);
+                itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
+                itemRow.add(itemValueLabel, java.awt.BorderLayout.EAST);
 
-            if (config.enableHistoricalEdit() && onRemoveClaimedHistoricalItemAllWaves != null) {
-                addHistoricalRemovalInteraction(itemRow, agg.name, "claimed historical loot (all waves)",
-                        () -> onRemoveClaimedHistoricalItemAllWaves.accept(agg.name));
+                if (config.enableHistoricalEdit() && onRemoveClaimedHistoricalItemAllWaves != null) {
+                    addHistoricalRemovalInteraction(itemRow, agg.name, "claimed historical loot (all waves)",
+                            () -> onRemoveClaimedHistoricalItemAllWaves.accept(agg.name));
+                }
+                claimedCombinedPanel.add(itemRow);
             }
-            claimedCombinedPanel.add(itemRow);
+            claimedCombinedPanel.add(Box.createVerticalStrut(8));
+            if (!displayHaValueOnHover) {
+                JLabel totalLabel = new JLabel("Total: " + formatGp(totalValue));
+                totalLabel.setFont(FontManager.getRunescapeBoldFont());
+                totalLabel.setForeground(new Color(0, 200, 0));
+                claimedCombinedPanel.add(totalLabel);
+            } else {
+                JPanel totalRow = new JPanel(new BorderLayout());
+                totalRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                totalRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+
+                JLabel totalText = new JLabel("Total:");
+                totalText.setFont(FontManager.getRunescapeBoldFont());
+                totalText.setForeground(Color.LIGHT_GRAY);
+                totalRow.add(totalText, BorderLayout.WEST);
+
+                JPanel valuesPanel = new JPanel();
+                valuesPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                valuesPanel.setLayout(new BoxLayout(valuesPanel, BoxLayout.X_AXIS));
+
+                JLabel geTotalLabel = new JLabel("GE: " + formatGp(totalValue));
+                geTotalLabel.setFont(FontManager.getRunescapeBoldFont());
+                geTotalLabel.setForeground(Color.WHITE);
+
+                JLabel haTotalLabel = new JLabel(" | HA: " + formatGp(totalHaValue));
+                haTotalLabel.setFont(FontManager.getRunescapeBoldFont());
+                haTotalLabel.setForeground(new Color(0, 200, 0));
+
+                valuesPanel.add(geTotalLabel);
+                valuesPanel.add(haTotalLabel);
+                totalRow.add(valuesPanel, BorderLayout.EAST);
+                claimedCombinedPanel.add(totalRow);
+            }
+            claimedCombinedPanel.revalidate();
+            claimedCombinedPanel.repaint();
+        } catch (RuntimeException ex) {
+            logPanelInteractionFailure("populateClaimedCombinedPanel", ex);
         }
-        JLabel totalLabel = new JLabel("Total: " + formatGp(totalValue));
-        totalLabel.setFont(FontManager.getRunescapeBoldFont());
-        totalLabel.setForeground(new Color(0, 200, 0));
-        claimedCombinedPanel.add(Box.createVerticalStrut(8));
-        claimedCombinedPanel.add(totalLabel);
-        claimedCombinedPanel.revalidate();
-        claimedCombinedPanel.repaint();
     }
 
     /**
@@ -733,76 +793,118 @@ public class MokhaLootPanel extends PluginPanel {
      * This does not change how data is stored, only how it is shown.
      */
     private void populateUnclaimedCombinedPanel() {
-        unclaimedCombinedPanel.removeAll();
-        Map<String, MokhaLootTrackerPlugin.ItemAggregate> combined = new java.util.HashMap<>();
-        long totalValue = 0;
-        if (historicalUnclaimedItemsByWave != null) {
-            for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : historicalUnclaimedItemsByWave
-                    .entrySet()) {
-                Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveMap = waveEntry.getValue();
-                if (waveMap != null) {
-                    for (Map.Entry<String, MokhaLootTrackerPlugin.ItemAggregate> itemEntry : waveMap.entrySet()) {
-                        MokhaLootTrackerPlugin.ItemAggregate agg = itemEntry.getValue();
-                        if (agg == null)
-                            continue;
-                        MokhaLootTrackerPlugin.ItemAggregate existing = combined.get(agg.name);
-                        if (existing == null) {
-                            combined.put(agg.name, new MokhaLootTrackerPlugin.ItemAggregate(agg.name, agg.totalQuantity,
-                                    agg.pricePerItem, agg.haPricePerItem));
-                            combined.get(agg.name).totalValue = agg.totalValue;
-                            combined.get(agg.name).totalHaValue = agg.totalHaValue;
-                        } else {
-                            existing.totalQuantity += agg.totalQuantity;
-                            existing.totalValue += agg.totalValue;
-                            existing.totalHaValue += agg.totalHaValue;
-                            existing.haPricePerItem = agg.haPricePerItem;
+        try {
+            unclaimedCombinedPanel.removeAll();
+            Map<String, MokhaLootTrackerPlugin.ItemAggregate> combined = new HashMap<>();
+            long totalValue = 0;
+            long totalHaValue = 0;
+            if (historicalUnclaimedItemsByWave != null) {
+                Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> unclaimedSnapshot = new HashMap<>(
+                        historicalUnclaimedItemsByWave);
+                for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : unclaimedSnapshot
+                        .entrySet()) {
+                    Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveMap = waveEntry.getValue();
+                    if (waveMap != null) {
+                        for (Map.Entry<String, MokhaLootTrackerPlugin.ItemAggregate> itemEntry : new HashMap<>(waveMap)
+                                .entrySet()) {
+                            MokhaLootTrackerPlugin.ItemAggregate agg = itemEntry.getValue();
+                            if (agg == null)
+                                continue;
+                            MokhaLootTrackerPlugin.ItemAggregate existing = combined.get(agg.name);
+                            if (existing == null) {
+                                combined.put(agg.name,
+                                        new MokhaLootTrackerPlugin.ItemAggregate(agg.name, agg.totalQuantity,
+                                                agg.pricePerItem, agg.haPricePerItem));
+                                combined.get(agg.name).totalValue = agg.totalValue;
+                                combined.get(agg.name).totalHaValue = agg.totalHaValue;
+                            } else {
+                                existing.totalQuantity += agg.totalQuantity;
+                                existing.totalValue += agg.totalValue;
+                                existing.totalHaValue += agg.totalHaValue;
+                                existing.haPricePerItem = agg.haPricePerItem;
+                            }
+                            totalValue += agg.totalValue;
+                            totalHaValue += agg.totalHaValue;
                         }
-                        totalValue += agg.totalValue;
                     }
                 }
             }
-        }
-        for (MokhaLootTrackerPlugin.ItemAggregate agg : sortAggregatesForDisplay(combined.values())) {
-            JPanel itemRow = new JPanel(new java.awt.BorderLayout());
-            itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-            itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-            itemRow.setBorder(new EmptyBorder(2, 5, 2, 0));
-            String left = "- " + agg.name + " x" + agg.totalQuantity;
-            JLabel itemLabel = new JLabel(left);
-            Color itemColor = (agg.totalValue > 20_000_000 || "Dom".equalsIgnoreCase(agg.name))
-                    ? new Color(218, 165, 32)
-                    : ColorScheme.LIGHT_GRAY_COLOR;
-            itemLabel.setForeground(itemColor);
-            itemLabel.setFont(FontManager.getRunescapeSmallFont());
-            String pricePerItemText = formatPricePerItemTooltip(agg.pricePerItem, agg.haPricePerItem,
-                    displayHaValueOnHover);
-            itemRow.setToolTipText("Price per item: " + pricePerItemText);
-            itemRow.add(itemLabel, java.awt.BorderLayout.WEST);
-            JLabel itemValueLabel = new JLabel(formatGp(agg.totalValue));
-            itemValueLabel.setForeground(itemColor);
-            itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
-            itemRow.add(itemValueLabel, java.awt.BorderLayout.EAST);
+            for (MokhaLootTrackerPlugin.ItemAggregate agg : sortAggregatesForDisplay(combined.values())) {
+                JPanel itemRow = new JPanel(new java.awt.BorderLayout());
+                itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+                itemRow.setBorder(new EmptyBorder(2, 5, 2, 0));
+                String left = "- " + agg.name + " x" + agg.totalQuantity;
+                JLabel itemLabel = new JLabel(left);
+                Color itemColor = (agg.totalValue > 20_000_000 || "Dom".equalsIgnoreCase(agg.name))
+                        ? new Color(218, 165, 32)
+                        : ColorScheme.LIGHT_GRAY_COLOR;
+                itemLabel.setForeground(itemColor);
+                itemLabel.setFont(FontManager.getRunescapeSmallFont());
+                String pricePerItemText = formatPricePerItemTooltip(agg.pricePerItem, agg.haPricePerItem,
+                        displayHaValueOnHover);
+                itemRow.setToolTipText("Price per item: " + pricePerItemText);
+                itemRow.add(itemLabel, java.awt.BorderLayout.WEST);
+                JLabel itemValueLabel = new JLabel(formatGp(agg.totalValue));
+                itemValueLabel.setForeground(itemColor);
+                itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
+                itemRow.add(itemValueLabel, java.awt.BorderLayout.EAST);
 
-            if (config.enableHistoricalEdit() && onRemoveUnclaimedHistoricalItemAllWaves != null) {
-                addHistoricalRemovalInteraction(itemRow, agg.name, "unclaimed historical loot (all waves)",
-                        () -> onRemoveUnclaimedHistoricalItemAllWaves.accept(agg.name));
+                if (config.enableHistoricalEdit() && onRemoveUnclaimedHistoricalItemAllWaves != null) {
+                    addHistoricalRemovalInteraction(itemRow, agg.name, "unclaimed historical loot (all waves)",
+                            () -> onRemoveUnclaimedHistoricalItemAllWaves.accept(agg.name));
+                }
+                unclaimedCombinedPanel.add(itemRow);
             }
-            unclaimedCombinedPanel.add(itemRow);
+            unclaimedCombinedPanel.add(Box.createVerticalStrut(8));
+            if (!displayHaValueOnHover) {
+                JLabel totalLabel = new JLabel("Total: " + formatGp(totalValue));
+                totalLabel.setFont(FontManager.getRunescapeBoldFont());
+                totalLabel.setForeground(new Color(200, 0, 0));
+                unclaimedCombinedPanel.add(totalLabel);
+            } else {
+                JPanel totalRow = new JPanel(new BorderLayout());
+                totalRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                totalRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+
+                JLabel totalText = new JLabel("Total:");
+                totalText.setFont(FontManager.getRunescapeBoldFont());
+                totalText.setForeground(Color.LIGHT_GRAY);
+                totalRow.add(totalText, BorderLayout.WEST);
+
+                JPanel valuesPanel = new JPanel();
+                valuesPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                valuesPanel.setLayout(new BoxLayout(valuesPanel, BoxLayout.X_AXIS));
+
+                JLabel geTotalLabel = new JLabel("GE: " + formatGp(totalValue));
+                geTotalLabel.setFont(FontManager.getRunescapeBoldFont());
+                geTotalLabel.setForeground(Color.WHITE);
+
+                JLabel haTotalLabel = new JLabel(" | HA: " + formatGp(totalHaValue));
+                haTotalLabel.setFont(FontManager.getRunescapeBoldFont());
+                haTotalLabel.setForeground(new Color(0, 200, 0));
+
+                valuesPanel.add(geTotalLabel);
+                valuesPanel.add(haTotalLabel);
+                totalRow.add(valuesPanel, BorderLayout.EAST);
+                unclaimedCombinedPanel.add(totalRow);
+            }
+            unclaimedCombinedPanel.revalidate();
+            unclaimedCombinedPanel.repaint();
+        } catch (RuntimeException ex) {
+            logPanelInteractionFailure("populateUnclaimedCombinedPanel", ex);
         }
-        JLabel totalLabel = new JLabel("Total: " + formatGp(totalValue));
-        totalLabel.setFont(FontManager.getRunescapeBoldFont());
-        totalLabel.setForeground(new Color(200, 0, 0));
-        unclaimedCombinedPanel.add(Box.createVerticalStrut(8));
-        unclaimedCombinedPanel.add(totalLabel);
-        unclaimedCombinedPanel.revalidate();
-        unclaimedCombinedPanel.repaint();
     }
 
     private void setUnclaimedCollapseButtonText(String text) {
-        JPanel header = (JPanel) ((JPanel) unclaimedWavesContainer.getParent()).getComponent(0);
-        JPanel rightPanel = (JPanel) header.getComponent(1);
-        JButton collapseButton = (JButton) rightPanel.getComponent(rightPanel.getComponentCount() - 1);
-        collapseButton.setText(getArrowOrFallback(text, getArrowFallback(text)));
+        try {
+            JPanel header = (JPanel) ((JPanel) unclaimedWavesContainer.getParent()).getComponent(0);
+            JPanel rightPanel = (JPanel) header.getComponent(1);
+            JButton collapseButton = (JButton) rightPanel.getComponent(rightPanel.getComponentCount() - 1);
+            collapseButton.setText(getArrowOrFallback(text, getArrowFallback(text)));
+        } catch (RuntimeException ex) {
+            logPanelInteractionFailure("setUnclaimedCollapseButtonText", ex);
+        }
     }
 
     private JPanel createSuppliesCurrentRunSection() {
@@ -1113,7 +1215,18 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     public void updateCurrentRun(long potentialValue, Map<String, ItemData> itemData) {
-        potentialValueLabel.setText(formatGp(potentialValue));
+        currentRunGeTotal = potentialValue;
+        currentRunHaTotal = 0;
+        if (itemData != null) {
+            for (ItemData item : itemData.values()) {
+                currentRunHaTotal += item.totalHaValue;
+            }
+        }
+
+        potentialValueLabel.setText(formatTotalWithOptionalHa(currentRunGeTotal, currentRunHaTotal));
+        potentialValueLabel.setToolTipText(displayHaValueOnHover
+                ? formatGeHaTotalText(currentRunGeTotal, currentRunHaTotal)
+                : null);
         updateSuppliesPanel(currentRunItemsPanel, itemData, false, true);
     }
 
@@ -1218,7 +1331,27 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     public void setDisplayHaValueOnHover(boolean displayHaValueOnHover) {
-        this.displayHaValueOnHover = displayHaValueOnHover;
+        try {
+            this.displayHaValueOnHover = displayHaValueOnHover;
+            potentialValueLabel.setText(formatTotalWithOptionalHa(currentRunGeTotal, currentRunHaTotal));
+            potentialValueLabel.setToolTipText(displayHaValueOnHover
+                    ? formatGeHaTotalText(currentRunGeTotal, currentRunHaTotal)
+                    : null);
+
+            updateClaimedSectionTotal();
+            updateUnclaimedSectionTotal();
+            refreshWaveHeaderHaTooltips(claimedWaveValueLabels, claimedWaveHaTotals);
+            refreshWaveHeaderHaTooltips(unclaimedWaveValueLabels, unclaimedWaveHaTotals);
+
+            if (claimedSectionState == 2) {
+                populateClaimedCombinedPanel();
+            }
+            if (unclaimedSectionState == 2) {
+                populateUnclaimedCombinedPanel();
+            }
+        } catch (RuntimeException ex) {
+            logPanelInteractionFailure("setDisplayHaValueOnHover", ex);
+        }
     }
 
     /**
@@ -1227,6 +1360,13 @@ public class MokhaLootPanel extends PluginPanel {
      */
     private void updateClaimedSectionTotal() {
         claimedSectionTotalLabel.setText(totalClaimedLabel.getText());
+        claimedSectionHaTotal = 0;
+        for (long haTotal : claimedWaveHaTotals) {
+            claimedSectionHaTotal += haTotal;
+        }
+        claimedSectionTotalLabel.setToolTipText(displayHaValueOnHover
+                ? formatGeHaTotalText(totalClaimedLabel.getText(), formatGp(claimedSectionHaTotal))
+                : null);
     }
 
     /**
@@ -1235,6 +1375,13 @@ public class MokhaLootPanel extends PluginPanel {
      */
     private void updateUnclaimedSectionTotal() {
         unclaimedSectionTotalLabel.setText(totalUnclaimedLabel.getText());
+        unclaimedSectionHaTotal = 0;
+        for (long haTotal : unclaimedWaveHaTotals) {
+            unclaimedSectionHaTotal += haTotal;
+        }
+        unclaimedSectionTotalLabel.setToolTipText(displayHaValueOnHover
+                ? formatGeHaTotalText(totalUnclaimedLabel.getText(), formatGp(unclaimedSectionHaTotal))
+                : null);
     }
 
     public void clearAllPanelData() {
@@ -1252,6 +1399,9 @@ public class MokhaLootPanel extends PluginPanel {
 
         // Clear Current Run section
         potentialValueLabel.setText("0 gp");
+        potentialValueLabel.setToolTipText(null);
+        currentRunGeTotal = 0;
+        currentRunHaTotal = 0;
         currentRunWaveLabel.setText("");
         cumulativeUniqueChanceLabel.setText("N/A");
         cumulativeUniqueChanceLabel.setForeground(Color.LIGHT_GRAY);
@@ -1260,9 +1410,13 @@ public class MokhaLootPanel extends PluginPanel {
         // Clear all claimed wave panels
         for (int i = 0; i < claimedWavePanels.length; i++) {
             claimedWaveValueLabels[i].setText("0 gp");
+            claimedWaveValueLabels[i].setToolTipText(null);
+            claimedWaveHaTotals[i] = 0;
             claimedWaveItemPanels[i].removeAll();
         }
         claimedSectionTotalLabel.setText("0 gp");
+        claimedSectionTotalLabel.setToolTipText(null);
+        claimedSectionHaTotal = 0;
 
         // Clear claimed combined panel
         if (claimedCombinedPanel != null) {
@@ -1272,9 +1426,13 @@ public class MokhaLootPanel extends PluginPanel {
         // Clear all unclaimed wave panels
         for (int i = 0; i < unclaimedWavePanels.length; i++) {
             unclaimedWaveValueLabels[i].setText("0 gp");
+            unclaimedWaveValueLabels[i].setToolTipText(null);
+            unclaimedWaveHaTotals[i] = 0;
             unclaimedWaveItemPanels[i].removeAll();
         }
         unclaimedSectionTotalLabel.setText("0 gp");
+        unclaimedSectionTotalLabel.setToolTipText(null);
+        unclaimedSectionHaTotal = 0;
 
         // Clear unclaimed combined panel
         if (unclaimedCombinedPanel != null) {
@@ -1297,9 +1455,18 @@ public class MokhaLootPanel extends PluginPanel {
     private void updateWavePanel(JLabel valueLabel, JPanel itemsPanel, boolean isCollapsed,
             Map<String, ItemData> itemData, long explicitTotal, boolean isClaimed, int wave) {
         itemsPanel.removeAll();
+        int index = wave >= 9 ? 8 : wave - 1;
 
         if (itemData == null || itemData.isEmpty()) {
             valueLabel.setText("0 gp");
+            if (index >= 0 && index < 9) {
+                if (isClaimed) {
+                    claimedWaveHaTotals[index] = 0;
+                } else {
+                    unclaimedWaveHaTotals[index] = 0;
+                }
+            }
+            valueLabel.setToolTipText(null);
             itemsPanel.setVisible(!isCollapsed);
             itemsPanel.revalidate();
             itemsPanel.repaint();
@@ -1313,7 +1480,22 @@ public class MokhaLootPanel extends PluginPanel {
             }
         }
 
+        long totalHaValue = 0;
+        for (ItemData item : itemData.values()) {
+            totalHaValue += item.totalHaValue;
+        }
+
         valueLabel.setText(formatGp(totalValue));
+        if (index >= 0 && index < 9) {
+            if (isClaimed) {
+                claimedWaveHaTotals[index] = totalHaValue;
+            } else {
+                unclaimedWaveHaTotals[index] = totalHaValue;
+            }
+        }
+        valueLabel.setToolTipText(displayHaValueOnHover
+                ? formatGeHaTotalText(totalValue, totalHaValue)
+                : null);
 
         for (ItemData item : sortItemDataForDisplay(itemData.values())) {
             String pricePerItemText = formatPricePerItemTooltip(item.pricePerItem, item.haPricePerItem,
@@ -1438,10 +1620,31 @@ public class MokhaLootPanel extends PluginPanel {
                         JOptionPane.WARNING_MESSAGE);
 
                 if (response == JOptionPane.YES_OPTION) {
-                    onConfirm.run();
+                    try {
+                        onConfirm.run();
+                    } catch (RuntimeException ex) {
+                        logPanelInteractionFailure("historicalRemovalConfirmation", ex);
+                    }
                 }
             }
         });
+    }
+
+    private void logPanelInteractionFailure(String context, RuntimeException ex) {
+        log.error(
+                "[Mokha][HA-Panel] UI interaction failed. context={}, displayHaValueOnHover={}, claimedSectionState={}, unclaimedSectionState={}, claimedWaves={}, unclaimedWaves={}, onEdt={}",
+                context,
+                displayHaValueOnHover,
+                claimedSectionState,
+                unclaimedSectionState,
+                sizeOf(historicalClaimedItemsByWave),
+                sizeOf(historicalUnclaimedItemsByWave),
+                SwingUtilities.isEventDispatchThread(),
+                ex);
+    }
+
+    private int sizeOf(Map<?, ?> map) {
+        return map == null ? 0 : map.size();
     }
 
     private List<ItemData> sortItemDataForDisplay(java.util.Collection<ItemData> items) {
@@ -1479,6 +1682,47 @@ public class MokhaLootPanel extends PluginPanel {
         } else {
             return value + " gp";
         }
+    }
+
+    private String formatTotalWithOptionalHa(long geTotal, long haTotal) {
+        if (!displayHaValueOnHover) {
+            return formatGp(geTotal);
+        }
+
+        return String.format(
+                "<html><span style='color:%s'>GE: %s</span> <span style='color:%s'>| HA: %s</span></html>",
+                colorToHex(Color.WHITE),
+                formatGp(geTotal),
+                colorToHex(new Color(0, 200, 0)),
+                formatGp(haTotal));
+    }
+
+    private String formatGeHaTotalText(long geTotal, long haTotal) {
+        return formatGeHaTotalText(formatGp(geTotal), formatGp(haTotal));
+    }
+
+    private String formatGeHaTotalText(String geText, String haText) {
+        return String.format("GE: %s | HA: %s", geText, haText);
+    }
+
+    private void refreshWaveHeaderHaTooltips(JLabel[] waveLabels, long[] waveHaTotals) {
+        for (int i = 0; i < waveLabels.length; i++) {
+            JLabel waveLabel = waveLabels[i];
+            if (waveLabel == null) {
+                continue;
+            }
+
+            if (!displayHaValueOnHover) {
+                waveLabel.setToolTipText(null);
+                continue;
+            }
+
+            waveLabel.setToolTipText(formatGeHaTotalText(waveLabel.getText(), formatGp(waveHaTotals[i])));
+        }
+    }
+
+    private String colorToHex(Color color) {
+        return String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
     }
 
     private String formatPricePerItemTooltip(long pricePerItem, long haPricePerItem, boolean includeHa) {

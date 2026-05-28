@@ -29,7 +29,7 @@ public interface MokhaLootTrackerConfig extends Config {
 
 	@ConfigItem(keyName = "lootAlertLines", name = "Loot alerts", description = "One per line: item name, quantity (e.g. steel cannonball, 300)", position = 20)
 	default String lootAlertLines() {
-		return "";
+		return "Dom, 1\nAvernic treads, 1\nEye of ayak (uncharged), 1\nMokhaiotl cloth, 1";
 	}
 
 	@ConfigItem(keyName = "displaySortMode", name = "Display Sort Mode", description = "Sort displayed loot and supplies alphabetically or by total value", position = 21)
