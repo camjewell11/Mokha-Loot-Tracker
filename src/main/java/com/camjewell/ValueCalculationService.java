@@ -28,6 +28,18 @@ class ValueCalculationService {
         return currentRunValue;
     }
 
+    long calculateCurrentRunLootHaValue(
+            Map<Integer, List<MokhaLootTrackerPlugin.LootItem>> lootByWave,
+            MokhaLootTrackerConfig config) {
+        long currentRunValue = 0;
+        for (List<MokhaLootTrackerPlugin.LootItem> items : lootByWave.values()) {
+            for (MokhaLootTrackerPlugin.LootItem item : items) {
+                currentRunValue += getAdjustedLootItemValue(item.name, item.haValue, config);
+            }
+        }
+        return currentRunValue;
+    }
+
     long getAdjustedLootItemValue(String itemName, long trackedValue, MokhaLootTrackerConfig config) {
         return shouldIgnoreLootItem(itemName, config) ? 0 : trackedValue;
     }

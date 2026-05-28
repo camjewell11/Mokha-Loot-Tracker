@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.function.IntToDoubleFunction;
 
 import javax.inject.Inject;
+import javax.swing.SwingUtilities;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +45,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     private static final Logger log = LoggerFactory.getLogger(MokhaLootTrackerPlugin.class);
     private static final String LOOT_VALUE_COLOR_HEX = "66CCFF";
+    private static final String LOOT_VALUE_HA_COLOR_HEX = "00CC66";
     private static final String MOKHA_CLOTH_NAME = "Mokhaiotl cloth";
     private static final String DEFAULT_PLAYER_PROFILE_KEY = "default";
     private static final int ARENA_EXIT_GRACE_TICKS = 5;
@@ -164,11 +166,17 @@ public class MokhaLootTrackerPlugin extends Plugin {
         String name;
         int quantity;
         int value;
+        int haValue;
 
         LootItem(String name, int quantity, int value) {
+            this(name, quantity, value, 0);
+        }
+
+        LootItem(String name, int quantity, int value, int haValue) {
             this.name = name;
             this.quantity = quantity;
             this.value = value;
+            this.haValue = haValue;
         }
     }
 
@@ -179,23 +187,37 @@ public class MokhaLootTrackerPlugin extends Plugin {
         String name;
         int totalQuantity;
         int pricePerItem;
+        int haPricePerItem;
         long totalValue;
+        long totalHaValue;
         long originalTotalValue; // Store original value to restore when ignoring is toggled off
 
         ItemAggregate(String name, int quantity, int pricePerItem) {
+            this(name, quantity, pricePerItem, 0);
+        }
+
+        ItemAggregate(String name, int quantity, int pricePerItem, int haPricePerItem) {
             this.name = name;
             this.totalQuantity = quantity;
             this.pricePerItem = pricePerItem;
+            this.haPricePerItem = haPricePerItem;
             this.totalValue = (long) pricePerItem * quantity;
+            this.totalHaValue = (long) haPricePerItem * quantity;
             this.originalTotalValue = this.totalValue; // Store original
         }
 
         void add(int quantity, int pricePerItem) {
+            add(quantity, pricePerItem, this.haPricePerItem);
+        }
+
+        void add(int quantity, int pricePerItem, int haPricePerItem) {
             this.totalQuantity += quantity;
             this.totalValue += (long) pricePerItem * quantity;
+            this.totalHaValue += (long) haPricePerItem * quantity;
             this.originalTotalValue = this.totalValue; // Update original when new items are added
             // Update price per item to latest (could also average, but latest is simpler)
             this.pricePerItem = pricePerItem;
+            this.haPricePerItem = haPricePerItem;
         }
     }
 
@@ -508,9 +530,17 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 saveHistoricalData();
             } else if (event.getKey().equals("displaySortMode")) {
                 // Display-only setting: re-render panel without changing tracked data.
-                updatePanelData();
+                clientThread.invoke(this::updatePanelData);
             } else if (event.getKey().equals("enableHistoricalEdit")) {
-                updatePanelData();
+                clientThread.invoke(this::updatePanelData);
+            } else if (event.getKey().equals("displayHaValueOnHover")) {
+                boolean isEnabled = "true".equalsIgnoreCase(event.getNewValue());
+                SwingUtilities.invokeLater(() -> {
+                    if (panel != null) {
+                        panel.setDisplayHaValueOnHover(isEnabled);
+                        panel.repaint();
+                    }
+                });
             }
         }
     }
@@ -542,7 +572,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 int newQty = entry.getValue();
                 String itemName = itemManager.getItemComposition(itemId).getName();
                 int itemValue = calculateTrackedLootItemValue(itemId, itemName, newQty);
-                newLootThisWave.add(new LootItem(itemName, newQty, itemValue));
+                int itemHaValue = calculateTrackedLootItemHaValue(itemId, itemName, newQty);
+                newLootThisWave.add(new LootItem(itemName, newQty, itemValue, itemHaValue));
             }
 
             if (!newLootThisWave.isEmpty()) {
@@ -575,24 +606,28 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // White = all tracked loot at GE price, no ignore filters applied.
         // Blue = tracked loot at GE price with ignore filters applied.
+        // Green = tracked loot at HA price with ignore filters applied.
         long unadjustedValue = calculateUnadjustedCurrentRunLootValue();
         if (unadjustedValue <= 0) {
             return;
         }
 
         long adjustedValue = calculateCurrentRunLootValue();
+        long adjustedHaValue = calculateCurrentRunLootHaValue();
 
-        String adjustedText = formatLootValueText(unadjustedValue, adjustedValue);
+        String adjustedText = formatLootValueText(unadjustedValue, adjustedValue, adjustedHaValue);
         if (!adjustedText.equals(valueText)) {
             valueWidget.setText(adjustedText);
         }
     }
 
-    private String formatLootValueText(long originalValue, long adjustedValue) {
-        return String.format("Value: %,d gp (<col=%s>%,d gp</col>)",
+    private String formatLootValueText(long originalValue, long adjustedValue, long adjustedHaValue) {
+        return String.format("Value: %,d gp (<col=%s>%,d gp</col>, <col=%s>HA: %,d gp</col>)",
                 originalValue,
                 LOOT_VALUE_COLOR_HEX,
-                adjustedValue);
+                adjustedValue,
+                LOOT_VALUE_HA_COLOR_HEX,
+                adjustedHaValue);
     }
 
     private void restoreUnadjustedLootValueText(Widget valueWidget) {
@@ -650,6 +685,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return valueCalculationService.calculateCurrentRunLootValue(lootByWave, config);
     }
 
+    private long calculateCurrentRunLootHaValue() {
+        return valueCalculationService.calculateCurrentRunLootHaValue(lootByWave, config);
+    }
+
     private int calculateTrackedLootItemValue(int itemId, String itemName, int quantity) {
         int itemValue = itemManager.getItemPrice(itemId) * quantity;
 
@@ -666,6 +705,31 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
 
         return itemValue;
+    }
+
+    private int calculateTrackedLootItemHaValue(int itemId, String itemName, int quantity) {
+        int itemValue = getItemHighAlchPrice(itemId) * quantity;
+
+        if (itemValue == 0 && itemName.equals("Spirit seed")) {
+            return 0;
+        }
+
+        return itemValue;
+    }
+
+    private int getItemHighAlchPrice(int itemId) {
+        try {
+            Object composition = itemManager.getItemComposition(itemId);
+            java.lang.reflect.Method method = composition.getClass().getMethod("getHaPrice");
+            Object result = method.invoke(composition);
+            if (result instanceof Number) {
+                return Math.max(0, ((Number) result).intValue());
+            }
+        } catch (Exception ignored) {
+            // Fallback when HA is unavailable in the active API/runtime.
+        }
+
+        return 0;
     }
 
     @SuppressWarnings("deprecation")
@@ -911,13 +975,19 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private String getCurrentPlayerProfileKey() {
-        if (client != null && client.getLocalPlayer() != null) {
-            String name = client.getLocalPlayer().getName();
-            if (name != null) {
-                String normalized = name.trim().toLowerCase(Locale.ROOT);
-                if (!normalized.isEmpty()) {
-                    return normalized;
+        if (client != null) {
+            try {
+                if (client.getLocalPlayer() != null) {
+                    String name = client.getLocalPlayer().getName();
+                    if (name != null) {
+                        String normalized = name.trim().toLowerCase(Locale.ROOT);
+                        if (!normalized.isEmpty()) {
+                            return normalized;
+                        }
+                    }
                 }
+            } catch (AssertionError ignored) {
+                // Client access attempted off-thread; fall back to current/default key.
             }
         }
 
@@ -1211,8 +1281,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 int itemId = getItemIdForName(item.name);
                 if (itemId > 0) {
                     int gePrice = itemManager.getItemPrice(itemId);
+                    int haPrice = getItemHighAlchPrice(itemId);
                     item.pricePerItem = gePrice;
+                    item.haPricePerItem = haPrice;
                     item.totalValue = (long) gePrice * item.totalQuantity;
+                    item.totalHaValue = (long) haPrice * item.totalQuantity;
                     item.originalTotalValue = item.totalValue;
                 }
             }
@@ -1427,6 +1500,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (panel == null) {
             return;
         }
+
+        panel.setDisplayHaValueOnHover(config.displayHaValueOnHover());
 
         // Apply ignore settings to historical items before displaying
         applyIgnoreSettingsToHistoricalItems(historicalClaimedItemsByWave);

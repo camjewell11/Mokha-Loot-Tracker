@@ -57,13 +57,16 @@ class PanelDataService {
         for (List<MokhaLootTrackerPlugin.LootItem> waveItems : lootByWave.values()) {
             for (MokhaLootTrackerPlugin.LootItem item : waveItems) {
                 long itemValue = valueCalculationService.getAdjustedLootItemValue(item.name, item.value, config);
+                long itemHaValue = valueCalculationService.getAdjustedLootItemValue(item.name, item.haValue, config);
 
                 MokhaLootPanel.ItemData itemData = data.currentRunItems.getOrDefault(item.name,
-                        new MokhaLootPanel.ItemData(item.name, 0, 0, 0));
+                        new MokhaLootPanel.ItemData(item.name, 0, 0, 0, 0, 0));
                 itemData.quantity += item.quantity;
                 itemData.totalValue += itemValue;
+                itemData.totalHaValue += itemHaValue;
                 if (item.quantity > 0) {
                     itemData.pricePerItem = (int) (itemValue / item.quantity);
+                    itemData.haPricePerItem = (int) (itemHaValue / item.quantity);
                 }
                 data.currentRunItems.put(item.name, itemData);
             }
@@ -208,10 +211,13 @@ class PanelDataService {
                     agg.name,
                     existing.quantity + agg.totalQuantity,
                     agg.pricePerItem,
-                    existing.totalValue + agg.totalValue));
+                    existing.totalValue + agg.totalValue,
+                    agg.haPricePerItem,
+                    existing.totalHaValue + agg.totalHaValue));
         } else {
             itemData.put(agg.name,
-                    new MokhaLootPanel.ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue));
+                    new MokhaLootPanel.ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue,
+                            agg.haPricePerItem, agg.totalHaValue));
         }
     }
 

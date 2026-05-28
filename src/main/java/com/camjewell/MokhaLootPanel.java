@@ -41,17 +41,27 @@ public class MokhaLootPanel extends PluginPanel {
         public int quantity;
         public int pricePerItem;
         public long totalValue;
+        public int haPricePerItem;
+        public long totalHaValue;
 
         public ItemData(String name, int quantity, int pricePerItem, long totalValue) {
+            this(name, quantity, pricePerItem, totalValue, 0, 0);
+        }
+
+        public ItemData(String name, int quantity, int pricePerItem, long totalValue, int haPricePerItem,
+                long totalHaValue) {
             this.name = name;
             this.quantity = quantity;
             this.pricePerItem = pricePerItem;
             this.totalValue = totalValue;
+            this.haPricePerItem = haPricePerItem;
+            this.totalHaValue = totalHaValue;
         }
     }
 
     private final MokhaLootTrackerConfig config;
     private final java.util.function.BooleanSupplier isInRun;
+    private boolean displayHaValueOnHover;
 
     // Profit/Loss section
     private JLabel totalClaimedLabel;
@@ -163,6 +173,7 @@ public class MokhaLootPanel extends PluginPanel {
         this.onRemoveClaimedHistoricalItemAllWaves = onRemoveClaimedHistoricalItemAllWaves;
         this.onRemoveUnclaimedHistoricalItemAllWaves = onRemoveUnclaimedHistoricalItemAllWaves;
         this.onRemoveHistoricalSupplyItem = onRemoveHistoricalSupplyItem;
+        this.displayHaValueOnHover = config.displayHaValueOnHover();
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -666,11 +677,14 @@ public class MokhaLootPanel extends PluginPanel {
                         MokhaLootTrackerPlugin.ItemAggregate existing = combined.get(agg.name);
                         if (existing == null) {
                             combined.put(agg.name, new MokhaLootTrackerPlugin.ItemAggregate(agg.name, agg.totalQuantity,
-                                    agg.pricePerItem));
+                                    agg.pricePerItem, agg.haPricePerItem));
                             combined.get(agg.name).totalValue = agg.totalValue;
+                            combined.get(agg.name).totalHaValue = agg.totalHaValue;
                         } else {
                             existing.totalQuantity += agg.totalQuantity;
                             existing.totalValue += agg.totalValue;
+                            existing.totalHaValue += agg.totalHaValue;
+                            existing.haPricePerItem = agg.haPricePerItem;
                         }
                         totalValue += agg.totalValue;
                     }
@@ -690,7 +704,8 @@ public class MokhaLootPanel extends PluginPanel {
                     : ColorScheme.LIGHT_GRAY_COLOR;
             itemLabel.setForeground(itemColor);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
-            String pricePerItemText = formatPricePerItemTooltip(agg.pricePerItem);
+            String pricePerItemText = formatPricePerItemTooltip(agg.pricePerItem, agg.haPricePerItem,
+                    displayHaValueOnHover);
             itemRow.setToolTipText("Price per item: " + pricePerItemText);
             itemRow.add(itemLabel, java.awt.BorderLayout.WEST);
             JLabel itemValueLabel = new JLabel(formatGp(agg.totalValue));
@@ -733,11 +748,14 @@ public class MokhaLootPanel extends PluginPanel {
                         MokhaLootTrackerPlugin.ItemAggregate existing = combined.get(agg.name);
                         if (existing == null) {
                             combined.put(agg.name, new MokhaLootTrackerPlugin.ItemAggregate(agg.name, agg.totalQuantity,
-                                    agg.pricePerItem));
+                                    agg.pricePerItem, agg.haPricePerItem));
                             combined.get(agg.name).totalValue = agg.totalValue;
+                            combined.get(agg.name).totalHaValue = agg.totalHaValue;
                         } else {
                             existing.totalQuantity += agg.totalQuantity;
                             existing.totalValue += agg.totalValue;
+                            existing.totalHaValue += agg.totalHaValue;
+                            existing.haPricePerItem = agg.haPricePerItem;
                         }
                         totalValue += agg.totalValue;
                     }
@@ -756,7 +774,8 @@ public class MokhaLootPanel extends PluginPanel {
                     : ColorScheme.LIGHT_GRAY_COLOR;
             itemLabel.setForeground(itemColor);
             itemLabel.setFont(FontManager.getRunescapeSmallFont());
-            String pricePerItemText = formatPricePerItemTooltip(agg.pricePerItem);
+            String pricePerItemText = formatPricePerItemTooltip(agg.pricePerItem, agg.haPricePerItem,
+                    displayHaValueOnHover);
             itemRow.setToolTipText("Price per item: " + pricePerItemText);
             itemRow.add(itemLabel, java.awt.BorderLayout.WEST);
             JLabel itemValueLabel = new JLabel(formatGp(agg.totalValue));
@@ -1198,6 +1217,10 @@ public class MokhaLootPanel extends PluginPanel {
         updateSuppliesPanel(suppliesTotalItemsPanel, itemData, true, false);
     }
 
+    public void setDisplayHaValueOnHover(boolean displayHaValueOnHover) {
+        this.displayHaValueOnHover = displayHaValueOnHover;
+    }
+
     /**
      * Update the claimed loot section total for collapsed view to match the summary
      * value
@@ -1293,7 +1316,8 @@ public class MokhaLootPanel extends PluginPanel {
         valueLabel.setText(formatGp(totalValue));
 
         for (ItemData item : sortItemDataForDisplay(itemData.values())) {
-            String pricePerItemText = formatPricePerItemTooltip(item.pricePerItem);
+            String pricePerItemText = formatPricePerItemTooltip(item.pricePerItem, item.haPricePerItem,
+                    displayHaValueOnHover);
 
             JPanel itemRow = new JPanel(new BorderLayout());
             itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -1349,7 +1373,7 @@ public class MokhaLootPanel extends PluginPanel {
 
         // Add item entries
         for (ItemData item : sortItemDataForDisplay(itemData.values())) {
-            String pricePerItemText = formatPricePerItemTooltip(item.pricePerItem);
+            String pricePerItemText = formatPricePerItemTooltip(item.pricePerItem, 0, false);
 
             // Create item row with BorderLayout for left/right alignment
             JPanel itemRow = new JPanel(new BorderLayout());
@@ -1457,12 +1481,16 @@ public class MokhaLootPanel extends PluginPanel {
         }
     }
 
-    private String formatPricePerItemTooltip(long pricePerItem) {
-        if (pricePerItem < 0) {
+    private String formatPricePerItemTooltip(long pricePerItem, long haPricePerItem, boolean includeHa) {
+        if (pricePerItem < 0 && haPricePerItem < 0) {
             return "N/A";
         }
 
-        return formatGp(pricePerItem) + "/ea";
+        if (!includeHa) {
+            return formatGp(pricePerItem) + "/ea";
+        }
+
+        return String.format("%s/ea, HA: %s/ea", formatGp(pricePerItem), formatGp(haPricePerItem));
     }
 
     private void customizeScrollBar() {

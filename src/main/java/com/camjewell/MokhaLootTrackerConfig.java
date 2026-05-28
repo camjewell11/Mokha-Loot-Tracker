@@ -42,6 +42,11 @@ public interface MokhaLootTrackerConfig extends Config {
 		return false;
 	}
 
+	@ConfigItem(keyName = "displayHaValueOnHover", name = "Display HA Value On Hover", description = "Show GE and HA price per item in loot hover tooltips. Historical loot is not backfilled automatically; enable this before collecting data if you want HA values there.", position = 23)
+	default boolean displayHaValueOnHover() {
+		return false;
+	}
+
 	// Internal persistence properties (not exposed in settings UI)
 	// These use direct ConfigManager access, not @ConfigItem
 

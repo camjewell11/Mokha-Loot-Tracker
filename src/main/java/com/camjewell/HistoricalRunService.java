@@ -26,12 +26,14 @@ class HistoricalRunService {
             for (MokhaLootTrackerPlugin.LootItem item : entry.getValue()) {
                 waveValue += item.value;
                 int pricePerItem = item.quantity > 0 ? item.value / item.quantity : 0;
+                int haPricePerItem = item.quantity > 0 ? item.haValue / item.quantity : 0;
 
                 if (waveItems.containsKey(item.name)) {
-                    waveItems.get(item.name).add(item.quantity, pricePerItem);
+                    waveItems.get(item.name).add(item.quantity, pricePerItem, haPricePerItem);
                 } else {
                     waveItems.put(item.name,
-                            new MokhaLootTrackerPlugin.ItemAggregate(item.name, item.quantity, pricePerItem));
+                            new MokhaLootTrackerPlugin.ItemAggregate(item.name, item.quantity, pricePerItem,
+                                    haPricePerItem));
                 }
             }
 
@@ -61,12 +63,14 @@ class HistoricalRunService {
             for (MokhaLootTrackerPlugin.LootItem item : items) {
                 newTotal += item.value;
                 int pricePerItem = item.quantity > 0 ? item.value / item.quantity : 0;
+                int haPricePerItem = item.quantity > 0 ? item.haValue / item.quantity : 0;
 
                 if (waveItems.containsKey(item.name)) {
-                    waveItems.get(item.name).add(item.quantity, pricePerItem);
+                    waveItems.get(item.name).add(item.quantity, pricePerItem, haPricePerItem);
                 } else {
                     waveItems.put(item.name,
-                            new MokhaLootTrackerPlugin.ItemAggregate(item.name, item.quantity, pricePerItem));
+                            new MokhaLootTrackerPlugin.ItemAggregate(item.name, item.quantity, pricePerItem,
+                                    haPricePerItem));
                 }
             }
 
