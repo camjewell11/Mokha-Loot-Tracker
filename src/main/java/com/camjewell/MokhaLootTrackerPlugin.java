@@ -19,17 +19,17 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.Gson;
 import com.google.inject.Provides;
 
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.NPC;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
-import net.runelite.api.NPC;
-import net.runelite.api.ChatMessageType;
 import net.runelite.api.widgets.Widget;
-import net.runelite.client.config.ConfigManager;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
@@ -168,10 +168,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         int value;
         int haValue;
 
-        LootItem(String name, int quantity, int value) {
-            this(name, quantity, value, 0);
-        }
-
         LootItem(String name, int quantity, int value, int haValue) {
             this.name = name;
             this.quantity = quantity;
@@ -190,7 +186,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         int haPricePerItem;
         long totalValue;
         long totalHaValue;
-        long originalTotalValue; // Store original value to restore when ignoring is toggled off
 
         ItemAggregate(String name, int quantity, int pricePerItem) {
             this(name, quantity, pricePerItem, 0);
@@ -203,7 +198,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             this.haPricePerItem = haPricePerItem;
             this.totalValue = (long) pricePerItem * quantity;
             this.totalHaValue = (long) haPricePerItem * quantity;
-            this.originalTotalValue = this.totalValue; // Store original
         }
 
         void add(int quantity, int pricePerItem) {
@@ -214,7 +208,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             this.totalQuantity += quantity;
             this.totalValue += (long) pricePerItem * quantity;
             this.totalHaValue += (long) haPricePerItem * quantity;
-            this.originalTotalValue = this.totalValue; // Update original when new items are added
             // Update price per item to latest (could also average, but latest is simpler)
             this.pricePerItem = pricePerItem;
             this.haPricePerItem = haPricePerItem;
@@ -522,25 +515,30 @@ public class MokhaLootTrackerPlugin extends Plugin {
     public void onConfigChanged(ConfigChanged event) {
         // When ignore settings are toggled, update panel immediately
         if (event.getGroup().equals("mokhaloot")) {
-            if (event.getKey().equals("ignoreSpiritSeedsValue") ||
-                    event.getKey().equals("excludeUltraValuableItems")) {
-                // Trigger complete recalculation with new config settings
-                recalculateAllTotals();
-                // Save the updated state
-                saveHistoricalData();
-            } else if (event.getKey().equals("displaySortMode")) {
-                // Display-only setting: re-render panel without changing tracked data.
-                clientThread.invoke(this::updatePanelData);
-            } else if (event.getKey().equals("enableHistoricalEdit")) {
-                clientThread.invoke(this::updatePanelData);
-            } else if (event.getKey().equals("displayHaValueOnHover")) {
-                boolean isEnabled = "true".equalsIgnoreCase(event.getNewValue());
-                SwingUtilities.invokeLater(() -> {
-                    if (panel != null) {
-                        panel.setDisplayHaValueOnHover(isEnabled);
-                        panel.repaint();
-                    }
-                });
+            switch (event.getKey()) {
+                case "ignoreSpiritSeedsValue":
+                case "excludeUltraValuableItems":
+                    // Trigger complete recalculation with new config settings
+                    recalculateAllTotals();
+                    // Save the updated state
+                    saveHistoricalData();
+                    break;
+                case "displaySortMode":
+                case "enableHistoricalEdit":
+                    // Display-only settings: re-render panel without changing tracked data.
+                    clientThread.invoke(this::updatePanelData);
+                    break;
+                case "displayHaValueOnHover":
+                    boolean isEnabled = "true".equalsIgnoreCase(event.getNewValue());
+                    SwingUtilities.invokeLater(() -> {
+                        if (panel != null) {
+                            panel.setDisplayHaValueOnHover(isEnabled);
+                            panel.repaint();
+                        }
+                    });
+                    break;
+                default:
+                    break;
             }
         }
     }
@@ -622,7 +620,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private String formatLootValueText(long originalValue, long adjustedValue, long adjustedHaValue) {
-        return String.format("Value: %,d gp (<col=%s>%,d gp</col>, <col=%s>HA: %,d gp</col>)",
+        return String.format("Value: %,d gp (<col=%s>GE: %,d gp</col>, <col=%s>HA: %,d gp</col>)",
                 originalValue,
                 LOOT_VALUE_COLOR_HEX,
                 adjustedValue,
@@ -725,7 +723,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (result instanceof Number) {
                 return Math.max(0, ((Number) result).intValue());
             }
-        } catch (Exception ignored) {
+        } catch (ReflectiveOperationException | SecurityException ignored) {
             // Fallback when HA is unavailable in the active API/runtime.
         }
 
@@ -909,7 +907,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     log.warn("[Mokha] Failed to load current run loot by wave data", e);
                 }
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("[Mokha] Error loading historical data", e);
         }
     }
@@ -1286,7 +1284,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     item.haPricePerItem = haPrice;
                     item.totalValue = (long) gePrice * item.totalQuantity;
                     item.totalHaValue = (long) haPrice * item.totalQuantity;
-                    item.originalTotalValue = item.totalValue;
                 }
             }
         }
@@ -1678,7 +1675,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (clothItem != null) {
                 clothItem.pricePerItem = clothPrice;
                 clothItem.totalValue = (long) clothItem.totalQuantity * clothPrice;
-                clothItem.originalTotalValue = clothItem.totalValue;
             }
         }
 
@@ -1688,7 +1684,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (clothItem != null) {
                 clothItem.pricePerItem = clothPrice;
                 clothItem.totalValue = (long) clothItem.totalQuantity * clothPrice;
-                clothItem.originalTotalValue = clothItem.totalValue;
             }
         }
     }

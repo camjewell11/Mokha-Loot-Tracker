@@ -6,6 +6,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 
 import net.runelite.api.Client;
 import net.runelite.api.Item;
@@ -243,16 +244,24 @@ class SupplyTrackingService {
 
         if (!hasBlowpipeAmmoFromVarps) {
             String preferredKey = null;
-            if (equippedWeapon == 12926) {
-                preferredKey = BLOWPIPE_STORAGE_CONFIG_KEY;
-            } else if (equippedWeapon == 31575) {
-                preferredKey = CAMPHOR_BLOWPIPE_STORAGE_CONFIG_KEY;
-            } else if (equippedWeapon == 31579) {
-                preferredKey = IRONWOOD_BLOWPIPE_STORAGE_CONFIG_KEY;
-            } else if (equippedWeapon == 31583) {
-                preferredKey = ROSEWOOD_BLOWPIPE_STORAGE_CONFIG_KEY;
-            } else if (equippedWeapon == 28687) {
-                preferredKey = BLAZING_BLOWPIPE_STORAGE_CONFIG_KEY;
+            switch (equippedWeapon) {
+                case 12926:
+                    preferredKey = BLOWPIPE_STORAGE_CONFIG_KEY;
+                    break;
+                case 31575:
+                    preferredKey = CAMPHOR_BLOWPIPE_STORAGE_CONFIG_KEY;
+                    break;
+                case 31579:
+                    preferredKey = IRONWOOD_BLOWPIPE_STORAGE_CONFIG_KEY;
+                    break;
+                case 31583:
+                    preferredKey = ROSEWOOD_BLOWPIPE_STORAGE_CONFIG_KEY;
+                    break;
+                case 28687:
+                    preferredKey = BLAZING_BLOWPIPE_STORAGE_CONFIG_KEY;
+                    break;
+                default:
+                    break;
             }
 
             String[] fallbackKeys = new String[] {
@@ -288,7 +297,7 @@ class SupplyTrackingService {
                     if (hadEntries) {
                         break;
                     }
-                } catch (Exception ex) {
+                } catch (JsonParseException ex) {
                     // Ignore malformed payloads and continue trying keys.
                 }
             }

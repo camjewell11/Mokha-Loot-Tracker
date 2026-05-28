@@ -227,7 +227,7 @@ class LootTrackingService {
                         return Integer.parseInt(parts[i + 1].replaceAll("[^0-9]", ""));
                     }
                 }
-            } catch (Exception e) {
+            } catch (NumberFormatException e) {
                 // Ignore parsing errors.
             }
         }
@@ -251,7 +251,7 @@ class LootTrackingService {
                             return Integer.parseInt(parts[i + 1].replaceAll("[^0-9]", ""));
                         }
                     }
-                } catch (Exception e) {
+                } catch (NumberFormatException e) {
                     // Ignore parsing errors.
                 }
             }
