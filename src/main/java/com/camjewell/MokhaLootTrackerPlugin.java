@@ -136,6 +136,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     // Loot tracking by wave
     private final Map<Integer, List<LootItem>> lootByWave = new HashMap<>();
+    private final Map<Integer, List<LootItem>> previousRunLootByWave = new HashMap<>();
+    private boolean hasPreviousRunSnapshot;
+    private boolean previousRunClaimed;
     private final Map<Integer, Integer> previousLootSnapshot = new HashMap<>();
 
     // Supply consumption tracking
@@ -325,6 +328,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 printSuppliesConsumed();
                 printAccumulatedLoot();
 
+                capturePreviousRunSnapshot(true);
+
                 // Update historical data with claimed loot (even if not yet in inventory/bank)
                 updateHistoricalDataOnClaim();
 
@@ -444,6 +449,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // Print lost loot from previous waves (couldn't claim because of death)
                 printLostLoot();
 
+                capturePreviousRunSnapshot(false);
+
                 // Update historical supply costs (loot was lost, so don't count it)
                 // Add supplies to historical tracking on any arena exit
                 archiveCurrentRunSuppliesToHistorical();
@@ -504,6 +511,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 state == net.runelite.api.GameState.HOPPING) {
             if (inMokhaArena && !lootByWave.isEmpty()) {
                 // If player is still in arena and has unclaimed loot, save it first
+                capturePreviousRunSnapshot(false);
                 moveCurrentRunUnclaimedToHistorical();
             }
             // Always save data on logout/hopping
@@ -769,6 +777,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         log.info("[Mokha] ===== ADDING LOOT TO UNCLAIMED (teleport exit) =====");
         log.info("[Mokha] Boss was defeated: {}", bossDefeatedThisWave);
         printAccumulatedLoot();
+        capturePreviousRunSnapshot(false);
         moveCurrentRunUnclaimedToHistorical();
 
         // Clear arena state
@@ -854,6 +863,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private void loadHistoricalData() {
         try {
             String playerKey = getCurrentPlayerProfileKey();
+            previousRunLootByWave.clear();
+            hasPreviousRunSnapshot = false;
+            previousRunClaimed = false;
             historicalDataManager.loadDataForPlayer(playerKey);
             activeHistoricalPlayerKey = historicalDataManager.getActivePlayerKey();
 
@@ -1010,6 +1022,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private void clearAllData() {
         // Clear current run data
         lootByWave.clear();
+        previousRunLootByWave.clear();
+        hasPreviousRunSnapshot = false;
+        previousRunClaimed = false;
         previousLootSnapshot.clear();
         initialSupplySnapshot.clear();
         totalSuppliesConsumed.clear();
@@ -1393,6 +1408,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         long suppliesCost = calculateSuppliesCost();
         historicalSupplyCost += suppliesCost;
 
+        capturePreviousRunSnapshot(false);
         moveCurrentRunUnclaimedToHistorical();
 
         applyArenaState(arenaStateService.createArenaExitState());
@@ -1519,6 +1535,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 valueCalculationService,
                 itemId -> getBasePotionName(itemManager.getItemComposition(itemId).getName()),
                 this::getPricePerDose);
+        PanelDataService.RunPanelData previousRunData = panelDataService.buildRunPanelData(
+                previousRunLootByWave,
+                config,
+                valueCalculationService);
 
         long uniqueClaimsCount = valueCalculationService
                 .calculateHistoricalUniqueClaimCount(historicalClaimedItemsByWave);
@@ -1528,6 +1548,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 historicalClaims, historicalDeaths, uniqueClaimsCount);
 
         panel.updateCurrentRun(panelData.currentRunValue, panelData.currentRunItems);
+        panel.updatePreviousRun(hasPreviousRunSnapshot, previousRunClaimed,
+                previousRunData.totalValue, previousRunData.totalHaValue,
+                previousRunData.items,
+                previousRunData.itemsByWave,
+                previousRunData.totalsByWave,
+                previousRunData.haTotalsByWave);
         panel.updateCurrentRunUniqueChance(
                 currentWaveNumber,
                 calculateCumulativeUniqueChancePercent(currentWaveNumber),
@@ -1765,5 +1791,19 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
 
         return calculatedValue;
+    }
+
+    private void capturePreviousRunSnapshot(boolean claimed) {
+        previousRunLootByWave.clear();
+        hasPreviousRunSnapshot = true;
+        previousRunClaimed = claimed;
+
+        for (Map.Entry<Integer, List<LootItem>> entry : lootByWave.entrySet()) {
+            List<LootItem> copiedItems = new ArrayList<>();
+            for (LootItem item : entry.getValue()) {
+                copiedItems.add(new LootItem(item.name, item.quantity, item.value, item.haValue));
+            }
+            previousRunLootByWave.put(entry.getKey(), copiedItems);
+        }
     }
 }
