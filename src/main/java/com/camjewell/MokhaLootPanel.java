@@ -89,12 +89,16 @@ public class MokhaLootPanel extends PluginPanel {
     private JButton previousRunCollapseButton;
     private JLabel previousRunSectionTotalLabel;
     private JLabel previousRunValueLabel;
+    private JLabel previousRunSuppliesValueLabel;
     private JPanel previousRunContainer;
+    private JPanel previousRunSuppliesPanel;
     private JPanel previousRunWavesContainer;
     private JPanel previousRunCombinedPanel;
     private long previousRunGeTotal;
     private long previousRunHaTotal;
+    private long previousRunSuppliesTotal;
     private Map<String, ItemData> previousRunItemData = new HashMap<>();
+    private Map<String, ItemData> previousRunSuppliesItemData = new HashMap<>();
     private Map<Integer, Map<String, ItemData>> previousRunItemsByWave = new TreeMap<>();
     private Map<Integer, Long> previousRunTotalsByWave = new TreeMap<>();
     private Map<Integer, Long> previousRunHaTotalsByWave = new TreeMap<>();
@@ -332,6 +336,10 @@ public class MokhaLootPanel extends PluginPanel {
         statsPanel.add(createCurrentRunSection());
         statsPanel.add(createSeparator(5));
 
+        // Supplies Used Current Run Section
+        statsPanel.add(createSuppliesCurrentRunSection());
+        statsPanel.add(createSeparator(5));
+
         // Previous Run Section
         statsPanel.add(createPreviousRunSection());
         statsPanel.add(createSeparator(5));
@@ -343,9 +351,6 @@ public class MokhaLootPanel extends PluginPanel {
         statsPanel.add(createUnclaimedLootSection());
         statsPanel.add(createSeparator(5));
 
-        // Supplies Used Current Run Section
-        statsPanel.add(createSuppliesCurrentRunSection());
-        statsPanel.add(createSeparator(5));
         // Supplies Used (All Time) Section
         statsPanel.add(createSuppliesTotalSection());
         statsPanel.add(createSeparator(5));
@@ -537,6 +542,16 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunValueLabel.setFont(FontManager.getRunescapeFont());
         previousRunValueLabel.setForeground(Color.WHITE);
         previousRunContainer.add(createStatRow("Loot:", previousRunValueLabel));
+
+        previousRunSuppliesValueLabel = new JLabel("0 gp");
+        previousRunSuppliesValueLabel.setFont(FontManager.getRunescapeFont());
+        previousRunSuppliesValueLabel.setForeground(Color.WHITE);
+        previousRunContainer.add(createStatRow("Supplies Used:", previousRunSuppliesValueLabel));
+
+        previousRunSuppliesPanel = new JPanel();
+        previousRunSuppliesPanel.setLayout(new BoxLayout(previousRunSuppliesPanel, BoxLayout.Y_AXIS));
+        previousRunSuppliesPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        previousRunContainer.add(previousRunSuppliesPanel);
 
         previousRunWavesContainer = new JPanel();
         previousRunWavesContainer.setLayout(new BoxLayout(previousRunWavesContainer, BoxLayout.Y_AXIS));
@@ -1313,6 +1328,8 @@ public class MokhaLootPanel extends PluginPanel {
 
     public void updatePreviousRun(boolean hasPreviousRun, boolean claimed, long totalValue, long totalHaValue,
             Map<String, ItemData> itemData,
+            long suppliesTotalValue,
+            Map<String, ItemData> suppliesItemData,
             Map<Integer, Map<String, ItemData>> itemsByWave,
             Map<Integer, Long> totalsByWave,
             Map<Integer, Long> haTotalsByWave) {
@@ -1320,6 +1337,8 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunGeTotal = totalValue;
         previousRunHaTotal = totalHaValue;
         previousRunItemData = itemData != null ? new HashMap<>(itemData) : new HashMap<>();
+        previousRunSuppliesTotal = suppliesTotalValue;
+        previousRunSuppliesItemData = suppliesItemData != null ? new HashMap<>(suppliesItemData) : new HashMap<>();
         previousRunItemsByWave = itemsByWave != null ? new TreeMap<>(itemsByWave) : new TreeMap<>();
         previousRunTotalsByWave = totalsByWave != null ? new TreeMap<>(totalsByWave) : new TreeMap<>();
         previousRunHaTotalsByWave = haTotalsByWave != null ? new TreeMap<>(haTotalsByWave) : new TreeMap<>();
@@ -1515,10 +1534,16 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunSectionTotalLabel.setToolTipText(null);
         previousRunValueLabel.setText("0 gp");
         previousRunValueLabel.setToolTipText(null);
+        previousRunSuppliesValueLabel.setText("0 gp");
         previousRunGeTotal = 0;
         previousRunHaTotal = 0;
+        previousRunSuppliesTotal = 0;
+        if (previousRunSuppliesPanel != null) {
+            previousRunSuppliesPanel.removeAll();
+        }
         previousRunWavesContainer.removeAll();
         previousRunItemData.clear();
+        previousRunSuppliesItemData.clear();
         previousRunItemsByWave.clear();
         previousRunTotalsByWave.clear();
         previousRunHaTotalsByWave.clear();
@@ -1766,6 +1791,8 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunValueLabel.setToolTipText(displayHaValueOnHover
                 ? formatGeHaTotalText(previousRunGeTotal, previousRunHaTotal)
                 : null);
+        previousRunSuppliesValueLabel.setText(formatGp(previousRunSuppliesTotal));
+        updateSuppliesPanel(previousRunSuppliesPanel, previousRunSuppliesItemData, false, false);
 
         previousRunWavesContainer.removeAll();
 

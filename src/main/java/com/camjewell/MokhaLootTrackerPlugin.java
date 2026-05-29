@@ -47,6 +47,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private static final String LOOT_VALUE_COLOR_HEX = "66CCFF";
     private static final String LOOT_VALUE_HA_COLOR_HEX = "00CC66";
     private static final String MOKHA_CLOTH_NAME = "Mokhaiotl cloth";
+    private static final String SUN_KISSED_BONES_NAME = "Sun-kissed bones";
+    private static final int SUN_KISSED_BONES_HA_VALUE = 96;
     private static final String DEFAULT_PLAYER_PROFILE_KEY = "default";
     private static final int ARENA_EXIT_GRACE_TICKS = 5;
     private static final double UNIQUE_CHANCE_DELVE_2 = 1.0 / 2500.0;
@@ -140,6 +142,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private boolean hasPreviousRunSnapshot;
     private boolean previousRunClaimed;
     private final Map<Integer, Integer> previousLootSnapshot = new HashMap<>();
+    private final Map<Integer, Integer> previousRunSuppliesConsumed = new HashMap<>();
 
     // Supply consumption tracking
     private final Map<Integer, Integer> initialSupplySnapshot = new HashMap<>();
@@ -696,6 +699,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private int calculateTrackedLootItemValue(int itemId, String itemName, int quantity) {
+        if (isSunKissedBones(itemName)) {
+            return 0;
+        }
+
         int itemValue = itemManager.getItemPrice(itemId) * quantity;
 
         if (isMokhaCloth(itemName) && itemValue == 0) {
@@ -714,6 +721,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private int calculateTrackedLootItemHaValue(int itemId, String itemName, int quantity) {
+        if (isSunKissedBones(itemName)) {
+            return SUN_KISSED_BONES_HA_VALUE * quantity;
+        }
+
         int itemValue = getItemHighAlchPrice(itemId) * quantity;
 
         if (itemValue == 0 && itemName.equals("Spirit seed")) {
@@ -864,6 +875,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         try {
             String playerKey = getCurrentPlayerProfileKey();
             previousRunLootByWave.clear();
+            previousRunSuppliesConsumed.clear();
             hasPreviousRunSnapshot = false;
             previousRunClaimed = false;
             historicalDataManager.loadDataForPlayer(playerKey);
@@ -1023,6 +1035,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Clear current run data
         lootByWave.clear();
         previousRunLootByWave.clear();
+        previousRunSuppliesConsumed.clear();
         hasPreviousRunSnapshot = false;
         previousRunClaimed = false;
         previousLootSnapshot.clear();
@@ -1291,6 +1304,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     continue;
                 }
 
+                if (isSunKissedBones(item.name)) {
+                    item.pricePerItem = 0;
+                    item.haPricePerItem = SUN_KISSED_BONES_HA_VALUE;
+                    item.totalValue = 0;
+                    item.totalHaValue = (long) SUN_KISSED_BONES_HA_VALUE * item.totalQuantity;
+                    continue;
+                }
+
                 int itemId = getItemIdForName(item.name);
                 if (itemId > 0) {
                     int gePrice = itemManager.getItemPrice(itemId);
@@ -1539,6 +1560,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 previousRunLootByWave,
                 config,
                 valueCalculationService);
+        PanelDataService.SuppliesPanelData previousRunSuppliesData = panelDataService.buildSuppliesPanelData(
+                previousRunSuppliesConsumed,
+                new HashMap<>(),
+                itemId -> getBasePotionName(itemManager.getItemComposition(itemId).getName()),
+                this::getPricePerDose);
 
         long uniqueClaimsCount = valueCalculationService
                 .calculateHistoricalUniqueClaimCount(historicalClaimedItemsByWave);
@@ -1551,6 +1577,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         panel.updatePreviousRun(hasPreviousRunSnapshot, previousRunClaimed,
                 previousRunData.totalValue, previousRunData.totalHaValue,
                 previousRunData.items,
+                previousRunSuppliesData.currentSuppliesTotalValue,
+                previousRunSuppliesData.currentSuppliesData,
                 previousRunData.itemsByWave,
                 previousRunData.totalsByWave,
                 previousRunData.haTotalsByWave);
@@ -1718,6 +1746,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return itemName != null && itemName.equalsIgnoreCase(MOKHA_CLOTH_NAME);
     }
 
+    private boolean isSunKissedBones(String itemName) {
+        return itemName != null && itemName.equalsIgnoreCase(SUN_KISSED_BONES_NAME);
+    }
+
     private ItemAggregate findMokhaClothItem(Map<String, ItemAggregate> waveItems) {
         for (ItemAggregate item : waveItems.values()) {
             if (isMokhaCloth(item.name)) {
@@ -1795,6 +1827,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     private void capturePreviousRunSnapshot(boolean claimed) {
         previousRunLootByWave.clear();
+        previousRunSuppliesConsumed.clear();
         hasPreviousRunSnapshot = true;
         previousRunClaimed = claimed;
 
@@ -1805,5 +1838,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
             previousRunLootByWave.put(entry.getKey(), copiedItems);
         }
+
+        previousRunSuppliesConsumed.putAll(totalSuppliesConsumed);
     }
 }
