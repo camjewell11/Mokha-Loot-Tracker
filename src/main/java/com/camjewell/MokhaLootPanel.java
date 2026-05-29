@@ -92,6 +92,7 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel previousRunSuppliesValueLabel;
     private JPanel previousRunContainer;
     private JPanel previousRunSuppliesPanel;
+    private JPanel previousRunSuppliesSeparator;
     private JPanel previousRunWavesContainer;
     private JPanel previousRunCombinedPanel;
     private long previousRunGeTotal;
@@ -543,6 +544,14 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunValueLabel.setForeground(Color.WHITE);
         previousRunContainer.add(createStatRow("Loot:", previousRunValueLabel));
 
+        previousRunWavesContainer = new JPanel();
+        previousRunWavesContainer.setLayout(new BoxLayout(previousRunWavesContainer, BoxLayout.Y_AXIS));
+        previousRunWavesContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        previousRunContainer.add(previousRunWavesContainer);
+
+        previousRunSuppliesSeparator = createSeparator(2);
+        previousRunContainer.add(previousRunSuppliesSeparator);
+
         previousRunSuppliesValueLabel = new JLabel("0 gp");
         previousRunSuppliesValueLabel.setFont(FontManager.getRunescapeFont());
         previousRunSuppliesValueLabel.setForeground(Color.WHITE);
@@ -552,11 +561,6 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunSuppliesPanel.setLayout(new BoxLayout(previousRunSuppliesPanel, BoxLayout.Y_AXIS));
         previousRunSuppliesPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         previousRunContainer.add(previousRunSuppliesPanel);
-
-        previousRunWavesContainer = new JPanel();
-        previousRunWavesContainer.setLayout(new BoxLayout(previousRunWavesContainer, BoxLayout.Y_AXIS));
-        previousRunWavesContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        previousRunContainer.add(previousRunWavesContainer);
 
         previousRunCombinedPanel = new JPanel();
         previousRunCombinedPanel.setLayout(new BoxLayout(previousRunCombinedPanel, BoxLayout.Y_AXIS));
@@ -1877,6 +1881,19 @@ public class MokhaLootPanel extends PluginPanel {
             totalRow.add(valuesPanel, BorderLayout.EAST);
             previousRunCombinedPanel.add(totalRow);
         }
+
+        previousRunCombinedPanel.add(createSeparator(2));
+
+        JLabel combinedSuppliesTotalLabel = new JLabel(formatGp(previousRunSuppliesTotal));
+        combinedSuppliesTotalLabel.setFont(FontManager.getRunescapeFont());
+        combinedSuppliesTotalLabel.setForeground(Color.WHITE);
+        previousRunCombinedPanel.add(createStatRow("Supplies Used:", combinedSuppliesTotalLabel));
+
+        JPanel combinedSuppliesItemsPanel = new JPanel();
+        combinedSuppliesItemsPanel.setLayout(new BoxLayout(combinedSuppliesItemsPanel, BoxLayout.Y_AXIS));
+        combinedSuppliesItemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        previousRunCombinedPanel.add(combinedSuppliesItemsPanel);
+        updateSuppliesPanel(combinedSuppliesItemsPanel, previousRunSuppliesItemData, false, false);
     }
 
     private JPanel createPreviousRunWavePanel(int wave, Map<String, ItemData> itemData, long totalValue,
