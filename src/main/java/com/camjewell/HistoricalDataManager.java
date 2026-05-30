@@ -1,19 +1,22 @@
 package com.camjewell;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import com.camjewell.MokhaLootTrackerPlugin.ItemAggregate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.camjewell.MokhaLootTrackerPlugin.ItemAggregate;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 
 public class HistoricalDataManager {
     private static final Logger log = LoggerFactory.getLogger(HistoricalDataManager.class);
@@ -105,6 +108,15 @@ public class HistoricalDataManager {
         } catch (IOException e) {
             log.error("Failed to save historical data for player '{}'", normalizedPlayerKey, e);
         }
+    }
+
+    public String exportActivePlayerDataJson() {
+        JsonObject export = new JsonObject();
+        export.addProperty("playerKey", activePlayerKey);
+        export.addProperty("exportedAt", Instant.now().toString());
+        export.add("data", gson.toJsonTree(snapshotCurrentData()));
+
+        return gson.toJson(export);
     }
 
     public String getActivePlayerKey() {
@@ -318,4 +330,5 @@ public class HistoricalDataManager {
         long historicalClaims;
         long historicalDeaths;
     }
+
 }

@@ -154,6 +154,7 @@ public class MokhaLootPanel extends PluginPanel {
     private final Runnable onClearClaimedHistoricalData;
     private final Runnable onClearUnclaimedHistoricalData;
     private final Runnable onClearSuppliesHistoricalData;
+    private final Runnable onExportHistoricalData;
     private java.util.function.BiConsumer<Integer, String> onRemoveClaimedHistoricalItem;
     private java.util.function.BiConsumer<Integer, String> onRemoveUnclaimedHistoricalItem;
     private java.util.function.Consumer<String> onRemoveClaimedHistoricalItemAllWaves;
@@ -166,23 +167,23 @@ public class MokhaLootPanel extends PluginPanel {
     private Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalUnclaimedItemsByWave;
 
     public MokhaLootPanel(MokhaLootTrackerConfig config) {
-        this(config, null, null, null, null, null, null, null, null, null, null, null);
+        this(config, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData) {
-        this(config, onClearData, null, null, null, null, null, null, null, null, null, null);
+        this(config, onClearData, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
             Runnable onRecalculateTotals) {
         this(config, onClearData, onRecalculateTotals, null, null, null, null, null, null, null,
-                null, null);
+                null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
             Runnable onRecalculateTotals, java.util.function.BooleanSupplier isInRun) {
         this(config, onClearData, onRecalculateTotals, isInRun, null, null, null, null, null, null,
-                null, null);
+                null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
@@ -193,7 +194,8 @@ public class MokhaLootPanel extends PluginPanel {
             java.util.function.BiConsumer<Integer, String> onRemoveUnclaimedHistoricalItem,
             java.util.function.Consumer<String> onRemoveClaimedHistoricalItemAllWaves,
             java.util.function.Consumer<String> onRemoveUnclaimedHistoricalItemAllWaves,
-            java.util.function.Consumer<String> onRemoveHistoricalSupplyItem) {
+            java.util.function.Consumer<String> onRemoveHistoricalSupplyItem,
+            Runnable onExportHistoricalData) {
         this.config = config;
         this.onClearData = onClearData;
         this.onRecalculateTotals = onRecalculateTotals;
@@ -201,6 +203,7 @@ public class MokhaLootPanel extends PluginPanel {
         this.onClearClaimedHistoricalData = onClearClaimedHistoricalData;
         this.onClearUnclaimedHistoricalData = onClearUnclaimedHistoricalData;
         this.onClearSuppliesHistoricalData = onClearSuppliesHistoricalData;
+        this.onExportHistoricalData = onExportHistoricalData;
         this.onRemoveClaimedHistoricalItem = onRemoveClaimedHistoricalItem;
         this.onRemoveUnclaimedHistoricalItem = onRemoveUnclaimedHistoricalItem;
         this.onRemoveClaimedHistoricalItemAllWaves = onRemoveClaimedHistoricalItemAllWaves;
@@ -303,6 +306,16 @@ public class MokhaLootPanel extends PluginPanel {
             }
         });
         buttonPanel.add(clearSuppliesButton);
+        buttonPanel.add(createButtonDivider());
+
+        JButton exportHistoricalButton = new JButton("Export Historical Stats");
+        configureActionButton(exportHistoricalButton, new Color(0, 95, 140));
+        exportHistoricalButton.addActionListener(e -> {
+            if (this.onExportHistoricalData != null) {
+                this.onExportHistoricalData.run();
+            }
+        });
+        buttonPanel.add(exportHistoricalButton);
         buttonPanel.add(createButtonDivider());
 
         JButton clearButton = new JButton("Clear All Data");

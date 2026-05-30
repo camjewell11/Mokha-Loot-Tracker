@@ -1,5 +1,7 @@
 package com.camjewell;
 
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,6 +13,7 @@ import java.util.Set;
 import java.util.function.IntToDoubleFunction;
 
 import javax.inject.Inject;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 import org.slf4j.Logger;
@@ -236,7 +239,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 (wave, itemName) -> this.removeHistoricalUnclaimedWaveItem(wave == null ? 0 : wave, itemName),
                 this::removeHistoricalClaimedItemAllWaves,
                 this::removeHistoricalUnclaimedItemAllWaves,
-                this::removeHistoricalSupplyItem);
+                this::removeHistoricalSupplyItem,
+                this::exportHistoricalData);
 
         final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/48icon.png");
 
@@ -945,20 +949,46 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     ? activeHistoricalPlayerKey
                     : getCurrentPlayerProfileKey();
 
-            // Save historical data to file
-            historicalDataManager.setHistoricalClaimedItemsByWave(historicalClaimedItemsByWave);
-            historicalDataManager.setHistoricalSuppliesUsed(historicalSuppliesUsed);
-            historicalDataManager.setHistoricalClaimedByWave(historicalClaimedByWave);
-            historicalDataManager.setHistoricalTotalClaimed(historicalTotalClaimed);
-            historicalDataManager.setHistoricalClaims(historicalClaims);
-            historicalDataManager.setHistoricalDeaths(historicalDeaths);
-            historicalDataManager.setHistoricalUnclaimedByWave(historicalUnclaimedByWave);
-            historicalDataManager.setHistoricalUnclaimedItemsByWave(historicalUnclaimedItemsByWave);
+            syncHistoricalDataManagerState();
             historicalDataManager.saveDataForPlayer(playerKey);
             activeHistoricalPlayerKey = historicalDataManager.getActivePlayerKey();
         } catch (Exception e) {
             log.error("[Mokha] Error saving historical data", e);
         }
+    }
+
+    private void exportHistoricalData() {
+        if (historicalDataManager == null) {
+            return;
+        }
+
+        try {
+            syncHistoricalDataManagerState();
+            String json = historicalDataManager.exportActivePlayerDataJson();
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(json), null);
+
+            JOptionPane.showMessageDialog(panel,
+                    "Historical stats copied to clipboard.",
+                    "Export Complete",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (RuntimeException e) {
+            log.error("[Mokha] Failed to copy historical data to clipboard", e);
+            JOptionPane.showMessageDialog(panel,
+                    "Failed to copy historical stats to clipboard.\n" + e.getMessage(),
+                    "Export Failed",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void syncHistoricalDataManagerState() {
+        historicalDataManager.setHistoricalClaimedItemsByWave(historicalClaimedItemsByWave);
+        historicalDataManager.setHistoricalSuppliesUsed(historicalSuppliesUsed);
+        historicalDataManager.setHistoricalClaimedByWave(historicalClaimedByWave);
+        historicalDataManager.setHistoricalTotalClaimed(historicalTotalClaimed);
+        historicalDataManager.setHistoricalClaims(historicalClaims);
+        historicalDataManager.setHistoricalDeaths(historicalDeaths);
+        historicalDataManager.setHistoricalUnclaimedByWave(historicalUnclaimedByWave);
+        historicalDataManager.setHistoricalUnclaimedItemsByWave(historicalUnclaimedItemsByWave);
     }
 
     private void ensureHistoricalDataLoadedForCurrentPlayer() {
