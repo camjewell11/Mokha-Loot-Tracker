@@ -903,10 +903,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 panel.setHistoricalUnclaimedItemsByWave(historicalUnclaimedItemsByWave);
             }
 
-            // Load supply cost (still in ConfigManager for now)
-            String supplyCostStr = configManager.getConfiguration("mokhaloot", "historicalSupplyCost");
-            historicalSupplyCost = supplyCostStr != null && !supplyCostStr.isEmpty() ? Long.parseLong(supplyCostStr)
-                    : 0;
+            // Supply cost should mirror historical supplies totals. Keep ConfigManager as
+            // fallback for legacy data that predates per-item supplies persistence.
+            recalculateHistoricalSupplyCost();
+            if (historicalSuppliesUsed.isEmpty()) {
+                String supplyCostStr = configManager.getConfiguration("mokhaloot", "historicalSupplyCost");
+                historicalSupplyCost = supplyCostStr != null && !supplyCostStr.isEmpty() ? Long.parseLong(supplyCostStr)
+                        : 0;
+            }
 
             // Load current run loot by wave
             String currentRunJson = configManager.getConfiguration("mokhaloot", "currentRunLootByWaveJson");
@@ -1356,10 +1360,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             recalculateHistoricalTotalClaimed();
 
             // Recalculate supply cost
-            historicalSupplyCost = 0;
-            for (ItemAggregate item : historicalSuppliesUsed.values()) {
-                historicalSupplyCost += item.totalValue;
-            }
+            recalculateHistoricalSupplyCost();
 
             // Save the recalculated data
             saveHistoricalData();
@@ -1613,6 +1614,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         panel.setDisplayHaValueOnHover(config.displayHaValueOnHover());
 
+        // Keep summary supply cost synchronized with historical supplies totals.
+        recalculateHistoricalSupplyCost();
+
         // Apply ignore settings to historical items before displaying
         applyIgnoreSettingsToHistoricalItems(historicalClaimedItemsByWave);
         applyIgnoreSettingsToHistoricalItems(historicalUnclaimedItemsByWave);
@@ -1691,6 +1695,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Force panel refresh after all updates
         panel.revalidate();
         panel.repaint();
+    }
+
+    private void recalculateHistoricalSupplyCost() {
+        historicalSupplyCost = 0;
+        for (ItemAggregate item : historicalSuppliesUsed.values()) {
+            historicalSupplyCost += item.totalValue;
+        }
     }
 
     private double calculateCumulativeUniqueChancePercent(int currentDepth) {

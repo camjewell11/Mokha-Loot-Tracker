@@ -75,6 +75,9 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel claimedCountLabel;
     private JLabel deathCountLabel;
     private JLabel uniqueClaimsCountLabel;
+    private long summaryTotalClaimedGe;
+    private long summarySupplyCostGe;
+    private long summaryTotalUnclaimedGe;
 
     // Current Run section
     private JLabel potentialValueLabel;
@@ -1361,6 +1364,10 @@ public class MokhaLootPanel extends PluginPanel {
     // Update methods to be called from plugin
     public void updateProfitLoss(long totalClaimed, long supplyCost, long totalUnclaimed, long claimedCount,
             long deathCount, long uniqueClaimsCount) {
+        summaryTotalClaimedGe = totalClaimed;
+        summarySupplyCostGe = supplyCost;
+        summaryTotalUnclaimedGe = totalUnclaimed;
+
         totalClaimedLabel.setText(formatGp(totalClaimed));
         totalClaimedLabel.setForeground(new Color(0, 200, 0)); // Green
 
@@ -1388,6 +1395,8 @@ public class MokhaLootPanel extends PluginPanel {
             claimUnclaimRatioLabel.setText("0.00x");
             claimUnclaimRatioLabel.setForeground(Color.WHITE);
         }
+
+        refreshSummaryHaTooltips();
 
     }
 
@@ -1553,6 +1562,7 @@ public class MokhaLootPanel extends PluginPanel {
 
         updateClaimedSectionTotal();
         updateUnclaimedSectionTotal();
+        refreshSummaryHaTooltips();
         refreshWaveHeaderHaTooltips(claimedWaveValueLabels, claimedWaveHaTotals);
         refreshWaveHeaderHaTooltips(unclaimedWaveValueLabels, unclaimedWaveHaTotals);
 
@@ -1577,6 +1587,7 @@ public class MokhaLootPanel extends PluginPanel {
         claimedSectionTotalLabel.setToolTipText(displayHaValueOnHover
                 ? formatGeHaTotalText(totalClaimedLabel.getText(), formatGp(claimedSectionHaTotal))
                 : null);
+        refreshSummaryHaTooltips();
     }
 
     /**
@@ -1592,6 +1603,23 @@ public class MokhaLootPanel extends PluginPanel {
         unclaimedSectionTotalLabel.setToolTipText(displayHaValueOnHover
                 ? formatGeHaTotalText(totalUnclaimedLabel.getText(), formatGp(unclaimedSectionHaTotal))
                 : null);
+        refreshSummaryHaTooltips();
+    }
+
+    private void refreshSummaryHaTooltips() {
+        if (!displayHaValueOnHover) {
+            totalClaimedLabel.setToolTipText(null);
+            totalUnclaimedLabel.setToolTipText(null);
+            profitLossLabel.setToolTipText(null);
+            return;
+        }
+
+        totalClaimedLabel.setToolTipText(formatGeHaTotalText(summaryTotalClaimedGe, claimedSectionHaTotal));
+        totalUnclaimedLabel.setToolTipText(formatGeHaTotalText(summaryTotalUnclaimedGe, unclaimedSectionHaTotal));
+
+        long geProfitLoss = summaryTotalClaimedGe - summarySupplyCostGe;
+        long haProfitLoss = claimedSectionHaTotal - summarySupplyCostGe;
+        profitLossLabel.setToolTipText(formatGeHaTotalText(geProfitLoss, haProfitLoss));
     }
 
     public void clearAllPanelData() {
