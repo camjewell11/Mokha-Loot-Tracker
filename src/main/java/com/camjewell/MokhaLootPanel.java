@@ -948,7 +948,7 @@ public class MokhaLootPanel extends PluginPanel {
             totalRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 
             JLabel totalText = new JLabel("Total:");
-            totalText.setFont(FontManager.getRunescapeBoldFont());
+            totalText.setFont(FontManager.getRunescapeFont());
             totalText.setForeground(Color.LIGHT_GRAY);
             totalRow.add(totalText, BorderLayout.WEST);
 
@@ -957,11 +957,11 @@ public class MokhaLootPanel extends PluginPanel {
             valuesPanel.setLayout(new BoxLayout(valuesPanel, BoxLayout.X_AXIS));
 
             JLabel geTotalLabel = new JLabel("GE: " + formatGp(totalValue));
-            geTotalLabel.setFont(FontManager.getRunescapeBoldFont());
+            geTotalLabel.setFont(FontManager.getRunescapeFont());
             geTotalLabel.setForeground(Color.WHITE);
 
             JLabel haTotalLabel = new JLabel(" | HA: " + formatGp(totalHaValue));
-            haTotalLabel.setFont(FontManager.getRunescapeBoldFont());
+            haTotalLabel.setFont(FontManager.getRunescapeFont());
             haTotalLabel.setForeground(new Color(0, 200, 0));
 
             valuesPanel.add(geTotalLabel);
@@ -1052,7 +1052,7 @@ public class MokhaLootPanel extends PluginPanel {
             totalRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 
             JLabel totalText = new JLabel("Total:");
-            totalText.setFont(FontManager.getRunescapeBoldFont());
+            totalText.setFont(FontManager.getRunescapeFont());
             totalText.setForeground(Color.LIGHT_GRAY);
             totalRow.add(totalText, BorderLayout.WEST);
 
@@ -1061,11 +1061,11 @@ public class MokhaLootPanel extends PluginPanel {
             valuesPanel.setLayout(new BoxLayout(valuesPanel, BoxLayout.X_AXIS));
 
             JLabel geTotalLabel = new JLabel("GE: " + formatGp(totalValue));
-            geTotalLabel.setFont(FontManager.getRunescapeBoldFont());
+            geTotalLabel.setFont(FontManager.getRunescapeFont());
             geTotalLabel.setForeground(Color.WHITE);
 
             JLabel haTotalLabel = new JLabel(" | HA: " + formatGp(totalHaValue));
-            haTotalLabel.setFont(FontManager.getRunescapeBoldFont());
+            haTotalLabel.setFont(FontManager.getRunescapeFont());
             haTotalLabel.setForeground(new Color(0, 200, 0));
 
             valuesPanel.add(geTotalLabel);
@@ -2041,7 +2041,7 @@ public class MokhaLootPanel extends PluginPanel {
             totalRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 
             JLabel totalText = new JLabel("Total:");
-            totalText.setFont(FontManager.getRunescapeBoldFont());
+            totalText.setFont(FontManager.getRunescapeFont());
             totalText.setForeground(Color.LIGHT_GRAY);
             totalRow.add(totalText, BorderLayout.WEST);
 
@@ -2050,11 +2050,11 @@ public class MokhaLootPanel extends PluginPanel {
             valuesPanel.setLayout(new BoxLayout(valuesPanel, BoxLayout.X_AXIS));
 
             JLabel geTotalLabel = new JLabel("GE: " + formatGp(previousRunGeTotal));
-            geTotalLabel.setFont(FontManager.getRunescapeBoldFont());
+            geTotalLabel.setFont(FontManager.getRunescapeFont());
             geTotalLabel.setForeground(Color.WHITE);
 
             JLabel haTotalLabel = new JLabel(" | HA: " + formatGp(previousRunHaTotal));
-            haTotalLabel.setFont(FontManager.getRunescapeBoldFont());
+            haTotalLabel.setFont(FontManager.getRunescapeFont());
             haTotalLabel.setForeground(new Color(0, 200, 0));
 
             valuesPanel.add(geTotalLabel);
