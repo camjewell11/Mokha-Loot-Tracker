@@ -1,8 +1,11 @@
 package com.camjewell;
 
 import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -240,7 +243,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 this::removeHistoricalClaimedItemAllWaves,
                 this::removeHistoricalUnclaimedItemAllWaves,
                 this::removeHistoricalSupplyItem,
-                this::exportHistoricalData);
+                this::exportHistoricalData,
+                this::importHistoricalData);
 
         final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/48icon.png");
 
@@ -885,24 +889,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             historicalDataManager.loadDataForPlayer(playerKey);
             activeHistoricalPlayerKey = historicalDataManager.getActivePlayerKey();
 
-            // Copy data from manager to plugin fields
-            historicalClaimedItemsByWave.clear();
-            historicalClaimedItemsByWave.putAll(historicalDataManager.getHistoricalClaimedItemsByWave());
-
-            historicalSuppliesUsed.clear();
-            historicalSuppliesUsed.putAll(historicalDataManager.getHistoricalSuppliesUsed());
-
-            historicalClaimedByWave.clear();
-            historicalClaimedByWave.putAll(historicalDataManager.getHistoricalClaimedByWave());
-
-            historicalTotalClaimed = historicalDataManager.getHistoricalTotalClaimed();
-            historicalClaims = historicalDataManager.getHistoricalClaims();
-            historicalDeaths = historicalDataManager.getHistoricalDeaths();
-
-            historicalUnclaimedByWave.clear();
-            historicalUnclaimedByWave.putAll(historicalDataManager.getHistoricalUnclaimedByWave());
-            historicalUnclaimedItemsByWave.clear();
-            historicalUnclaimedItemsByWave.putAll(historicalDataManager.getHistoricalUnclaimedItemsByWave());
+            copyHistoricalDataFromManager();
 
             // Apply ignore settings and recalculate
             applyIgnoreSettingsToHistoricalItems(historicalClaimedItemsByWave);
@@ -938,6 +925,26 @@ public class MokhaLootTrackerPlugin extends Plugin {
         } catch (RuntimeException e) {
             log.error("[Mokha] Error loading historical data", e);
         }
+    }
+
+    private void copyHistoricalDataFromManager() {
+        historicalClaimedItemsByWave.clear();
+        historicalClaimedItemsByWave.putAll(historicalDataManager.getHistoricalClaimedItemsByWave());
+
+        historicalSuppliesUsed.clear();
+        historicalSuppliesUsed.putAll(historicalDataManager.getHistoricalSuppliesUsed());
+
+        historicalClaimedByWave.clear();
+        historicalClaimedByWave.putAll(historicalDataManager.getHistoricalClaimedByWave());
+
+        historicalTotalClaimed = historicalDataManager.getHistoricalTotalClaimed();
+        historicalClaims = historicalDataManager.getHistoricalClaims();
+        historicalDeaths = historicalDataManager.getHistoricalDeaths();
+
+        historicalUnclaimedByWave.clear();
+        historicalUnclaimedByWave.putAll(historicalDataManager.getHistoricalUnclaimedByWave());
+        historicalUnclaimedItemsByWave.clear();
+        historicalUnclaimedItemsByWave.putAll(historicalDataManager.getHistoricalUnclaimedItemsByWave());
     }
 
     /**
@@ -976,6 +983,45 @@ public class MokhaLootTrackerPlugin extends Plugin {
             JOptionPane.showMessageDialog(panel,
                     "Failed to copy historical stats to clipboard.\n" + e.getMessage(),
                     "Export Failed",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void importHistoricalData() {
+        if (historicalDataManager == null) {
+            return;
+        }
+
+        try {
+            String clipboardText = (String) Toolkit.getDefaultToolkit().getSystemClipboard()
+                    .getData(DataFlavor.stringFlavor);
+            String currentPlayerKey = getCurrentPlayerProfileKey();
+            historicalDataManager.importActivePlayerDataJson(clipboardText, currentPlayerKey);
+            copyHistoricalDataFromManager();
+            saveHistoricalData();
+            updatePanelData();
+
+            JOptionPane.showMessageDialog(panel,
+                    "Historical stats imported from clipboard.",
+                    "Import Complete",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (UnsupportedFlavorException e) {
+            log.error("[Mokha] Clipboard does not contain text", e);
+            JOptionPane.showMessageDialog(panel,
+                    "Clipboard does not contain text data.",
+                    "Import Failed",
+                    JOptionPane.ERROR_MESSAGE);
+        } catch (IOException e) {
+            log.error("[Mokha] Failed to import historical data", e);
+            JOptionPane.showMessageDialog(panel,
+                    "Failed to import historical stats.\n" + e.getMessage(),
+                    "Import Failed",
+                    JOptionPane.ERROR_MESSAGE);
+        } catch (RuntimeException e) {
+            log.error("[Mokha] Unexpected error importing historical data", e);
+            JOptionPane.showMessageDialog(panel,
+                    "Failed to import historical stats.\n" + e.getMessage(),
+                    "Import Failed",
                     JOptionPane.ERROR_MESSAGE);
         }
     }

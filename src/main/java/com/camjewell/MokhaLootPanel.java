@@ -155,6 +155,7 @@ public class MokhaLootPanel extends PluginPanel {
     private final Runnable onClearUnclaimedHistoricalData;
     private final Runnable onClearSuppliesHistoricalData;
     private final Runnable onExportHistoricalData;
+    private final Runnable onImportHistoricalData;
     private java.util.function.BiConsumer<Integer, String> onRemoveClaimedHistoricalItem;
     private java.util.function.BiConsumer<Integer, String> onRemoveUnclaimedHistoricalItem;
     private java.util.function.Consumer<String> onRemoveClaimedHistoricalItemAllWaves;
@@ -167,23 +168,23 @@ public class MokhaLootPanel extends PluginPanel {
     private Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalUnclaimedItemsByWave;
 
     public MokhaLootPanel(MokhaLootTrackerConfig config) {
-        this(config, null, null, null, null, null, null, null, null, null, null, null, null);
+        this(config, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData) {
-        this(config, onClearData, null, null, null, null, null, null, null, null, null, null, null);
+        this(config, onClearData, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
             Runnable onRecalculateTotals) {
         this(config, onClearData, onRecalculateTotals, null, null, null, null, null, null, null,
-                null, null, null);
+                null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
             Runnable onRecalculateTotals, java.util.function.BooleanSupplier isInRun) {
         this(config, onClearData, onRecalculateTotals, isInRun, null, null, null, null, null, null,
-                null, null, null);
+                null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
@@ -195,7 +196,8 @@ public class MokhaLootPanel extends PluginPanel {
             java.util.function.Consumer<String> onRemoveClaimedHistoricalItemAllWaves,
             java.util.function.Consumer<String> onRemoveUnclaimedHistoricalItemAllWaves,
             java.util.function.Consumer<String> onRemoveHistoricalSupplyItem,
-            Runnable onExportHistoricalData) {
+            Runnable onExportHistoricalData,
+            Runnable onImportHistoricalData) {
         this.config = config;
         this.onClearData = onClearData;
         this.onRecalculateTotals = onRecalculateTotals;
@@ -210,6 +212,7 @@ public class MokhaLootPanel extends PluginPanel {
         this.onRemoveUnclaimedHistoricalItemAllWaves = onRemoveUnclaimedHistoricalItemAllWaves;
         this.onRemoveHistoricalSupplyItem = onRemoveHistoricalSupplyItem;
         this.displayHaValueOnHover = config.displayHaValueOnHover();
+        this.onImportHistoricalData = onImportHistoricalData;
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -316,6 +319,21 @@ public class MokhaLootPanel extends PluginPanel {
             }
         });
         buttonPanel.add(exportHistoricalButton);
+        buttonPanel.add(createButtonDivider());
+
+        JButton importHistoricalButton = new JButton("Import Historical Stats");
+        configureActionButton(importHistoricalButton, new Color(0, 95, 140));
+        importHistoricalButton.addActionListener(e -> {
+            int response = JOptionPane.showConfirmDialog(this,
+                    "Import historical stats from clipboard and overwrite the current historical data?\nThis cannot be undone.",
+                    "Confirm Import Historical Stats",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+            if (response == JOptionPane.YES_OPTION && this.onImportHistoricalData != null) {
+                this.onImportHistoricalData.run();
+            }
+        });
+        buttonPanel.add(importHistoricalButton);
         buttonPanel.add(createButtonDivider());
 
         JButton clearButton = new JButton("Clear All Data");

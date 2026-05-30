@@ -119,6 +119,31 @@ public class HistoricalDataManager {
         return gson.toJson(export);
     }
 
+    public void importActivePlayerDataJson(String json, String expectedPlayerKey) throws IOException {
+        if (json == null || json.isBlank()) {
+            throw new IOException("Clipboard does not contain historical data");
+        }
+
+        JsonObject export = gson.fromJson(json, JsonObject.class);
+        if (export == null || !export.has("data") || !export.get("data").isJsonObject()) {
+            throw new IOException("Clipboard data is not a valid historical export");
+        }
+
+        String importedPlayerKey = export.has("playerKey") && !export.get("playerKey").isJsonNull()
+                ? normalizePlayerKey(export.get("playerKey").getAsString())
+                : DEFAULT_PLAYER_KEY;
+        String normalizedExpectedPlayerKey = normalizePlayerKey(expectedPlayerKey);
+        if (!importedPlayerKey.equals(normalizedExpectedPlayerKey)) {
+            throw new IOException(String.format(
+                    "Clipboard data belongs to '%s' but the currently logged in player is '%s'",
+                    importedPlayerKey,
+                    normalizedExpectedPlayerKey));
+        }
+
+        HistoricalData imported = gson.fromJson(export.getAsJsonObject("data"), HistoricalData.class);
+        applyDataToFields(imported);
+    }
+
     public String getActivePlayerKey() {
         return activePlayerKey;
     }
