@@ -12,6 +12,8 @@ A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during D
 - **Lost Loot Monitoring**: Tracks the value and item breakdown of unclaimed loot lost on death, per wave.
 - **Claimed Loot Tracking**: Tracks loot successfully claimed, with per-wave and combined breakdowns.
 - **Per-Wave & Combined Views**: Expandable/collapsible sections for claimed and unclaimed loot by wave, plus a combined all-waves view with bullet-style formatting and tooltips.
+- **Current Run View Toggle**: Current Run supports both summary and by-wave item views, with an arrow-style toggle in the section header (defaults to summary).
+- **Previous Run Wave Breakdown**: Previous Run now supports detailed by-wave breakdown with collapsible wave rows and combined section behavior.
 - **Display Sorting Options**: Sort displayed loot and supplies alphabetically or by total value, including per-wave and combined views (default: value-descending).
 - **Profit/Loss Calculation**: Shows total claimed minus supply cost, color-coded (green for profit, red for loss).
 - **Supplies Tracking**: Tracks supplies consumed per run (live) and across all runs (historical), including potions (dose-normalized), runes (including rune pouch and Dizana's quiver), and other consumables.
@@ -23,6 +25,8 @@ A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during D
 - **Ultra-Valuable Item Filter**: Optionally exclude items worth more than 20 million GP from totals (uniques filter).
 - **Modern UI**: Collapsible/expandable sections, left-padded bullet formatting, hover tooltips for price per item, and color-coded highlights for ultra-valuable items.
 - **Persistent Statistics**: All data is saved per-account and persists across sessions, including historical claimed/unclaimed loot, supplies, and deaths.
+- **Clipboard Export/Import for Historical Data**: Export the active character's historical profile to clipboard and import from clipboard with overwrite support.
+- **Player-Safe Historical Import**: Import validates the payload player key and only allows overwrite for the currently logged-in character.
 - **Comprehensive Side Panel**: Summary, current run, claimed/unclaimed loot by wave, supplies (current/historical), and interactive controls.
 - **Data Migration**: Automatically migrates old config-based data to new file-based storage.
 
@@ -55,7 +59,8 @@ Mokha Loot Tracker automatically detects when you enter the Mokha arena and trac
 Click the Mokha Loot icon in the RuneLite sidebar to view:
 
 - **Summary**: Total claimed, supply cost, profit/loss, total unclaimed, claim/unclaim ratio, total claims, total deaths.
-- **Current Run**: Real-time value and item breakdown of unclaimed loot for the current run.
+- **Current Run**: Real-time value and item breakdown of unclaimed loot for the current run, with summary/by-wave toggle (summary by default).
+- **Previous Run**: Last run status/value plus loot and supplies, with collapsible section states and by-wave breakdown.
 - **Claimed Loot by Wave**: Expandable/collapsible sections for each wave (1-8, 9+), with itemized loot and values. Combined all-waves view available.
 - **Unclaimed Loot by Wave**: Same as above, for loot lost on death. Combined all-waves view available.
 - **Supplies Used (Current Run)**: Live supplies consumed, with dose/rune normalization and values.
@@ -74,6 +79,8 @@ All sections support:
 - **Clear Claimed Historical Data**: Clears claimed historical loot only (with confirmation), then refreshes panel values.
 - **Clear Unclaimed Historical Data**: Clears unclaimed historical loot only (with confirmation), then refreshes panel values.
 - **Clear Supplies Historical Data**: Clears historical supplies usage only (with confirmation), then refreshes panel values.
+- **Import Stats**: Imports historical stats from clipboard and overwrites the currently logged-in character's historical data after confirmation.
+- **Export Stats**: Exports the currently logged-in character's historical stats to clipboard.
 - **Clear All Data**: Removes all tracked data for the current account (with confirmation).
 
 When **Enable Historical Edit Mode** is on in plugin settings:
@@ -172,6 +179,16 @@ Please include:
 This plugin is open source and available under standard RuneLite plugin licensing.
 
 ## Changelog
+
+### Latest (v7.0)
+
+- Added Current Run summary/by-wave display toggle in the section header using arrow-style controls
+- Set Current Run default mode to summary view
+- Added by-wave breakdown rendering for Current Run with per-wave collapse state
+- Expanded Previous Run presentation with improved by-wave/collapsed/combined behavior
+- Added clipboard Export Stats for active-player historical data
+- Added clipboard Import Stats with overwrite support for historical data
+- Added strict player-key validation so imports only overwrite the currently logged-in character profile
 
 ### Latest (v6.0)
 
