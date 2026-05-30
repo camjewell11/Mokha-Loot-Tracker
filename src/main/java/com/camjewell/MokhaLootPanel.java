@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -79,10 +80,16 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel potentialValueLabel;
     private JLabel cumulativeUniqueChanceLabel;
     private JLabel currentRunWaveLabel;
+    private JButton currentRunViewToggleButton;
     private JPanel currentRunItemsPanel;
     private long currentRunGeTotal;
     private long currentRunHaTotal;
     private Map<String, ItemData> currentRunItemData = new HashMap<>();
+    private Map<Integer, Map<String, ItemData>> currentRunItemsByWave = new TreeMap<>();
+    private Map<Integer, Long> currentRunTotalsByWave = new TreeMap<>();
+    private Map<Integer, Long> currentRunHaTotalsByWave = new TreeMap<>();
+    private Map<Integer, Boolean> currentRunWaveCollapsed = new HashMap<>();
+    private boolean currentRunShowByWave = false;
 
     // Previous Run section
     private JLabel previousRunStatusLabel;
@@ -311,17 +318,7 @@ public class MokhaLootPanel extends PluginPanel {
         buttonPanel.add(clearSuppliesButton);
         buttonPanel.add(createButtonDivider());
 
-        JButton exportHistoricalButton = new JButton("Export Historical Stats");
-        configureActionButton(exportHistoricalButton, new Color(0, 95, 140));
-        exportHistoricalButton.addActionListener(e -> {
-            if (this.onExportHistoricalData != null) {
-                this.onExportHistoricalData.run();
-            }
-        });
-        buttonPanel.add(exportHistoricalButton);
-        buttonPanel.add(createButtonDivider());
-
-        JButton importHistoricalButton = new JButton("Import Historical Stats");
+        JButton importHistoricalButton = new JButton("Import Stats");
         configureActionButton(importHistoricalButton, new Color(0, 95, 140));
         importHistoricalButton.addActionListener(e -> {
             int response = JOptionPane.showConfirmDialog(this,
@@ -333,7 +330,16 @@ public class MokhaLootPanel extends PluginPanel {
                 this.onImportHistoricalData.run();
             }
         });
-        buttonPanel.add(importHistoricalButton);
+
+        JButton exportHistoricalButton = new JButton("Export Stats");
+        configureActionButton(exportHistoricalButton, new Color(0, 95, 140));
+        exportHistoricalButton.addActionListener(e -> {
+            if (this.onExportHistoricalData != null) {
+                this.onExportHistoricalData.run();
+            }
+        });
+
+        buttonPanel.add(createHorizontalActionRow(importHistoricalButton, exportHistoricalButton));
         buttonPanel.add(createButtonDivider());
 
         JButton clearButton = new JButton("Clear All Data");
@@ -398,6 +404,20 @@ public class MokhaLootPanel extends PluginPanel {
         button.setMinimumSize(new Dimension(120, ACTION_BUTTON_HEIGHT));
         button.setPreferredSize(new Dimension(Short.MAX_VALUE, ACTION_BUTTON_HEIGHT));
         button.setMaximumSize(new Dimension(Integer.MAX_VALUE, ACTION_BUTTON_HEIGHT));
+    }
+
+    private JPanel createHorizontalActionRow(JButton leftButton, JButton rightButton) {
+        JPanel row = new JPanel(new GridLayout(1, 2, 6, 0));
+        row.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        row.setAlignmentX(LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, ACTION_BUTTON_HEIGHT));
+
+        leftButton.setMinimumSize(new Dimension(0, ACTION_BUTTON_HEIGHT));
+        rightButton.setMinimumSize(new Dimension(0, ACTION_BUTTON_HEIGHT));
+
+        row.add(leftButton);
+        row.add(rightButton);
+        return row;
     }
 
     private JPanel createButtonDivider() {
@@ -493,10 +513,35 @@ public class MokhaLootPanel extends PluginPanel {
         title.setForeground(new Color(0, 200, 255)); // Cyan
         titleRow.add(title, BorderLayout.WEST);
 
+        currentRunViewToggleButton = new JButton(getArrowOrFallback(currentRunShowByWave ? "▾" : "▸",
+                currentRunShowByWave ? "↓" : "→"));
+        currentRunViewToggleButton.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
+        currentRunViewToggleButton.setForeground(Color.WHITE);
+        currentRunViewToggleButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        currentRunViewToggleButton.setBorderPainted(false);
+        currentRunViewToggleButton.setFocusPainted(false);
+        currentRunViewToggleButton.setPreferredSize(new Dimension(18, 18));
+        currentRunViewToggleButton.setMaximumSize(new Dimension(18, 18));
+
         currentRunWaveLabel = new JLabel("");
         currentRunWaveLabel.setFont(FontManager.getRunescapeFont());
         currentRunWaveLabel.setForeground(Color.LIGHT_GRAY);
-        titleRow.add(currentRunWaveLabel, BorderLayout.EAST);
+
+        JPanel rightPanel = new JPanel();
+        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.X_AXIS));
+        rightPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        rightPanel.add(currentRunWaveLabel);
+        rightPanel.add(Box.createHorizontalStrut(6));
+        rightPanel.add(currentRunViewToggleButton);
+        titleRow.add(rightPanel, BorderLayout.EAST);
+
+        currentRunViewToggleButton.addActionListener(e -> {
+            currentRunShowByWave = !currentRunShowByWave;
+            updateCurrentRunViewToggleText();
+            renderCurrentRunWaveBreakdown();
+            panel.revalidate();
+            panel.repaint();
+        });
         panel.add(titleRow);
 
         cumulativeUniqueChanceLabel = new JLabel("N/A");
@@ -514,6 +559,8 @@ public class MokhaLootPanel extends PluginPanel {
         currentRunItemsPanel.setLayout(new BoxLayout(currentRunItemsPanel, BoxLayout.Y_AXIS));
         currentRunItemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         panel.add(currentRunItemsPanel);
+
+        updateCurrentRunViewToggleText();
 
         return panel;
     }
@@ -1052,7 +1099,7 @@ public class MokhaLootPanel extends PluginPanel {
         collapseButton.setPreferredSize(new Dimension(18, 18));
         collapseButton.setMaximumSize(new Dimension(18, 18));
 
-        JLabel title = new JLabel("Supplies Used (Current Run)");
+        JLabel title = new JLabel("Supplies (Current Run)");
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(new Color(255, 165, 0)); // Orange
 
@@ -1344,10 +1391,17 @@ public class MokhaLootPanel extends PluginPanel {
 
     }
 
-    public void updateCurrentRun(long potentialValue, Map<String, ItemData> itemData) {
+    public void updateCurrentRun(long potentialValue,
+            Map<String, ItemData> itemData,
+            Map<Integer, Map<String, ItemData>> itemsByWave,
+            Map<Integer, Long> totalsByWave,
+            Map<Integer, Long> haTotalsByWave) {
         currentRunGeTotal = potentialValue;
         currentRunHaTotal = 0;
         currentRunItemData = itemData != null ? new HashMap<>(itemData) : new HashMap<>();
+        currentRunItemsByWave = itemsByWave != null ? new TreeMap<>(itemsByWave) : new TreeMap<>();
+        currentRunTotalsByWave = totalsByWave != null ? new TreeMap<>(totalsByWave) : new TreeMap<>();
+        currentRunHaTotalsByWave = haTotalsByWave != null ? new TreeMap<>(haTotalsByWave) : new TreeMap<>();
         if (itemData != null) {
             for (ItemData item : itemData.values()) {
                 currentRunHaTotal += item.totalHaValue;
@@ -1358,7 +1412,7 @@ public class MokhaLootPanel extends PluginPanel {
         potentialValueLabel.setToolTipText(displayHaValueOnHover
                 ? formatGeHaTotalText(currentRunGeTotal, currentRunHaTotal)
                 : null);
-        updateRunItemsPanel(currentRunItemsPanel, currentRunItemData, true);
+        renderCurrentRunWaveBreakdown();
     }
 
     public void updatePreviousRun(boolean hasPreviousRun, boolean claimed, long totalValue, long totalHaValue,
@@ -1494,7 +1548,7 @@ public class MokhaLootPanel extends PluginPanel {
                 ? formatGeHaTotalText(previousRunGeTotal, previousRunHaTotal)
                 : null);
 
-        updateRunItemsPanel(currentRunItemsPanel, currentRunItemData, true);
+        renderCurrentRunWaveBreakdown();
         renderPreviousRunSection();
 
         updateClaimedSectionTotal();
@@ -1563,6 +1617,12 @@ public class MokhaLootPanel extends PluginPanel {
         cumulativeUniqueChanceLabel.setForeground(Color.LIGHT_GRAY);
         currentRunItemsPanel.removeAll();
         currentRunItemData.clear();
+        currentRunItemsByWave.clear();
+        currentRunTotalsByWave.clear();
+        currentRunHaTotalsByWave.clear();
+        currentRunWaveCollapsed.clear();
+        currentRunShowByWave = false;
+        updateCurrentRunViewToggleText();
 
         previousRunStatusLabel.setText("");
         previousRunSectionTotalLabel.setText("0 gp");
@@ -1813,6 +1873,96 @@ public class MokhaLootPanel extends PluginPanel {
 
         targetPanel.revalidate();
         targetPanel.repaint();
+    }
+
+    private void renderCurrentRunWaveBreakdown() {
+        currentRunItemsPanel.removeAll();
+
+        if (currentRunShowByWave && !currentRunItemsByWave.isEmpty()) {
+            for (Map.Entry<Integer, Map<String, ItemData>> waveEntry : currentRunItemsByWave.entrySet()) {
+                int wave = waveEntry.getKey();
+                JPanel wavePanel = createCurrentRunWavePanel(
+                        wave,
+                        waveEntry.getValue(),
+                        currentRunTotalsByWave.getOrDefault(wave, 0L),
+                        currentRunHaTotalsByWave.getOrDefault(wave, 0L));
+                currentRunItemsPanel.add(wavePanel);
+            }
+        } else {
+            // Fallback for callers that only provide aggregated current-run items.
+            updateRunItemsPanel(currentRunItemsPanel, currentRunItemData, true);
+        }
+
+        currentRunItemsPanel.revalidate();
+        currentRunItemsPanel.repaint();
+    }
+
+    private void updateCurrentRunViewToggleText() {
+        if (currentRunViewToggleButton != null) {
+            currentRunViewToggleButton.setText(getArrowOrFallback(currentRunShowByWave ? "▾" : "▸",
+                    currentRunShowByWave ? "↓" : "→"));
+            currentRunViewToggleButton.setToolTipText(currentRunShowByWave
+                    ? "Showing by-wave breakdown (click for summary)"
+                    : "Showing summary (click for by-wave breakdown)");
+        }
+    }
+
+    private JPanel createCurrentRunWavePanel(int wave, Map<String, ItemData> itemData, long totalValue,
+            long totalHaValue) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        boolean collapsed = currentRunWaveCollapsed.getOrDefault(wave, false);
+
+        JLabel valueLabel = new JLabel(formatGp(totalValue));
+        valueLabel.setFont(FontManager.getRunescapeFont());
+        valueLabel.setForeground(Color.WHITE);
+        valueLabel.setToolTipText(displayHaValueOnHover
+                ? formatGeHaTotalText(totalValue, totalHaValue)
+                : null);
+
+        JButton collapseButton = new JButton(getArrowOrFallback(collapsed ? "▸" : "▾", collapsed ? "→" : "↓"));
+        collapseButton.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
+        collapseButton.setForeground(Color.WHITE);
+        collapseButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        collapseButton.setBorderPainted(false);
+        collapseButton.setFocusPainted(false);
+        collapseButton.setPreferredSize(new Dimension(18, 18));
+        collapseButton.setMaximumSize(new Dimension(18, 18));
+
+        JPanel headerRow = new JPanel(new BorderLayout());
+        headerRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        headerRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+        headerRow.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        JLabel labelComponent = new JLabel("Wave " + wave + ":");
+        labelComponent.setFont(FontManager.getRunescapeFont());
+        labelComponent.setForeground(Color.LIGHT_GRAY);
+
+        headerRow.add(collapseButton, BorderLayout.WEST);
+        headerRow.add(labelComponent, BorderLayout.CENTER);
+        headerRow.add(valueLabel, BorderLayout.EAST);
+        panel.add(headerRow);
+
+        JPanel itemsPanel = new JPanel();
+        itemsPanel.setLayout(new BoxLayout(itemsPanel, BoxLayout.Y_AXIS));
+        itemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        itemsPanel.setVisible(!collapsed);
+        panel.add(itemsPanel);
+        updateRunItemsPanel(itemsPanel, itemData, true);
+        itemsPanel.setVisible(!collapsed);
+
+        collapseButton.addActionListener(e -> {
+            boolean nextCollapsed = !currentRunWaveCollapsed.getOrDefault(wave, false);
+            currentRunWaveCollapsed.put(wave, nextCollapsed);
+            itemsPanel.setVisible(!nextCollapsed);
+            collapseButton.setText(getArrowOrFallback(nextCollapsed ? "▸" : "▾", nextCollapsed ? "→" : "↓"));
+            panel.revalidate();
+            panel.repaint();
+        });
+
+        return panel;
     }
 
     private void renderPreviousRunSection() {

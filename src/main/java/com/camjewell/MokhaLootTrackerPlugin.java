@@ -1649,7 +1649,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
         panel.updateProfitLoss(historicalTotalClaimed, historicalSupplyCost, panelData.totalUnclaimed,
                 historicalClaims, historicalDeaths, uniqueClaimsCount);
 
-        panel.updateCurrentRun(panelData.currentRunValue, panelData.currentRunItems);
+        panel.updateCurrentRun(
+                panelData.currentRunValue,
+                panelData.currentRunItems,
+                panelData.currentRunItemsByWave,
+                panelData.currentRunTotalsByWave,
+                panelData.currentRunHaTotalsByWave);
         panel.updatePreviousRun(hasPreviousRunSnapshot, previousRunClaimed,
                 previousRunData.totalValue, previousRunData.totalHaValue,
                 previousRunData.items,

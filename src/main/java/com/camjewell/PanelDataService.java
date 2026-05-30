@@ -27,6 +27,9 @@ class PanelDataService {
         long historicalSuppliesTotalValue;
 
         Map<String, MokhaLootPanel.ItemData> currentRunItems = new HashMap<>();
+        Map<Integer, Map<String, MokhaLootPanel.ItemData>> currentRunItemsByWave = new HashMap<>();
+        Map<Integer, Long> currentRunTotalsByWave = new HashMap<>();
+        Map<Integer, Long> currentRunHaTotalsByWave = new HashMap<>();
         Map<String, MokhaLootPanel.ItemData> currentSuppliesData = new HashMap<>();
         Map<String, MokhaLootPanel.ItemData> historicalSuppliesData = new HashMap<>();
 
@@ -62,6 +65,9 @@ class PanelDataService {
         RunPanelData currentRunData = buildRunPanelData(lootByWave, config, valueCalculationService);
         data.currentRunValue = currentRunData.totalValue;
         data.currentRunItems = currentRunData.items;
+        data.currentRunItemsByWave = currentRunData.itemsByWave;
+        data.currentRunTotalsByWave = currentRunData.totalsByWave;
+        data.currentRunHaTotalsByWave = currentRunData.haTotalsByWave;
         data.totalUnclaimed = valueCalculationService.calculateTotalUnclaimed(
                 historicalUnclaimedItemsByWave,
                 historicalUnclaimedByWave,
