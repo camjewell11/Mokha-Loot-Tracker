@@ -28,11 +28,14 @@ import com.google.inject.Provides;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.NPC;
+import net.runelite.api.Skill;
+import net.runelite.api.VarPlayer;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.events.StatChanged;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -133,6 +136,25 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private boolean lastDescendClickJustHappened = false; // Track if Descend was just clicked
     private long lastArenaExitTime = 0; // Track when player last exited arena to detect stale snapshot usage
     private int ticksOutsideArenaBounds = 0; // Failsafe: detect stale in-arena state
+
+    // Performance tracking (current run)
+    private int prayerUsed = 0;
+    private int hpLost = 0;
+    private int hpRegained = 0;
+    private int specialAttackUses = 0;
+    private int venomApplications = 0;
+    private boolean wasVenomedLastTick = false;
+    private int lastPrayerPoints = -1;
+    private int lastHitpoints = -1;
+    private int lastSpecialAttackEnergy = -1;
+    private boolean performanceDirty = false;
+
+    // Previous run performance snapshot
+    private int previousRunPrayerUsed = 0;
+    private int previousRunHpLost = 0;
+    private int previousRunHpRegained = 0;
+    private int previousRunSpecialAttackUses = 0;
+    private int previousRunVenomApplications = 0;
 
     // Entrance coordinates (for future use)
     private final int entrance_centerX = 1311;
@@ -308,6 +330,17 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
 
+                // Reset performance tracking for new run
+                prayerUsed = 0;
+                hpLost = 0;
+                hpRegained = 0;
+                specialAttackUses = 0;
+                venomApplications = 0;
+                lastPrayerPoints = client.getBoostedSkillLevel(Skill.PRAYER);
+                lastHitpoints = client.getBoostedSkillLevel(Skill.HITPOINTS);
+                lastSpecialAttackEnergy = client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT);
+                wasVenomedLastTick = isCurrentlyVenomed();
+
                 // Initialize supply snapshots for consumption tracking
                 int arenaEntryAmmo = supplyTrackingService.initializeForArenaEntry();
                 log.info("[Mokha] Arena entry complete. Initial snapshot captured: {} items, Blowpipe ammo: {}",
@@ -378,6 +411,23 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         boolean inConsumptionBounds = isInsideConsumptionBounds(location);
         supplyTrackingService.onGameTick(inMokhaArena, isDead, inConsumptionBounds, lastArenaExitTime);
+
+        // Count transitions into venom during a run (not-venomed -> venomed).
+        if (inMokhaArena && !isDead) {
+            boolean currentlyVenomed = isCurrentlyVenomed();
+            if (currentlyVenomed && !wasVenomedLastTick) {
+                venomApplications++;
+                performanceDirty = true;
+            }
+            wasVenomedLastTick = currentlyVenomed;
+
+            int currentSpecialAttackEnergy = client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT);
+            if (lastSpecialAttackEnergy >= 0 && currentSpecialAttackEnergy < lastSpecialAttackEnergy) {
+                specialAttackUses++;
+                performanceDirty = true;
+            }
+            lastSpecialAttackEnergy = currentSpecialAttackEnergy;
+        }
 
         // Failsafe arena boundary check to avoid stale in-arena state causing supply
         // tracking outside Doom.
@@ -504,6 +554,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Check for loot window and capture loot
         checkForLootWindow();
 
+        // Flush performance panel update once per tick (metrics may be dirtied multiple
+        // times per tick, e.g. rapid hitsplats from the boss)
+        if (performanceDirty) {
+            performanceDirty = false;
+            updatePerformancePanelData();
+        }
+
         // Panel updates are now only triggered when data changes:
         // - When loot is captured (in checkForLootWindow via parseLootItems)
         // - When supplies are consumed (in checkForConsumption)
@@ -556,6 +613,18 @@ public class MokhaLootTrackerPlugin extends Plugin {
                         }
                     });
                     break;
+                case "showPerformancePanel":
+                    boolean show = "true".equalsIgnoreCase(event.getNewValue());
+                    SwingUtilities.invokeLater(() -> {
+                        if (panel != null) {
+                            panel.setPerformanceSectionVisible(show);
+                            if (show) {
+                                panel.updatePerformance(prayerUsed, hpLost, hpRegained, specialAttackUses,
+                                        venomApplications);
+                            }
+                        }
+                    });
+                    break;
                 default:
                     break;
             }
@@ -571,6 +640,47 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 isDead,
                 isInsideConsumptionBounds(location),
                 lastArenaExitTime);
+    }
+
+    @Subscribe
+    public void onStatChanged(StatChanged event) {
+        if (!inMokhaArena || isDead) {
+            return;
+        }
+        if (event.getSkill() == Skill.PRAYER) {
+            int current = event.getBoostedLevel();
+            if (lastPrayerPoints >= 0 && current < lastPrayerPoints) {
+                prayerUsed += lastPrayerPoints - current;
+                performanceDirty = true;
+            }
+            lastPrayerPoints = current;
+        } else if (event.getSkill() == Skill.HITPOINTS) {
+            int current = event.getBoostedLevel();
+            if (lastHitpoints >= 0) {
+                if (current < lastHitpoints) {
+                    hpLost += lastHitpoints - current;
+                    performanceDirty = true;
+                } else if (current > lastHitpoints) {
+                    int hpDelta = current - lastHitpoints;
+                    if (hpDelta != 1) {
+                        hpRegained += hpDelta;
+                        performanceDirty = true;
+                    }
+                }
+            }
+            lastHitpoints = current;
+        }
+    }
+
+    private void updatePerformancePanelData() {
+        if (panel == null || !config.showPerformancePanel()) {
+            return;
+        }
+        panel.updatePerformance(prayerUsed, hpLost, hpRegained, specialAttackUses, venomApplications);
+    }
+
+    private boolean isCurrentlyVenomed() {
+        return client.getVarpValue(VarPlayer.POISON) >= 1_000_000;
     }
 
     private void checkForLootWindow() {
@@ -886,6 +996,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
             previousRunSuppliesConsumed.clear();
             hasPreviousRunSnapshot = false;
             previousRunClaimed = false;
+            previousRunPrayerUsed = 0;
+            previousRunHpLost = 0;
+            previousRunHpRegained = 0;
+            previousRunSpecialAttackUses = 0;
+            previousRunVenomApplications = 0;
             historicalDataManager.loadDataForPlayer(playerKey);
             activeHistoricalPlayerKey = historicalDataManager.getActivePlayerKey();
 
@@ -1118,6 +1233,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
         previousRunSuppliesConsumed.clear();
         hasPreviousRunSnapshot = false;
         previousRunClaimed = false;
+        previousRunPrayerUsed = 0;
+        previousRunHpLost = 0;
+        previousRunHpRegained = 0;
+        previousRunSpecialAttackUses = 0;
+        previousRunVenomApplications = 0;
         previousLootSnapshot.clear();
         initialSupplySnapshot.clear();
         totalSuppliesConsumed.clear();
@@ -1535,6 +1655,18 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 previousLootSnapshot,
                 totalSuppliesConsumed,
                 initialSupplySnapshot);
+
+        // Performance metrics are per-run and should be reset when a run ends.
+        prayerUsed = 0;
+        hpLost = 0;
+        hpRegained = 0;
+        specialAttackUses = 0;
+        venomApplications = 0;
+        wasVenomedLastTick = false;
+        lastPrayerPoints = -1;
+        lastHitpoints = -1;
+        lastSpecialAttackEnergy = -1;
+        performanceDirty = false;
     }
 
     private void archiveCurrentRunSuppliesToHistorical() {
@@ -1664,6 +1796,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 previousRunData.items,
                 previousRunSuppliesData.currentSuppliesTotalValue,
                 previousRunSuppliesData.currentSuppliesData,
+                previousRunPrayerUsed,
+                previousRunHpLost,
+                previousRunHpRegained,
+                previousRunSpecialAttackUses,
+                previousRunVenomApplications,
                 previousRunData.itemsByWave,
                 previousRunData.totalsByWave,
                 previousRunData.haTotalsByWave);
@@ -1691,6 +1828,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         panel.updateSuppliesCurrentRun(panelData.currentSuppliesTotalValue, panelData.currentSuppliesData);
         panel.updateSuppliesTotal(panelData.historicalSuppliesTotalValue, panelData.historicalSuppliesData);
+
+        // Update performance section
+        if (config.showPerformancePanel()) {
+            panel.updatePerformance(prayerUsed, hpLost, hpRegained, specialAttackUses, venomApplications);
+        }
 
         // Force panel refresh after all updates
         panel.revalidate();
@@ -1922,6 +2064,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
         previousRunSuppliesConsumed.clear();
         hasPreviousRunSnapshot = true;
         previousRunClaimed = claimed;
+
+        previousRunPrayerUsed = prayerUsed;
+        previousRunHpLost = hpLost;
+        previousRunHpRegained = hpRegained;
+        previousRunSpecialAttackUses = specialAttackUses;
+        previousRunVenomApplications = venomApplications;
 
         for (Map.Entry<Integer, List<LootItem>> entry : lootByWave.entrySet()) {
             List<LootItem> copiedItems = new ArrayList<>();

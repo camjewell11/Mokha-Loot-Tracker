@@ -103,6 +103,12 @@ public class MokhaLootPanel extends PluginPanel {
     private JPanel previousRunContainer;
     private JPanel previousRunSuppliesPanel;
     private JPanel previousRunSuppliesSeparator;
+    private JPanel previousRunPerformanceSeparator;
+    private JLabel previousRunPrayerUsedLabel;
+    private JLabel previousRunHpLostLabel;
+    private JLabel previousRunHpRegainedLabel;
+    private JLabel previousRunSpecialAttacksUsedLabel;
+    private JLabel previousRunVenomApplicationsLabel;
     private JPanel previousRunWavesContainer;
     private JPanel previousRunCombinedPanel;
     private long previousRunGeTotal;
@@ -113,6 +119,11 @@ public class MokhaLootPanel extends PluginPanel {
     private Map<Integer, Map<String, ItemData>> previousRunItemsByWave = new TreeMap<>();
     private Map<Integer, Long> previousRunTotalsByWave = new TreeMap<>();
     private Map<Integer, Long> previousRunHaTotalsByWave = new TreeMap<>();
+    private int previousRunPrayerUsed;
+    private int previousRunHpLost;
+    private int previousRunHpRegained;
+    private int previousRunSpecialAttacksUsed;
+    private int previousRunVenomApplications;
     private Map<Integer, Boolean> previousRunWaveCollapsed = new HashMap<>();
     // 0 = expanded, 1 = collapsed, 2 = combined
     private int previousRunSectionState = 1; // Start collapsed
@@ -157,6 +168,17 @@ public class MokhaLootPanel extends PluginPanel {
     private JPanel suppliesTotalContainer; // Container for all supplies content
     private boolean suppliesTotalCollapsed = true; // Track collapse state
     private JLabel suppliesTotalHeaderLabel; // Collapsed view total label
+
+    // Performance section
+    private JPanel performanceContainer;
+    private boolean performanceCollapsed = false;
+    private JPanel performanceSectionPanel;
+    private JPanel performanceSeparatorPanel;
+    private JLabel performancePrayerUsedLabel;
+    private JLabel performanceHpLostLabel;
+    private JLabel performanceHpRegainedLabel;
+    private JLabel performanceSpecialAttacksUsedLabel;
+    private JLabel performanceVenomApplicationsLabel;
 
     private final JPanel statsPanel = new JPanel();
     private final Runnable onClearData;
@@ -380,6 +402,14 @@ public class MokhaLootPanel extends PluginPanel {
         // Supplies Used Current Run Section
         statsPanel.add(createSuppliesCurrentRunSection());
         statsPanel.add(createSeparator(5));
+
+        // Performance Section (config-gated)
+        performanceSectionPanel = createPerformanceSection();
+        performanceSeparatorPanel = createSeparator(5);
+        performanceSectionPanel.setVisible(config.showPerformancePanel());
+        performanceSeparatorPanel.setVisible(config.showPerformancePanel());
+        statsPanel.add(performanceSectionPanel);
+        statsPanel.add(performanceSeparatorPanel);
 
         // Previous Run Section
         statsPanel.add(createPreviousRunSection());
@@ -642,6 +672,39 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunSuppliesPanel.setLayout(new BoxLayout(previousRunSuppliesPanel, BoxLayout.Y_AXIS));
         previousRunSuppliesPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         previousRunContainer.add(previousRunSuppliesPanel);
+
+        previousRunPerformanceSeparator = createSeparator(2);
+        previousRunContainer.add(previousRunPerformanceSeparator);
+
+        JLabel previousRunPerformanceHeaderLabel = new JLabel("");
+        previousRunPerformanceHeaderLabel.setFont(FontManager.getRunescapeFont());
+        previousRunPerformanceHeaderLabel.setForeground(Color.WHITE);
+        previousRunContainer.add(createStatRow("Performance:", previousRunPerformanceHeaderLabel));
+
+        previousRunHpLostLabel = new JLabel("0");
+        previousRunHpLostLabel.setFont(FontManager.getRunescapeFont());
+        previousRunHpLostLabel.setForeground(new Color(200, 60, 60));
+        previousRunContainer.add(createStatRow("HP lost:", previousRunHpLostLabel));
+
+        previousRunPrayerUsedLabel = new JLabel("0");
+        previousRunPrayerUsedLabel.setFont(FontManager.getRunescapeFont());
+        previousRunPrayerUsedLabel.setForeground(new Color(80, 210, 190));
+        previousRunContainer.add(createStatRow("Prayer used:", previousRunPrayerUsedLabel));
+
+        previousRunSpecialAttacksUsedLabel = new JLabel("0");
+        previousRunSpecialAttacksUsedLabel.setFont(FontManager.getRunescapeFont());
+        previousRunSpecialAttacksUsedLabel.setForeground(new Color(80, 170, 255));
+        previousRunContainer.add(createStatRow("Special attacks used:", previousRunSpecialAttacksUsedLabel));
+
+        previousRunVenomApplicationsLabel = new JLabel("0");
+        previousRunVenomApplicationsLabel.setFont(FontManager.getRunescapeFont());
+        previousRunVenomApplicationsLabel.setForeground(new Color(0, 128, 0));
+        previousRunContainer.add(createStatRow("Times Venomed:", previousRunVenomApplicationsLabel));
+
+        previousRunHpRegainedLabel = new JLabel("0");
+        previousRunHpRegainedLabel.setFont(FontManager.getRunescapeFont());
+        previousRunHpRegainedLabel.setForeground(new Color(60, 180, 60));
+        previousRunContainer.add(createStatRow("HP regained:", previousRunHpRegainedLabel));
 
         previousRunCombinedPanel = new JPanel();
         previousRunCombinedPanel.setLayout(new BoxLayout(previousRunCombinedPanel, BoxLayout.Y_AXIS));
@@ -1229,6 +1292,101 @@ public class MokhaLootPanel extends PluginPanel {
         return panel;
     }
 
+    private JPanel createPerformanceSection() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        JButton collapseButton = new JButton(getArrowOrFallback("▾", "↓"));
+        collapseButton.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
+        collapseButton.setForeground(Color.WHITE);
+        collapseButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        collapseButton.setBorderPainted(false);
+        collapseButton.setFocusPainted(false);
+        collapseButton.setPreferredSize(new Dimension(18, 18));
+        collapseButton.setMaximumSize(new Dimension(18, 18));
+
+        JLabel title = new JLabel("Performance");
+        title.setFont(FontManager.getRunescapeBoldFont());
+        title.setForeground(Color.WHITE);
+
+        JPanel titleRow = new JPanel(new BorderLayout());
+        titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        titleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+        titleRow.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        titleRow.add(title, BorderLayout.WEST);
+        titleRow.add(collapseButton, BorderLayout.EAST);
+        panel.add(titleRow);
+
+        performanceContainer = new JPanel();
+        performanceContainer.setLayout(new BoxLayout(performanceContainer, BoxLayout.Y_AXIS));
+        performanceContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        performanceHpLostLabel = new JLabel("0");
+        performanceHpLostLabel.setFont(FontManager.getRunescapeFont());
+        performanceHpLostLabel.setForeground(new Color(200, 60, 60));
+        performanceContainer.add(createStatRow("HP lost:", performanceHpLostLabel));
+
+        performancePrayerUsedLabel = new JLabel("0");
+        performancePrayerUsedLabel.setFont(FontManager.getRunescapeFont());
+        performancePrayerUsedLabel.setForeground(new Color(80, 210, 190));
+        performanceContainer.add(createStatRow("Prayer used:", performancePrayerUsedLabel));
+
+        performanceSpecialAttacksUsedLabel = new JLabel("0");
+        performanceSpecialAttacksUsedLabel.setFont(FontManager.getRunescapeFont());
+        performanceSpecialAttacksUsedLabel.setForeground(new Color(80, 170, 255));
+        performanceContainer.add(createStatRow("Special attacks used:", performanceSpecialAttacksUsedLabel));
+
+        performanceVenomApplicationsLabel = new JLabel("0");
+        performanceVenomApplicationsLabel.setFont(FontManager.getRunescapeFont());
+        performanceVenomApplicationsLabel.setForeground(new Color(0, 128, 0));
+        performanceContainer.add(createStatRow("Times Venomed:", performanceVenomApplicationsLabel));
+
+        performanceHpRegainedLabel = new JLabel("0");
+        performanceHpRegainedLabel.setFont(FontManager.getRunescapeFont());
+        performanceHpRegainedLabel.setForeground(new Color(60, 180, 60));
+        performanceContainer.add(createStatRow("HP regained:", performanceHpRegainedLabel));
+
+        panel.add(performanceContainer);
+
+        collapseButton.addActionListener(e -> {
+            performanceCollapsed = !performanceCollapsed;
+            performanceContainer.setVisible(!performanceCollapsed);
+            collapseButton.setText(getArrowOrFallback(performanceCollapsed ? "▸" : "▾",
+                    performanceCollapsed ? "→" : "↓"));
+            panel.revalidate();
+            panel.repaint();
+        });
+
+        return panel;
+    }
+
+    void updatePerformance(int prayerUsed, int hpLost, int hpRegained, int specialAttacksUsed, int venomApplications) {
+        SwingUtilities.invokeLater(() -> {
+            if (performancePrayerUsedLabel != null)
+                performancePrayerUsedLabel.setText(String.valueOf(prayerUsed));
+            if (performanceHpLostLabel != null)
+                performanceHpLostLabel.setText(String.valueOf(hpLost));
+            if (performanceHpRegainedLabel != null)
+                performanceHpRegainedLabel.setText(String.valueOf(hpRegained));
+            if (performanceSpecialAttacksUsedLabel != null)
+                performanceSpecialAttacksUsedLabel.setText(String.valueOf(specialAttacksUsed));
+            if (performanceVenomApplicationsLabel != null)
+                performanceVenomApplicationsLabel.setText(String.valueOf(venomApplications));
+        });
+    }
+
+    void setPerformanceSectionVisible(boolean visible) {
+        SwingUtilities.invokeLater(() -> {
+            if (performanceSectionPanel != null)
+                performanceSectionPanel.setVisible(visible);
+            if (performanceSeparatorPanel != null)
+                performanceSeparatorPanel.setVisible(visible);
+            statsPanel.revalidate();
+            statsPanel.repaint();
+        });
+    }
+
     private JPanel createStatRow(String label, JLabel valueLabel) {
         JPanel row = new JPanel(new BorderLayout());
         row.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -1428,6 +1586,11 @@ public class MokhaLootPanel extends PluginPanel {
             Map<String, ItemData> itemData,
             long suppliesTotalValue,
             Map<String, ItemData> suppliesItemData,
+            int prayerUsed,
+            int hpLost,
+            int hpRegained,
+            int specialAttacksUsed,
+            int venomApplications,
             Map<Integer, Map<String, ItemData>> itemsByWave,
             Map<Integer, Long> totalsByWave,
             Map<Integer, Long> haTotalsByWave) {
@@ -1437,6 +1600,11 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunItemData = itemData != null ? new HashMap<>(itemData) : new HashMap<>();
         previousRunSuppliesTotal = suppliesTotalValue;
         previousRunSuppliesItemData = suppliesItemData != null ? new HashMap<>(suppliesItemData) : new HashMap<>();
+        previousRunPrayerUsed = prayerUsed;
+        previousRunHpLost = hpLost;
+        previousRunHpRegained = hpRegained;
+        previousRunSpecialAttacksUsed = specialAttacksUsed;
+        previousRunVenomApplications = venomApplications;
         previousRunItemsByWave = itemsByWave != null ? new TreeMap<>(itemsByWave) : new TreeMap<>();
         previousRunTotalsByWave = totalsByWave != null ? new TreeMap<>(totalsByWave) : new TreeMap<>();
         previousRunHaTotalsByWave = haTotalsByWave != null ? new TreeMap<>(haTotalsByWave) : new TreeMap<>();
@@ -2006,6 +2174,11 @@ public class MokhaLootPanel extends PluginPanel {
                 : null);
         previousRunSuppliesValueLabel.setText(formatGp(previousRunSuppliesTotal));
         updateSuppliesPanel(previousRunSuppliesPanel, previousRunSuppliesItemData, false, false);
+        previousRunPrayerUsedLabel.setText(String.valueOf(previousRunPrayerUsed));
+        previousRunHpLostLabel.setText(String.valueOf(previousRunHpLost));
+        previousRunHpRegainedLabel.setText(String.valueOf(previousRunHpRegained));
+        previousRunSpecialAttacksUsedLabel.setText(String.valueOf(previousRunSpecialAttacksUsed));
+        previousRunVenomApplicationsLabel.setText(String.valueOf(previousRunVenomApplications));
 
         previousRunWavesContainer.removeAll();
 
@@ -2103,6 +2276,38 @@ public class MokhaLootPanel extends PluginPanel {
         combinedSuppliesItemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         previousRunCombinedPanel.add(combinedSuppliesItemsPanel);
         updateSuppliesPanel(combinedSuppliesItemsPanel, previousRunSuppliesItemData, false, false);
+
+        previousRunCombinedPanel.add(createSeparator(2));
+
+        JLabel combinedPerformanceHeaderLabel = new JLabel("");
+        combinedPerformanceHeaderLabel.setFont(FontManager.getRunescapeFont());
+        combinedPerformanceHeaderLabel.setForeground(Color.WHITE);
+        previousRunCombinedPanel.add(createStatRow("Performance:", combinedPerformanceHeaderLabel));
+
+        JLabel combinedHpLostLabel = new JLabel(String.valueOf(previousRunHpLost));
+        combinedHpLostLabel.setFont(FontManager.getRunescapeFont());
+        combinedHpLostLabel.setForeground(new Color(200, 60, 60));
+        previousRunCombinedPanel.add(createStatRow("HP lost:", combinedHpLostLabel));
+
+        JLabel combinedPrayerUsedLabel = new JLabel(String.valueOf(previousRunPrayerUsed));
+        combinedPrayerUsedLabel.setFont(FontManager.getRunescapeFont());
+        combinedPrayerUsedLabel.setForeground(new Color(80, 210, 190));
+        previousRunCombinedPanel.add(createStatRow("Prayer used:", combinedPrayerUsedLabel));
+
+        JLabel combinedSpecialAttacksUsedLabel = new JLabel(String.valueOf(previousRunSpecialAttacksUsed));
+        combinedSpecialAttacksUsedLabel.setFont(FontManager.getRunescapeFont());
+        combinedSpecialAttacksUsedLabel.setForeground(new Color(80, 170, 255));
+        previousRunCombinedPanel.add(createStatRow("Special attacks used:", combinedSpecialAttacksUsedLabel));
+
+        JLabel combinedVenomAppliedLabel = new JLabel(String.valueOf(previousRunVenomApplications));
+        combinedVenomAppliedLabel.setFont(FontManager.getRunescapeFont());
+        combinedVenomAppliedLabel.setForeground(new Color(0, 128, 0));
+        previousRunCombinedPanel.add(createStatRow("Times Venomed:", combinedVenomAppliedLabel));
+
+        JLabel combinedHpRegainedLabel = new JLabel(String.valueOf(previousRunHpRegained));
+        combinedHpRegainedLabel.setFont(FontManager.getRunescapeFont());
+        combinedHpRegainedLabel.setForeground(new Color(60, 180, 60));
+        previousRunCombinedPanel.add(createStatRow("HP regained:", combinedHpRegainedLabel));
     }
 
     private JPanel createPreviousRunWavePanel(int wave, Map<String, ItemData> itemData, long totalValue,

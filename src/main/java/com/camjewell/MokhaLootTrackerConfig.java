@@ -47,6 +47,11 @@ public interface MokhaLootTrackerConfig extends Config {
 		return false;
 	}
 
+	@ConfigItem(keyName = "showPerformancePanel", name = "Show Performance Panel", description = "Show the Performance section in the panel (tracks prayer used, HP lost/regained, special attacks used, and times venomed during a run)", position = 24)
+	default boolean showPerformancePanel() {
+		return false;
+	}
+
 	// Internal persistence properties (not exposed in settings UI)
 	// These use direct ConfigManager access, not @ConfigItem
 
