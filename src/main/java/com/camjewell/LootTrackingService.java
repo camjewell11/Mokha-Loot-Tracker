@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.widgets.Widget;
+import net.runelite.client.Notifier;
 import net.runelite.client.game.ItemManager;
 
 class LootTrackingService {
@@ -22,6 +23,7 @@ class LootTrackingService {
     private final ItemManager itemManager;
     private final MokhaLootTrackerConfig config;
     private final Logger log;
+    private final Notifier notifier;
     private final Map<Integer, Integer> previousLootSnapshot;
 
     private boolean lootWindowWasVisible = false;
@@ -67,11 +69,13 @@ class LootTrackingService {
             ItemManager itemManager,
             MokhaLootTrackerConfig config,
             Logger log,
+            Notifier notifier,
             Map<Integer, Integer> previousLootSnapshot) {
         this.client = client;
         this.itemManager = itemManager;
         this.config = config;
         this.log = log;
+        this.notifier = notifier;
         this.previousLootSnapshot = previousLootSnapshot;
     }
 
@@ -208,7 +212,7 @@ class LootTrackingService {
                 String message = String.format("[Mokha Tracker] Loot alert: %s x%d (>= %d)", rule.name, qty,
                         rule.minQty);
                 client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", message, null);
-                client.playSoundEffect(4039);
+                notifier.notify(message);
             }
         }
     }

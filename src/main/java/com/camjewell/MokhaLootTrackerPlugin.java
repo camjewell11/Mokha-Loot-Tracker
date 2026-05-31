@@ -37,6 +37,7 @@ import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.StatChanged;
 import net.runelite.api.widgets.Widget;
+import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -111,6 +112,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     @Inject
     private ConfigManager configManager;
+
+    @Inject
+    private Notifier notifier;
+
     private NavigationButton navButton;
     private MokhaLootPanel panel;
     private HistoricalDataManager historicalDataManager;
@@ -284,7 +289,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         historicalDataManager = new HistoricalDataManager(net.runelite.client.RuneLite.RUNELITE_DIR, gson);
         supplyTrackingService = new SupplyTrackingService(client, itemManager, configManager, gson, log,
                 lastCombinedSnapshot, lastWeaponAmmoSnapshot, totalSuppliesConsumed, this::updateSuppliesPanelData);
-        lootTrackingService = new LootTrackingService(client, itemManager, config, log, previousLootSnapshot);
+        lootTrackingService = new LootTrackingService(client, itemManager, config, log, notifier,
+                previousLootSnapshot);
         arenaStateService = new ArenaStateService();
         historicalRunService = new HistoricalRunService();
         valueCalculationService = new ValueCalculationService();
