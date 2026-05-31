@@ -1284,18 +1284,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private int getItemHighAlchPrice(int itemId) {
-        try {
-            Object composition = itemManager.getItemComposition(itemId);
-            java.lang.reflect.Method method = composition.getClass().getMethod("getHaPrice");
-            Object result = method.invoke(composition);
-            if (result instanceof Number) {
-                return Math.max(0, ((Number) result).intValue());
-            }
-        } catch (ReflectiveOperationException | SecurityException ignored) {
-            // Fallback when HA is unavailable in the active API/runtime.
-        }
-
-        return 0;
+        return Math.max(0, itemManager.getItemComposition(itemId).getHaPrice());
     }
 
     @SuppressWarnings("deprecation")
