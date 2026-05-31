@@ -8,8 +8,6 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +32,11 @@ public class MokhaLootPanel extends PluginPanel {
     private static final int ACTION_BUTTON_HEIGHT = 30;
     private static final int ULTRA_VALUABLE_THRESHOLD = 20_000_000;
     private static final Color UNIQUE_GOLD_COLOR = new Color(218, 165, 32);
+    private static final Color HP_LOST_COLOR = new Color(200, 60, 60);
+    private static final Color PRAYER_USED_COLOR = new Color(80, 210, 190);
+    private static final Color SPECIAL_ATTACKS_COLOR = new Color(80, 170, 255);
+    private static final Color VENOM_COLOR = new Color(0, 128, 0);
+    private static final Color HP_REGAINED_COLOR = new Color(60, 180, 60);
 
     /**
      * Represents item data for display (name, quantity, price per item, total
@@ -681,29 +684,19 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunPerformanceHeaderLabel.setForeground(Color.WHITE);
         previousRunContainer.add(createStatRow("Performance:", previousRunPerformanceHeaderLabel));
 
-        previousRunHpLostLabel = new JLabel("0");
-        previousRunHpLostLabel.setFont(FontManager.getRunescapeFont());
-        previousRunHpLostLabel.setForeground(new Color(200, 60, 60));
+        previousRunHpLostLabel = createPerformanceMetricValueLabel(HP_LOST_COLOR);
         previousRunContainer.add(createStatRow("HP lost:", previousRunHpLostLabel));
 
-        previousRunPrayerUsedLabel = new JLabel("0");
-        previousRunPrayerUsedLabel.setFont(FontManager.getRunescapeFont());
-        previousRunPrayerUsedLabel.setForeground(new Color(80, 210, 190));
+        previousRunPrayerUsedLabel = createPerformanceMetricValueLabel(PRAYER_USED_COLOR);
         previousRunContainer.add(createStatRow("Prayer used:", previousRunPrayerUsedLabel));
 
-        previousRunSpecialAttacksUsedLabel = new JLabel("0");
-        previousRunSpecialAttacksUsedLabel.setFont(FontManager.getRunescapeFont());
-        previousRunSpecialAttacksUsedLabel.setForeground(new Color(80, 170, 255));
+        previousRunSpecialAttacksUsedLabel = createPerformanceMetricValueLabel(SPECIAL_ATTACKS_COLOR);
         previousRunContainer.add(createStatRow("Special attacks used:", previousRunSpecialAttacksUsedLabel));
 
-        previousRunVenomApplicationsLabel = new JLabel("0");
-        previousRunVenomApplicationsLabel.setFont(FontManager.getRunescapeFont());
-        previousRunVenomApplicationsLabel.setForeground(new Color(0, 128, 0));
+        previousRunVenomApplicationsLabel = createPerformanceMetricValueLabel(VENOM_COLOR);
         previousRunContainer.add(createStatRow("Times Venomed:", previousRunVenomApplicationsLabel));
 
-        previousRunHpRegainedLabel = new JLabel("0");
-        previousRunHpRegainedLabel.setFont(FontManager.getRunescapeFont());
-        previousRunHpRegainedLabel.setForeground(new Color(60, 180, 60));
+        previousRunHpRegainedLabel = createPerformanceMetricValueLabel(HP_REGAINED_COLOR);
         previousRunContainer.add(createStatRow("HP regained:", previousRunHpRegainedLabel));
 
         previousRunCombinedPanel = new JPanel();
@@ -939,104 +932,19 @@ public class MokhaLootPanel extends PluginPanel {
      * This does not change how data is stored, only how it is shown.
      */
     private void populateClaimedCombinedPanel() {
-        claimedCombinedPanel.removeAll();
-        Map<String, MokhaLootTrackerPlugin.ItemAggregate> combined = new HashMap<>();
-        long totalValue = 0;
-        long totalHaValue = 0;
-        if (historicalClaimedItemsByWave != null) {
-            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> claimedSnapshot = new HashMap<>(
-                    historicalClaimedItemsByWave);
-            for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : claimedSnapshot
-                    .entrySet()) {
-                Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveMap = waveEntry.getValue();
-                if (waveMap != null) {
-                    for (Map.Entry<String, MokhaLootTrackerPlugin.ItemAggregate> itemEntry : new HashMap<>(waveMap)
-                            .entrySet()) {
-                        MokhaLootTrackerPlugin.ItemAggregate agg = itemEntry.getValue();
-                        if (agg == null)
-                            continue;
-                        MokhaLootTrackerPlugin.ItemAggregate existing = combined.get(agg.name);
-                        if (existing == null) {
-                            combined.put(agg.name,
-                                    new MokhaLootTrackerPlugin.ItemAggregate(agg.name, agg.totalQuantity,
-                                            agg.pricePerItem, agg.haPricePerItem));
-                            combined.get(agg.name).totalValue = agg.totalValue;
-                            combined.get(agg.name).totalHaValue = agg.totalHaValue;
-                        } else {
-                            existing.totalQuantity += agg.totalQuantity;
-                            existing.totalValue += agg.totalValue;
-                            existing.totalHaValue += agg.totalHaValue;
-                            existing.haPricePerItem = agg.haPricePerItem;
-                        }
-                        totalValue += agg.totalValue;
-                        totalHaValue += agg.totalHaValue;
-                    }
-                }
-            }
-        }
-        for (MokhaLootTrackerPlugin.ItemAggregate agg : sortAggregatesForDisplay(combined.values())) {
-            JPanel itemRow = new JPanel(new java.awt.BorderLayout());
-            itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-            itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-            itemRow.setBorder(new EmptyBorder(2, 5, 2, 0));
-            String left = "- " + agg.name + " x" + agg.totalQuantity;
-            JLabel itemLabel = new JLabel(left);
-            // Color gold if value > 20m or if item is Dom
-            Color itemColor = (agg.pricePerItem > 20_000_000 || "Dom".equalsIgnoreCase(agg.name))
-                    ? new Color(218, 165, 32)
-                    : ColorScheme.LIGHT_GRAY_COLOR;
-            itemLabel.setForeground(itemColor);
-            itemLabel.setFont(FontManager.getRunescapeSmallFont());
-            String pricePerItemText = formatPricePerItemTooltip(agg.pricePerItem, agg.haPricePerItem,
-                    displayHaValueOnHover);
-            itemRow.setToolTipText("Price per item: " + pricePerItemText);
-            itemRow.add(itemLabel, java.awt.BorderLayout.WEST);
-            JLabel itemValueLabel = new JLabel(formatGp(agg.totalValue));
-            itemValueLabel.setForeground(itemColor);
-            itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
-            itemRow.add(itemValueLabel, java.awt.BorderLayout.EAST);
-
-            if (config.enableHistoricalEdit() && onRemoveClaimedHistoricalItemAllWaves != null) {
-                addHistoricalRemovalInteraction(itemRow, agg.name, "claimed historical loot (all waves)",
-                        () -> onRemoveClaimedHistoricalItemAllWaves.accept(agg.name));
-            }
-            claimedCombinedPanel.add(itemRow);
-        }
-        claimedCombinedPanel.add(Box.createVerticalStrut(8));
-        if (!displayHaValueOnHover) {
-            JLabel totalLabel = new JLabel("Total: " + formatGp(totalValue));
-            totalLabel.setFont(FontManager.getRunescapeBoldFont());
-            totalLabel.setForeground(new Color(0, 200, 0));
-            claimedCombinedPanel.add(totalLabel);
-        } else {
-            JPanel totalRow = new JPanel(new BorderLayout());
-            totalRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-            totalRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-
-            JLabel totalText = new JLabel("Total:");
-            totalText.setFont(FontManager.getRunescapeFont());
-            totalText.setForeground(Color.LIGHT_GRAY);
-            totalRow.add(totalText, BorderLayout.WEST);
-
-            JPanel valuesPanel = new JPanel();
-            valuesPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-            valuesPanel.setLayout(new BoxLayout(valuesPanel, BoxLayout.X_AXIS));
-
-            JLabel geTotalLabel = new JLabel("GE: " + formatGp(totalValue));
-            geTotalLabel.setFont(FontManager.getRunescapeFont());
-            geTotalLabel.setForeground(Color.WHITE);
-
-            JLabel haTotalLabel = new JLabel(" | HA: " + formatGp(totalHaValue));
-            haTotalLabel.setFont(FontManager.getRunescapeFont());
-            haTotalLabel.setForeground(new Color(0, 200, 0));
-
-            valuesPanel.add(geTotalLabel);
-            valuesPanel.add(haTotalLabel);
-            totalRow.add(valuesPanel, BorderLayout.EAST);
-            claimedCombinedPanel.add(totalRow);
-        }
-        claimedCombinedPanel.revalidate();
-        claimedCombinedPanel.repaint();
+        LootPanelCombinedSectionRenderer.renderCombinedWaveItems(
+                claimedCombinedPanel,
+                historicalClaimedItemsByWave,
+                config.displaySortMode(),
+                displayHaValueOnHover,
+                true,
+                new Color(0, 200, 0),
+                config.enableHistoricalEdit() && onRemoveClaimedHistoricalItemAllWaves != null,
+                (itemRow, itemName) -> addHistoricalRemovalInteraction(
+                        itemRow,
+                        itemName,
+                        "claimed historical loot (all waves)",
+                        () -> onRemoveClaimedHistoricalItemAllWaves.accept(itemName)));
     }
 
     /**
@@ -1044,103 +952,19 @@ public class MokhaLootPanel extends PluginPanel {
      * This does not change how data is stored, only how it is shown.
      */
     private void populateUnclaimedCombinedPanel() {
-        unclaimedCombinedPanel.removeAll();
-        Map<String, MokhaLootTrackerPlugin.ItemAggregate> combined = new HashMap<>();
-        long totalValue = 0;
-        long totalHaValue = 0;
-        if (historicalUnclaimedItemsByWave != null) {
-            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> unclaimedSnapshot = new HashMap<>(
-                    historicalUnclaimedItemsByWave);
-            for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : unclaimedSnapshot
-                    .entrySet()) {
-                Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveMap = waveEntry.getValue();
-                if (waveMap != null) {
-                    for (Map.Entry<String, MokhaLootTrackerPlugin.ItemAggregate> itemEntry : new HashMap<>(waveMap)
-                            .entrySet()) {
-                        MokhaLootTrackerPlugin.ItemAggregate agg = itemEntry.getValue();
-                        if (agg == null)
-                            continue;
-                        MokhaLootTrackerPlugin.ItemAggregate existing = combined.get(agg.name);
-                        if (existing == null) {
-                            combined.put(agg.name,
-                                    new MokhaLootTrackerPlugin.ItemAggregate(agg.name, agg.totalQuantity,
-                                            agg.pricePerItem, agg.haPricePerItem));
-                            combined.get(agg.name).totalValue = agg.totalValue;
-                            combined.get(agg.name).totalHaValue = agg.totalHaValue;
-                        } else {
-                            existing.totalQuantity += agg.totalQuantity;
-                            existing.totalValue += agg.totalValue;
-                            existing.totalHaValue += agg.totalHaValue;
-                            existing.haPricePerItem = agg.haPricePerItem;
-                        }
-                        totalValue += agg.totalValue;
-                        totalHaValue += agg.totalHaValue;
-                    }
-                }
-            }
-        }
-        for (MokhaLootTrackerPlugin.ItemAggregate agg : sortAggregatesForDisplay(combined.values())) {
-            JPanel itemRow = new JPanel(new java.awt.BorderLayout());
-            itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-            itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-            itemRow.setBorder(new EmptyBorder(2, 5, 2, 0));
-            String left = "- " + agg.name + " x" + agg.totalQuantity;
-            JLabel itemLabel = new JLabel(left);
-            Color itemColor = (agg.totalValue > 20_000_000 || "Dom".equalsIgnoreCase(agg.name))
-                    ? new Color(218, 165, 32)
-                    : ColorScheme.LIGHT_GRAY_COLOR;
-            itemLabel.setForeground(itemColor);
-            itemLabel.setFont(FontManager.getRunescapeSmallFont());
-            String pricePerItemText = formatPricePerItemTooltip(agg.pricePerItem, agg.haPricePerItem,
-                    displayHaValueOnHover);
-            itemRow.setToolTipText("Price per item: " + pricePerItemText);
-            itemRow.add(itemLabel, java.awt.BorderLayout.WEST);
-            JLabel itemValueLabel = new JLabel(formatGp(agg.totalValue));
-            itemValueLabel.setForeground(itemColor);
-            itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
-            itemRow.add(itemValueLabel, java.awt.BorderLayout.EAST);
-
-            if (config.enableHistoricalEdit() && onRemoveUnclaimedHistoricalItemAllWaves != null) {
-                addHistoricalRemovalInteraction(itemRow, agg.name, "unclaimed historical loot (all waves)",
-                        () -> onRemoveUnclaimedHistoricalItemAllWaves.accept(agg.name));
-            }
-            unclaimedCombinedPanel.add(itemRow);
-        }
-        unclaimedCombinedPanel.add(Box.createVerticalStrut(8));
-        if (!displayHaValueOnHover) {
-            JLabel totalLabel = new JLabel("Total: " + formatGp(totalValue));
-            totalLabel.setFont(FontManager.getRunescapeBoldFont());
-            totalLabel.setForeground(new Color(200, 0, 0));
-            unclaimedCombinedPanel.add(totalLabel);
-        } else {
-            JPanel totalRow = new JPanel(new BorderLayout());
-            totalRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-            totalRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-
-            JLabel totalText = new JLabel("Total:");
-            totalText.setFont(FontManager.getRunescapeFont());
-            totalText.setForeground(Color.LIGHT_GRAY);
-            totalRow.add(totalText, BorderLayout.WEST);
-
-            JPanel valuesPanel = new JPanel();
-            valuesPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-            valuesPanel.setLayout(new BoxLayout(valuesPanel, BoxLayout.X_AXIS));
-
-            JLabel geTotalLabel = new JLabel("GE: " + formatGp(totalValue));
-            geTotalLabel.setFont(FontManager.getRunescapeFont());
-            geTotalLabel.setForeground(Color.WHITE);
-
-            JLabel haTotalLabel = new JLabel(" | HA: " + formatGp(totalHaValue));
-            haTotalLabel.setFont(FontManager.getRunescapeFont());
-            haTotalLabel.setForeground(new Color(0, 200, 0));
-
-            valuesPanel.add(geTotalLabel);
-            valuesPanel.add(haTotalLabel);
-            totalRow.add(valuesPanel, BorderLayout.EAST);
-            unclaimedCombinedPanel.add(totalRow);
-        }
-        unclaimedCombinedPanel.revalidate();
-        unclaimedCombinedPanel.repaint();
+        LootPanelCombinedSectionRenderer.renderCombinedWaveItems(
+                unclaimedCombinedPanel,
+                historicalUnclaimedItemsByWave,
+                config.displaySortMode(),
+                displayHaValueOnHover,
+                false,
+                new Color(200, 0, 0),
+                config.enableHistoricalEdit() && onRemoveUnclaimedHistoricalItemAllWaves != null,
+                (itemRow, itemName) -> addHistoricalRemovalInteraction(
+                        itemRow,
+                        itemName,
+                        "unclaimed historical loot (all waves)",
+                        () -> onRemoveUnclaimedHistoricalItemAllWaves.accept(itemName)));
     }
 
     private void setUnclaimedCollapseButtonText(String text) {
@@ -1322,29 +1146,19 @@ public class MokhaLootPanel extends PluginPanel {
         performanceContainer.setLayout(new BoxLayout(performanceContainer, BoxLayout.Y_AXIS));
         performanceContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-        performanceHpLostLabel = new JLabel("0");
-        performanceHpLostLabel.setFont(FontManager.getRunescapeFont());
-        performanceHpLostLabel.setForeground(new Color(200, 60, 60));
+        performanceHpLostLabel = createPerformanceMetricValueLabel(HP_LOST_COLOR);
         performanceContainer.add(createStatRow("HP lost:", performanceHpLostLabel));
 
-        performancePrayerUsedLabel = new JLabel("0");
-        performancePrayerUsedLabel.setFont(FontManager.getRunescapeFont());
-        performancePrayerUsedLabel.setForeground(new Color(80, 210, 190));
+        performancePrayerUsedLabel = createPerformanceMetricValueLabel(PRAYER_USED_COLOR);
         performanceContainer.add(createStatRow("Prayer used:", performancePrayerUsedLabel));
 
-        performanceSpecialAttacksUsedLabel = new JLabel("0");
-        performanceSpecialAttacksUsedLabel.setFont(FontManager.getRunescapeFont());
-        performanceSpecialAttacksUsedLabel.setForeground(new Color(80, 170, 255));
+        performanceSpecialAttacksUsedLabel = createPerformanceMetricValueLabel(SPECIAL_ATTACKS_COLOR);
         performanceContainer.add(createStatRow("Special attacks used:", performanceSpecialAttacksUsedLabel));
 
-        performanceVenomApplicationsLabel = new JLabel("0");
-        performanceVenomApplicationsLabel.setFont(FontManager.getRunescapeFont());
-        performanceVenomApplicationsLabel.setForeground(new Color(0, 128, 0));
+        performanceVenomApplicationsLabel = createPerformanceMetricValueLabel(VENOM_COLOR);
         performanceContainer.add(createStatRow("Times Venomed:", performanceVenomApplicationsLabel));
 
-        performanceHpRegainedLabel = new JLabel("0");
-        performanceHpRegainedLabel.setFont(FontManager.getRunescapeFont());
-        performanceHpRegainedLabel.setForeground(new Color(60, 180, 60));
+        performanceHpRegainedLabel = createPerformanceMetricValueLabel(HP_REGAINED_COLOR);
         performanceContainer.add(createStatRow("HP regained:", performanceHpRegainedLabel));
 
         panel.add(performanceContainer);
@@ -1401,6 +1215,13 @@ public class MokhaLootPanel extends PluginPanel {
         row.add(valueLabel, BorderLayout.EAST);
 
         return row;
+    }
+
+    private JLabel createPerformanceMetricValueLabel(Color color) {
+        JLabel label = new JLabel("0");
+        label.setFont(FontManager.getRunescapeFont());
+        label.setForeground(color);
+        return label;
     }
 
     private JPanel createWavePanel(String waveTitle, JLabel[] valueLabels, JPanel[] itemPanels,
@@ -1576,9 +1397,7 @@ public class MokhaLootPanel extends PluginPanel {
         }
 
         potentialValueLabel.setText(formatTotalWithOptionalHa(currentRunGeTotal, currentRunHaTotal));
-        potentialValueLabel.setToolTipText(displayHaValueOnHover
-                ? formatGeHaTotalText(currentRunGeTotal, currentRunHaTotal)
-                : null);
+        potentialValueLabel.setToolTipText(formatGeHaTotalText(currentRunGeTotal, currentRunHaTotal));
         renderCurrentRunWaveBreakdown();
     }
 
@@ -1717,13 +1536,9 @@ public class MokhaLootPanel extends PluginPanel {
     public void setDisplayHaValueOnHover(boolean displayHaValueOnHover) {
         this.displayHaValueOnHover = displayHaValueOnHover;
         potentialValueLabel.setText(formatTotalWithOptionalHa(currentRunGeTotal, currentRunHaTotal));
-        potentialValueLabel.setToolTipText(displayHaValueOnHover
-                ? formatGeHaTotalText(currentRunGeTotal, currentRunHaTotal)
-                : null);
+        potentialValueLabel.setToolTipText(formatGeHaTotalText(currentRunGeTotal, currentRunHaTotal));
         previousRunValueLabel.setText(formatTotalWithOptionalHa(previousRunGeTotal, previousRunHaTotal));
-        previousRunValueLabel.setToolTipText(displayHaValueOnHover
-                ? formatGeHaTotalText(previousRunGeTotal, previousRunHaTotal)
-                : null);
+        previousRunValueLabel.setToolTipText(formatGeHaTotalText(previousRunGeTotal, previousRunHaTotal));
 
         renderCurrentRunWaveBreakdown();
         renderPreviousRunSection();
@@ -1752,9 +1567,8 @@ public class MokhaLootPanel extends PluginPanel {
         for (long haTotal : claimedWaveHaTotals) {
             claimedSectionHaTotal += haTotal;
         }
-        claimedSectionTotalLabel.setToolTipText(displayHaValueOnHover
-                ? formatGeHaTotalText(totalClaimedLabel.getText(), formatGp(claimedSectionHaTotal))
-                : null);
+        claimedSectionTotalLabel.setToolTipText(
+                formatGeHaTotalText(totalClaimedLabel.getText(), formatGp(claimedSectionHaTotal)));
         refreshSummaryHaTooltips();
     }
 
@@ -1768,20 +1582,12 @@ public class MokhaLootPanel extends PluginPanel {
         for (long haTotal : unclaimedWaveHaTotals) {
             unclaimedSectionHaTotal += haTotal;
         }
-        unclaimedSectionTotalLabel.setToolTipText(displayHaValueOnHover
-                ? formatGeHaTotalText(totalUnclaimedLabel.getText(), formatGp(unclaimedSectionHaTotal))
-                : null);
+        unclaimedSectionTotalLabel.setToolTipText(
+                formatGeHaTotalText(totalUnclaimedLabel.getText(), formatGp(unclaimedSectionHaTotal)));
         refreshSummaryHaTooltips();
     }
 
     private void refreshSummaryHaTooltips() {
-        if (!displayHaValueOnHover) {
-            totalClaimedLabel.setToolTipText(null);
-            totalUnclaimedLabel.setToolTipText(null);
-            profitLossLabel.setToolTipText(null);
-            return;
-        }
-
         totalClaimedLabel.setToolTipText(formatGeHaTotalText(summaryTotalClaimedGe, claimedSectionHaTotal));
         totalUnclaimedLabel.setToolTipText(formatGeHaTotalText(summaryTotalUnclaimedGe, unclaimedSectionHaTotal));
 
@@ -1931,9 +1737,7 @@ public class MokhaLootPanel extends PluginPanel {
                 unclaimedWaveHaTotals[index] = totalHaValue;
             }
         }
-        valueLabel.setToolTipText(displayHaValueOnHover
-                ? formatGeHaTotalText(totalValue, totalHaValue)
-                : null);
+        valueLabel.setToolTipText(formatGeHaTotalText(totalValue, totalHaValue));
 
         for (ItemData item : sortItemDataForDisplay(itemData.values())) {
             String pricePerItemText = formatPricePerItemTooltip(item.pricePerItem, item.haPricePerItem,
@@ -1957,6 +1761,7 @@ public class MokhaLootPanel extends PluginPanel {
             JLabel itemValueLabel = new JLabel(formatGp(item.totalValue));
             itemValueLabel.setForeground(itemColor);
             itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
+            itemValueLabel.setToolTipText(formatGeHaTotalText(item.totalValue, resolveItemTotalHaValue(item)));
             itemRow.add(itemValueLabel, BorderLayout.EAST);
 
             if (config.enableHistoricalEdit()) {
@@ -2015,6 +1820,7 @@ public class MokhaLootPanel extends PluginPanel {
             JLabel itemValueLabel = new JLabel(formatGp(item.totalValue));
             itemValueLabel.setForeground(itemColor);
             itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
+            itemValueLabel.setToolTipText(formatGeHaTotalText(item.totalValue, resolveItemTotalHaValue(item)));
             itemRow.add(itemValueLabel, BorderLayout.EAST);
 
             if (isHistorical && config.enableHistoricalEdit() && onRemoveHistoricalSupplyItem != null) {
@@ -2059,9 +1865,7 @@ public class MokhaLootPanel extends PluginPanel {
             JLabel itemValueLabel = new JLabel(formatGp(item.totalValue));
             itemValueLabel.setForeground(itemColor);
             itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
-            itemValueLabel.setToolTipText(displayHaValueOnHover
-                    ? formatGeHaTotalText(item.totalValue, item.totalHaValue)
-                    : null);
+            itemValueLabel.setToolTipText(formatGeHaTotalText(item.totalValue, resolveItemTotalHaValue(item)));
             itemRow.add(itemValueLabel, BorderLayout.EAST);
 
             targetPanel.add(itemRow);
@@ -2114,9 +1918,7 @@ public class MokhaLootPanel extends PluginPanel {
         JLabel valueLabel = new JLabel(formatGp(totalValue));
         valueLabel.setFont(FontManager.getRunescapeFont());
         valueLabel.setForeground(Color.WHITE);
-        valueLabel.setToolTipText(displayHaValueOnHover
-                ? formatGeHaTotalText(totalValue, totalHaValue)
-                : null);
+        valueLabel.setToolTipText(formatGeHaTotalText(totalValue, totalHaValue));
 
         JButton collapseButton = new JButton(getArrowOrFallback(collapsed ? "▸" : "▾", collapsed ? "→" : "↓"));
         collapseButton.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
@@ -2164,21 +1966,13 @@ public class MokhaLootPanel extends PluginPanel {
     private void renderPreviousRunSection() {
         previousRunSectionTotalLabel.setVisible(previousRunSectionState == 1);
         previousRunSectionTotalLabel.setText(formatGp(previousRunGeTotal));
-        previousRunSectionTotalLabel.setToolTipText(displayHaValueOnHover
-                ? formatGeHaTotalText(previousRunGeTotal, previousRunHaTotal)
-                : null);
+        previousRunSectionTotalLabel.setToolTipText(formatGeHaTotalText(previousRunGeTotal, previousRunHaTotal));
 
         previousRunValueLabel.setText(formatTotalWithOptionalHa(previousRunGeTotal, previousRunHaTotal));
-        previousRunValueLabel.setToolTipText(displayHaValueOnHover
-                ? formatGeHaTotalText(previousRunGeTotal, previousRunHaTotal)
-                : null);
+        previousRunValueLabel.setToolTipText(formatGeHaTotalText(previousRunGeTotal, previousRunHaTotal));
         previousRunSuppliesValueLabel.setText(formatGp(previousRunSuppliesTotal));
         updateSuppliesPanel(previousRunSuppliesPanel, previousRunSuppliesItemData, false, false);
-        previousRunPrayerUsedLabel.setText(String.valueOf(previousRunPrayerUsed));
-        previousRunHpLostLabel.setText(String.valueOf(previousRunHpLost));
-        previousRunHpRegainedLabel.setText(String.valueOf(previousRunHpRegained));
-        previousRunSpecialAttacksUsedLabel.setText(String.valueOf(previousRunSpecialAttacksUsed));
-        previousRunVenomApplicationsLabel.setText(String.valueOf(previousRunVenomApplications));
+        updatePreviousRunPerformanceLabels();
 
         previousRunWavesContainer.removeAll();
 
@@ -2284,30 +2078,34 @@ public class MokhaLootPanel extends PluginPanel {
         combinedPerformanceHeaderLabel.setForeground(Color.WHITE);
         previousRunCombinedPanel.add(createStatRow("Performance:", combinedPerformanceHeaderLabel));
 
-        JLabel combinedHpLostLabel = new JLabel(String.valueOf(previousRunHpLost));
-        combinedHpLostLabel.setFont(FontManager.getRunescapeFont());
-        combinedHpLostLabel.setForeground(new Color(200, 60, 60));
-        previousRunCombinedPanel.add(createStatRow("HP lost:", combinedHpLostLabel));
+        addPreviousRunPerformanceRows(previousRunCombinedPanel);
+    }
 
-        JLabel combinedPrayerUsedLabel = new JLabel(String.valueOf(previousRunPrayerUsed));
-        combinedPrayerUsedLabel.setFont(FontManager.getRunescapeFont());
-        combinedPrayerUsedLabel.setForeground(new Color(80, 210, 190));
-        previousRunCombinedPanel.add(createStatRow("Prayer used:", combinedPrayerUsedLabel));
+    private void updatePreviousRunPerformanceLabels() {
+        previousRunPrayerUsedLabel.setText(String.valueOf(previousRunPrayerUsed));
+        previousRunHpLostLabel.setText(String.valueOf(previousRunHpLost));
+        previousRunHpRegainedLabel.setText(String.valueOf(previousRunHpRegained));
+        previousRunSpecialAttacksUsedLabel.setText(String.valueOf(previousRunSpecialAttacksUsed));
+        previousRunVenomApplicationsLabel.setText(String.valueOf(previousRunVenomApplications));
+    }
 
-        JLabel combinedSpecialAttacksUsedLabel = new JLabel(String.valueOf(previousRunSpecialAttacksUsed));
-        combinedSpecialAttacksUsedLabel.setFont(FontManager.getRunescapeFont());
-        combinedSpecialAttacksUsedLabel.setForeground(new Color(80, 170, 255));
-        previousRunCombinedPanel.add(createStatRow("Special attacks used:", combinedSpecialAttacksUsedLabel));
+    private void addPreviousRunPerformanceRows(JPanel targetPanel) {
+        targetPanel.add(createStatRow("HP lost:",
+                createPerformanceMetricValueLabelWithValue(HP_LOST_COLOR, previousRunHpLost)));
+        targetPanel.add(createStatRow("Prayer used:",
+                createPerformanceMetricValueLabelWithValue(PRAYER_USED_COLOR, previousRunPrayerUsed)));
+        targetPanel.add(createStatRow("Special attacks used:",
+                createPerformanceMetricValueLabelWithValue(SPECIAL_ATTACKS_COLOR, previousRunSpecialAttacksUsed)));
+        targetPanel.add(createStatRow("Times Venomed:",
+                createPerformanceMetricValueLabelWithValue(VENOM_COLOR, previousRunVenomApplications)));
+        targetPanel.add(createStatRow("HP regained:",
+                createPerformanceMetricValueLabelWithValue(HP_REGAINED_COLOR, previousRunHpRegained)));
+    }
 
-        JLabel combinedVenomAppliedLabel = new JLabel(String.valueOf(previousRunVenomApplications));
-        combinedVenomAppliedLabel.setFont(FontManager.getRunescapeFont());
-        combinedVenomAppliedLabel.setForeground(new Color(0, 128, 0));
-        previousRunCombinedPanel.add(createStatRow("Times Venomed:", combinedVenomAppliedLabel));
-
-        JLabel combinedHpRegainedLabel = new JLabel(String.valueOf(previousRunHpRegained));
-        combinedHpRegainedLabel.setFont(FontManager.getRunescapeFont());
-        combinedHpRegainedLabel.setForeground(new Color(60, 180, 60));
-        previousRunCombinedPanel.add(createStatRow("HP regained:", combinedHpRegainedLabel));
+    private JLabel createPerformanceMetricValueLabelWithValue(Color color, int value) {
+        JLabel label = createPerformanceMetricValueLabel(color);
+        label.setText(String.valueOf(value));
+        return label;
     }
 
     private JPanel createPreviousRunWavePanel(int wave, Map<String, ItemData> itemData, long totalValue,
@@ -2321,9 +2119,7 @@ public class MokhaLootPanel extends PluginPanel {
         JLabel valueLabel = new JLabel(formatGp(totalValue));
         valueLabel.setFont(FontManager.getRunescapeFont());
         valueLabel.setForeground(Color.WHITE);
-        valueLabel.setToolTipText(displayHaValueOnHover
-                ? formatGeHaTotalText(totalValue, totalHaValue)
-                : null);
+        valueLabel.setToolTipText(formatGeHaTotalText(totalValue, totalHaValue));
 
         JButton collapseButton = new JButton(getArrowOrFallback(collapsed ? "▸" : "▾", collapsed ? "→" : "↓"));
         collapseButton.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
@@ -2369,11 +2165,7 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     private boolean isUniqueLootItem(ItemData item) {
-        if (item == null) {
-            return false;
-        }
-
-        return item.pricePerItem > ULTRA_VALUABLE_THRESHOLD || "Dom".equalsIgnoreCase(item.name);
+        return LootPanelDisplayUtils.isUniqueLootItem(item, ULTRA_VALUABLE_THRESHOLD);
     }
 
     private void addHistoricalRemovalInteraction(JPanel itemRow, String itemName, String scope, Runnable onConfirm) {
@@ -2404,61 +2196,44 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     private List<ItemData> sortItemDataForDisplay(java.util.Collection<ItemData> items) {
-        List<ItemData> sorted = new ArrayList<>(items);
-        if (config.displaySortMode() == MokhaDisplaySortMode.VALUE_DESC) {
-            sorted.sort(Comparator
-                    .comparingLong((ItemData item) -> item.totalValue).reversed()
-                    .thenComparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
-        } else {
-            sorted.sort(Comparator.comparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
-        }
-        return sorted;
+        return LootPanelDisplayUtils.sortItemDataForDisplay(items, config.displaySortMode());
     }
 
     private List<MokhaLootTrackerPlugin.ItemAggregate> sortAggregatesForDisplay(
             java.util.Collection<MokhaLootTrackerPlugin.ItemAggregate> items) {
-        List<MokhaLootTrackerPlugin.ItemAggregate> sorted = new ArrayList<>(items);
-        if (config.displaySortMode() == MokhaDisplaySortMode.VALUE_DESC) {
-            sorted.sort(Comparator
-                    .comparingLong((MokhaLootTrackerPlugin.ItemAggregate item) -> item.totalValue).reversed()
-                    .thenComparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
-        } else {
-            sorted.sort(Comparator.comparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
-        }
-        return sorted;
+        return LootPanelDisplayUtils.sortAggregatesForDisplay(items, config.displaySortMode());
     }
 
     private String formatGp(long value) {
-        if (value >= 1_000_000_000 || value <= -1_000_000_000) {
-            return String.format("%.3fB gp", value / 1_000_000_000.0);
-        } else if (value >= 1_000_000 || value <= -1_000_000) {
-            return String.format("%.2fM gp", value / 1_000_000.0);
-        } else if (value >= 1_000 || value <= -1_000) {
-            return String.format("%.1fK gp", value / 1_000.0);
-        } else {
-            return value + " gp";
-        }
+        return LootPanelDisplayUtils.formatGp(value);
     }
 
     private String formatTotalWithOptionalHa(long geTotal, long haTotal) {
-        if (!displayHaValueOnHover) {
-            return formatGp(geTotal);
-        }
-
-        return String.format(
-                "<html><span style='color:%s'>GE: %s</span> <span style='color:%s'>| HA: %s</span></html>",
-                colorToHex(Color.WHITE),
-                formatGp(geTotal),
-                colorToHex(new Color(0, 200, 0)),
-                formatGp(haTotal));
+        return LootPanelDisplayUtils.formatTotalWithOptionalHa(geTotal, haTotal, displayHaValueOnHover);
     }
 
     private String formatGeHaTotalText(long geTotal, long haTotal) {
-        return formatGeHaTotalText(formatGp(geTotal), formatGp(haTotal));
+        return LootPanelDisplayUtils.formatGeHaTotalText(geTotal, haTotal);
     }
 
     private String formatGeHaTotalText(String geText, String haText) {
-        return String.format("GE: %s | HA: %s", geText, haText);
+        return LootPanelDisplayUtils.formatGeHaTotalText(geText, haText);
+    }
+
+    private long resolveItemTotalHaValue(ItemData item) {
+        if (item == null) {
+            return 0;
+        }
+
+        if (item.totalHaValue > 0) {
+            return item.totalHaValue;
+        }
+
+        if (item.haPricePerItem > 0 && item.quantity > 0) {
+            return (long) item.haPricePerItem * item.quantity;
+        }
+
+        return 0;
     }
 
     private void refreshWaveHeaderHaTooltips(JLabel[] waveLabels, long[] waveHaTotals) {
@@ -2468,29 +2243,12 @@ public class MokhaLootPanel extends PluginPanel {
                 continue;
             }
 
-            if (!displayHaValueOnHover) {
-                waveLabel.setToolTipText(null);
-                continue;
-            }
-
             waveLabel.setToolTipText(formatGeHaTotalText(waveLabel.getText(), formatGp(waveHaTotals[i])));
         }
     }
 
-    private String colorToHex(Color color) {
-        return String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
-    }
-
     private String formatPricePerItemTooltip(long pricePerItem, long haPricePerItem, boolean includeHa) {
-        if (pricePerItem < 0 && haPricePerItem < 0) {
-            return "N/A";
-        }
-
-        if (!includeHa) {
-            return formatGp(pricePerItem) + "/ea";
-        }
-
-        return String.format("%s/ea, HA: %s/ea", formatGp(pricePerItem), formatGp(haPricePerItem));
+        return LootPanelDisplayUtils.formatPricePerItemTooltip(pricePerItem, haPricePerItem, includeHa);
     }
 
     private void customizeScrollBar() {
