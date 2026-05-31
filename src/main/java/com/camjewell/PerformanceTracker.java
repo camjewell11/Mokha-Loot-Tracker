@@ -15,6 +15,7 @@ final class PerformanceTracker {
     private int lastHitpoints = -1;
     private int lastSpecialAttackEnergy = -1;
     private int suppressConsumableHealTicksRemaining = 0;
+    private int suppressConsumableHpLossTicksRemaining = 0;
     private boolean dirty;
 
     void resetForRunStart(int prayerPoints, int hitpoints, boolean currentlyVenomed, int specialAttackEnergy) {
@@ -28,6 +29,7 @@ final class PerformanceTracker {
         lastHitpoints = hitpoints;
         lastSpecialAttackEnergy = specialAttackEnergy;
         suppressConsumableHealTicksRemaining = 0;
+        suppressConsumableHpLossTicksRemaining = 0;
         wasVenomedLastTick = currentlyVenomed;
         dirty = false;
     }
@@ -44,6 +46,7 @@ final class PerformanceTracker {
         lastHitpoints = -1;
         lastSpecialAttackEnergy = -1;
         suppressConsumableHealTicksRemaining = 0;
+        suppressConsumableHpLossTicksRemaining = 0;
         dirty = false;
     }
 
@@ -51,11 +54,15 @@ final class PerformanceTracker {
         if (suppressConsumableHealTicksRemaining > 0) {
             suppressConsumableHealTicksRemaining--;
         }
+        if (suppressConsumableHpLossTicksRemaining > 0) {
+            suppressConsumableHpLossTicksRemaining--;
+        }
     }
 
-    void markConsumableHealExpected() {
-        // Keep this short to cover the immediate heal ticks from eating/drinking.
+    void markConsumableHpChangeExpected() {
+        // Keep this short to cover immediate HP changes from eating/drinking.
         suppressConsumableHealTicksRemaining = 3;
+        suppressConsumableHpLossTicksRemaining = 2;
     }
 
     void onVenomAndSpecialTick(boolean currentlyVenomed, int currentSpecialAttackEnergy) {
@@ -87,6 +94,11 @@ final class PerformanceTracker {
             int current = event.getBoostedLevel();
             if (lastHitpoints >= 0) {
                 if (current < lastHitpoints) {
+                    if (suppressConsumableHpLossTicksRemaining > 0) {
+                        suppressConsumableHpLossTicksRemaining = 0;
+                        lastHitpoints = current;
+                        return;
+                    }
                     hpLost += lastHitpoints - current;
                     dirty = true;
                 } else if (current > lastHitpoints) {

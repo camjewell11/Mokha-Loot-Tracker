@@ -52,6 +52,11 @@ public interface MokhaLootTrackerConfig extends Config {
 		return false;
 	}
 
+	@ConfigItem(keyName = "showDrynessPanel", name = "Show Dryness Panel", description = "Show the Dryness section in the panel", position = 19)
+	default boolean showDrynessPanel() {
+		return true;
+	}
+
 	// Internal persistence properties (not exposed in settings UI)
 	// These use direct ConfigManager access, not @ConfigItem
 

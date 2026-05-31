@@ -6,7 +6,9 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -14,6 +16,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.IntToDoubleFunction;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.inject.Inject;
 import javax.swing.JOptionPane;
@@ -36,6 +40,7 @@ import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.StatChanged;
+import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
@@ -57,6 +62,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private static final String LOOT_VALUE_COLOR_HEX = "66CCFF";
     private static final String LOOT_VALUE_HA_COLOR_HEX = "00CC66";
     private static final String MOKHA_CLOTH_NAME = "Mokhaiotl cloth";
+    private static final String EYE_OF_AYAK_NAME = "Eye of ayak";
+    private static final String AVERNIC_TREADS_NAME = "Avernic treads";
+    private static final String DOM_NAME = "Dom";
     private static final String SUN_KISSED_BONES_NAME = "Sun-kissed bones";
     private static final int SUN_KISSED_BONES_HA_VALUE = 96;
     private static final String DEFAULT_PLAYER_PROFILE_KEY = "default";
@@ -80,6 +88,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private static final double UNIQUE_CHANCE_DOM_DELVE_7 = 1.0 / 750.0;
     private static final double UNIQUE_CHANCE_DOM_DELVE_8 = 1.0 / 500.0;
     private static final double UNIQUE_CHANCE_DOM_DELVE_9_PLUS = 1.0 / 250.0;
+    private static final int HIGHSCORES_WIDGET_GROUP_ID = 920;
+    private static final int HIGHSCORES_LEVELS_CHILD_ID = 6;
+    private static final int COLLECTION_LOG_BOSS_SELECTED_WIDGET_ID = 40697868;
+    private static final int COLLECTION_LOG_ITEMS_CONTAINER_WIDGET_ID = 40697893;
+    private static final int COLLECTION_LOG_EXPECTED_UNIQUE_SLOTS = 4;
+    private static final Pattern WAVE_KEYWORD_LINE_PATTERN = Pattern
+            .compile("(?i)\\bwave\\s*(\\d+\\+?)\\b\\s*[:\\-]?\\s*([\\d,]+)");
+    private static final Pattern WAVE_COMPACT_LINE_PATTERN = Pattern
+            .compile("^(\\d+\\+?)\\s*[:\\-]?\\s*([\\d,]+)$");
+    private static final Pattern LEVEL_COMPLETION_LINE_PATTERN = Pattern
+            .compile("(?i)\\blevel\\s*(\\d+\\+?)\\b\\s+([\\d,]+)(?:\\s+[a-z])?");
+    private static final Pattern LEVEL_ONLY_LINE_PATTERN = Pattern
+            .compile("(?i)^level\\s*(\\d+\\+?)$");
+    private static final Pattern COUNT_ONLY_LINE_PATTERN = Pattern
+            .compile("^([\\d,]+)(?:\\s+[a-z])?$");
 
     /**
      * Region IDs observed during Doom runs from location recorder logs.
@@ -179,6 +202,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
     // Historical unclaimed loot (persisted, never cleared)
     private final Map<Integer, Long> historicalUnclaimedByWave = new HashMap<>(); // Wave -> Total GP unclaimed
     private final Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave = new HashMap<>();
+    private final Map<Integer, Long> historicalCompletedRunsByWave = new HashMap<>(); // Wave -> completed count
+    private final Map<Integer, Long> localCompletedRunsSinceLastSyncByWave = new HashMap<>();
+    private final Map<String, Long> collectionLogClaimedUniqueCounts = new HashMap<>();
+    private boolean highscoresBaselineSynced;
 
     // Mokhaiotl Cloth handling
     private boolean hasWarnedAboutZeroClothValue = false; // Track if we've already warned player
@@ -235,6 +262,17 @@ public class MokhaLootTrackerPlugin extends Plugin {
             // Update price per item to latest (could also average, but latest is simpler)
             this.pricePerItem = pricePerItem;
             this.haPricePerItem = haPricePerItem;
+        }
+    }
+
+    private static class ExpectedDropsByItem {
+        double cloth;
+        double eye;
+        double treads;
+        double dom;
+
+        double total() {
+            return cloth + eye + treads + dom;
         }
     }
 
@@ -300,10 +338,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
     public void onMenuOptionClicked(MenuOptionClicked event) {
         String option = event.getMenuOption();
 
-        // Consumable healing from Eat/Drink should not count toward HP regained.
+        // Consumable HP changes from Eat/Drink should not count toward performance HP
+        // metrics.
         if (option != null && (option.regionMatches(true, 0, "Eat", 0, 3)
                 || option.regionMatches(true, 0, "Drink", 0, 5))) {
-            performanceTracker.markConsumableHealExpected();
+            performanceTracker.markConsumableHpChangeExpected();
         }
 
         // Detect entering arena via "Jump over gap"
@@ -393,6 +432,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     @Subscribe
     public void onGameTick(GameTick event) {
         ensureHistoricalDataLoadedForCurrentPlayer();
+        attemptHighscoresWidgetSyncIfVisible();
+        attemptCollectionLogUniqueSyncIfVisible();
+
         performanceTracker.onTick();
 
         boolean wasInArena = inMokhaArena;
@@ -551,6 +593,27 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     @Subscribe
+    public void onWidgetLoaded(WidgetLoaded event) {
+        int groupId = event.getGroupId();
+
+        if (groupId == HIGHSCORES_WIDGET_GROUP_ID) {
+            Map<Integer, Long> parsed = parseWaveCompletionsFromWidgetGroup(groupId);
+            if (!parsed.isEmpty() && syncHistoricalRunsFromHighscoresData(parsed)) {
+                log.info("[Mokha] Synced {} highscores wave buckets from widget group {}",
+                        parsed.size(), groupId);
+                updatePanelData();
+                saveHistoricalData();
+            }
+        }
+
+        int collectionLogGroupId = COLLECTION_LOG_BOSS_SELECTED_WIDGET_ID >>> 16;
+        if (groupId == collectionLogGroupId && syncCollectionLogUniquesFromVisibleWidgets()) {
+            updatePanelData();
+            saveHistoricalData();
+        }
+    }
+
+    @Subscribe
     public void onGameStateChanged(GameStateChanged event) {
         if (event.getGameState() == net.runelite.api.GameState.LOGGED_IN) {
             ensureHistoricalDataLoadedForCurrentPlayer();
@@ -610,6 +673,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
                                         currentPerformance.getSpecialAttackUses(),
                                         currentPerformance.getVenomApplications());
                             }
+                        }
+                    });
+                    break;
+                case "showDrynessPanel":
+                    boolean showDryness = "true".equalsIgnoreCase(event.getNewValue());
+                    SwingUtilities.invokeLater(() -> {
+                        if (panel != null) {
+                            panel.setDrynessSectionVisible(showDryness);
                         }
                     });
                     break;
@@ -718,6 +789,394 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (!adjustedText.equals(valueText)) {
             valueWidget.setText(adjustedText);
         }
+    }
+
+    private boolean syncHistoricalRunsFromHighscoresData(Map<Integer, Long> parsed) {
+        Map<Integer, Long> normalized = new HashMap<>();
+        for (Map.Entry<Integer, Long> entry : parsed.entrySet()) {
+            int wave = normalizeWaveKey(entry.getKey());
+            long parsedCount = Math.max(0, entry.getValue());
+            normalized.put(wave, parsedCount);
+        }
+
+        boolean changed = !historicalCompletedRunsByWave.equals(normalized)
+                || !localCompletedRunsSinceLastSyncByWave.isEmpty()
+                || !highscoresBaselineSynced;
+
+        if (!changed) {
+            return false;
+        }
+
+        historicalCompletedRunsByWave.clear();
+        historicalCompletedRunsByWave.putAll(normalized);
+        localCompletedRunsSinceLastSyncByWave.clear();
+        highscoresBaselineSynced = true;
+        return true;
+    }
+
+    private void attemptHighscoresWidgetSyncIfVisible() {
+        Widget root = client.getWidget(HIGHSCORES_WIDGET_GROUP_ID, 0);
+        Widget levels = client.getWidget(HIGHSCORES_WIDGET_GROUP_ID, HIGHSCORES_LEVELS_CHILD_ID);
+        boolean rootVisible = root != null && !root.isHidden();
+        boolean levelsVisible = levels != null && !levels.isHidden();
+        if (!rootVisible && !levelsVisible) {
+            return;
+        }
+
+        Map<Integer, Long> parsed = parseWaveCompletionsFromWidgetGroup(HIGHSCORES_WIDGET_GROUP_ID);
+        if (parsed.isEmpty()) {
+            return;
+        }
+
+        if (syncHistoricalRunsFromHighscoresData(parsed)) {
+            updatePanelData();
+            saveHistoricalData();
+        }
+    }
+
+    private void attemptCollectionLogUniqueSyncIfVisible() {
+        if (syncCollectionLogUniquesFromVisibleWidgets()) {
+            updatePanelData();
+            saveHistoricalData();
+        }
+    }
+
+    private boolean syncCollectionLogUniquesFromVisibleWidgets() {
+        Widget selectedBossWidget = getWidgetByPackedId(COLLECTION_LOG_BOSS_SELECTED_WIDGET_ID);
+        Widget itemsContainerWidget = getWidgetByPackedId(COLLECTION_LOG_ITEMS_CONTAINER_WIDGET_ID);
+
+        if (selectedBossWidget == null || itemsContainerWidget == null) {
+            return false;
+        }
+
+        if (selectedBossWidget.isHidden() || itemsContainerWidget.isHidden()) {
+            return false;
+        }
+
+        String selectedBossText = selectedBossWidget.getText();
+        if (selectedBossText == null
+                || !selectedBossText.toLowerCase(Locale.ROOT).contains("doom of mokhaiotl")) {
+            return false;
+        }
+
+        Map<String, Long> parsedCounts = parseCollectionLogUniqueCounts(itemsContainerWidget);
+        if (parsedCounts.isEmpty()) {
+            return false;
+        }
+
+        if (parsedCounts.equals(collectionLogClaimedUniqueCounts)) {
+            return false;
+        }
+
+        collectionLogClaimedUniqueCounts.clear();
+        collectionLogClaimedUniqueCounts.putAll(parsedCounts);
+        return true;
+    }
+
+    private Map<String, Long> parseCollectionLogUniqueCounts(Widget itemsContainerWidget) {
+        Map<String, Long> parsed = new HashMap<>();
+        Widget[] children = itemsContainerWidget.getChildren();
+        if (children == null || children.length == 0) {
+            return parsed;
+        }
+
+        int slotsToParse = Math.min(COLLECTION_LOG_EXPECTED_UNIQUE_SLOTS, children.length);
+        for (int slot = 0; slot < slotsToParse; slot++) {
+            Widget itemWidget = children[slot];
+            if (itemWidget == null || itemWidget.isHidden()) {
+                continue;
+            }
+
+            int itemId = itemWidget.getItemId();
+            if (itemId <= 0) {
+                continue;
+            }
+
+            String rawName = itemManager.getItemComposition(itemId).getName();
+            String canonicalUniqueName = canonicalizeTrackedUniqueName(rawName);
+            if (canonicalUniqueName == null) {
+                continue;
+            }
+
+            long quantity = Math.max(0, itemWidget.getItemQuantity());
+            parsed.put(canonicalUniqueName, quantity);
+        }
+
+        return parsed;
+    }
+
+    private Widget getWidgetByPackedId(int packedId) {
+        int groupId = packedId >>> 16;
+        int childId = packedId & 0xFFFF;
+        return client.getWidget(groupId, childId);
+    }
+
+    private Map<Integer, Long> parseWaveCompletionsFromWidgetGroup(int groupId) {
+        Map<Integer, Long> parsed = new HashMap<>();
+        boolean sawExpectedFormat = false;
+
+        Widget root = findHighscoresWaveRoot(groupId);
+        if (root == null) {
+            return parsed;
+        }
+
+        sawExpectedFormat = collectWaveCompletionsFromWidget(root, parsed);
+
+        // Some scoreboard layouts split "Level N" and completion count into sibling
+        // widgets, so line-based parsing alone misses valid rows.
+        parseWaveCompletionsFromStructuredTokens(root, parsed);
+
+        if (!sawExpectedFormat || parsed.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        return parsed;
+    }
+
+    private Widget findHighscoresWaveRoot(int groupId) {
+        Widget preferred = client.getWidget(groupId, HIGHSCORES_LEVELS_CHILD_ID);
+        if (preferred != null && !preferred.isHidden()) {
+            return preferred;
+        }
+
+        Widget primary = client.getWidget(groupId, 0);
+        if (primary != null && !primary.isHidden()) {
+            return primary;
+        }
+
+        Widget[] roots = client.getWidgetRoots();
+        if (roots == null) {
+            return null;
+        }
+
+        for (Widget root : roots) {
+            if (root == null || root.isHidden()) {
+                continue;
+            }
+            int rootGroupId = root.getId() >>> 16;
+            if (rootGroupId == groupId) {
+                return root;
+            }
+        }
+
+        return null;
+    }
+
+    private boolean collectWaveCompletionsFromWidget(Widget widget, Map<Integer, Long> parsed) {
+        boolean sawExpectedFormat = false;
+        if (widget == null || widget.isHidden()) {
+            return false;
+        }
+
+        String text = widget.getText();
+        if (text != null && !text.isEmpty()) {
+            String stripped = text.replaceAll("<[^>]*>", " ").trim();
+            if (!stripped.isEmpty()) {
+                String[] lines = stripped.split("\\r?\\n|<br>|<br/>");
+                for (String rawLine : lines) {
+                    String line = rawLine == null ? "" : rawLine.replace('\u00A0', ' ').trim();
+                    if (line.isEmpty()) {
+                        continue;
+                    }
+
+                    String lowered = line.toLowerCase(Locale.ROOT);
+                    if (lowered.contains("personal completions") || lowered.contains("level")) {
+                        sawExpectedFormat = true;
+                    }
+
+                    if (parseWaveCompletionLine(line, parsed)) {
+                        sawExpectedFormat = true;
+                    }
+                }
+            }
+        }
+
+        Widget[] children = widget.getChildren();
+        if (children != null) {
+            for (Widget child : children) {
+                sawExpectedFormat |= collectWaveCompletionsFromWidget(child, parsed);
+            }
+        }
+
+        Widget[] dynamicChildren = widget.getDynamicChildren();
+        if (dynamicChildren != null) {
+            for (Widget child : dynamicChildren) {
+                sawExpectedFormat |= collectWaveCompletionsFromWidget(child, parsed);
+            }
+        }
+
+        Widget[] staticChildren = widget.getStaticChildren();
+        if (staticChildren != null) {
+            for (Widget child : staticChildren) {
+                sawExpectedFormat |= collectWaveCompletionsFromWidget(child, parsed);
+            }
+        }
+
+        Widget[] nestedChildren = widget.getNestedChildren();
+        if (nestedChildren != null) {
+            for (Widget child : nestedChildren) {
+                sawExpectedFormat |= collectWaveCompletionsFromWidget(child, parsed);
+            }
+        }
+
+        return sawExpectedFormat;
+    }
+
+    private boolean parseWaveCompletionLine(String line, Map<Integer, Long> parsed) {
+        Matcher keywordMatcher = WAVE_KEYWORD_LINE_PATTERN.matcher(line);
+        if (keywordMatcher.find()) {
+            Integer wave = parseWaveToken(keywordMatcher.group(1));
+            Long count = parseCountToken(keywordMatcher.group(2));
+            if (wave != null && count != null) {
+                parsed.merge(normalizeWaveKey(wave), count, Math::max);
+                return true;
+            }
+        }
+
+        Matcher compactMatcher = WAVE_COMPACT_LINE_PATTERN.matcher(line);
+        if (compactMatcher.find()) {
+            Integer wave = parseWaveToken(compactMatcher.group(1));
+            Long count = parseCountToken(compactMatcher.group(2));
+            if (wave != null && count != null && wave >= 1 && wave <= 99) {
+                parsed.merge(normalizeWaveKey(wave), count, Math::max);
+                return true;
+            }
+        }
+
+        Matcher levelMatcher = LEVEL_COMPLETION_LINE_PATTERN.matcher(line);
+        if (levelMatcher.find()) {
+            Integer wave = parseWaveToken(levelMatcher.group(1));
+            Long count = parseCountToken(levelMatcher.group(2));
+            if (wave != null && count != null) {
+                parsed.merge(normalizeWaveKey(wave), count, Math::max);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void parseWaveCompletionsFromStructuredTokens(Widget root, Map<Integer, Long> parsed) {
+        List<String> tokens = new ArrayList<>();
+        collectWidgetTextTokens(root, tokens);
+
+        Deque<Integer> pendingWaves = new ArrayDeque<>();
+        for (String token : tokens) {
+            Matcher levelOnlyMatcher = LEVEL_ONLY_LINE_PATTERN.matcher(token);
+            if (levelOnlyMatcher.find()) {
+                Integer wave = parseWaveToken(levelOnlyMatcher.group(1));
+                if (wave != null) {
+                    pendingWaves.addLast(wave);
+                }
+                continue;
+            }
+
+            if (pendingWaves.isEmpty()) {
+                continue;
+            }
+
+            Matcher countOnlyMatcher = COUNT_ONLY_LINE_PATTERN.matcher(token);
+            if (countOnlyMatcher.find()) {
+                Long count = parseCountToken(countOnlyMatcher.group(1));
+                if (count != null) {
+                    int wave = pendingWaves.removeFirst();
+                    parsed.merge(normalizeWaveKey(wave), count, Math::max);
+                }
+            }
+        }
+    }
+
+    private void collectWidgetTextTokens(Widget widget, List<String> tokens) {
+        if (widget == null || widget.isHidden()) {
+            return;
+        }
+
+        String text = widget.getText();
+        if (text != null && !text.isEmpty()) {
+            String stripped = text.replaceAll("<[^>]*>", " ").replace('\u00A0', ' ').trim();
+            if (!stripped.isEmpty()) {
+                String[] lines = stripped.split("\\r?\\n|<br>|<br/>");
+                for (String rawLine : lines) {
+                    String line = rawLine == null ? "" : rawLine.trim();
+                    if (!line.isEmpty()) {
+                        tokens.add(line);
+                    }
+                }
+            }
+        }
+
+        Widget[] children = widget.getChildren();
+        if (children != null) {
+            for (Widget child : children) {
+                collectWidgetTextTokens(child, tokens);
+            }
+        }
+
+        Widget[] dynamicChildren = widget.getDynamicChildren();
+        if (dynamicChildren != null) {
+            for (Widget child : dynamicChildren) {
+                collectWidgetTextTokens(child, tokens);
+            }
+        }
+
+        Widget[] staticChildren = widget.getStaticChildren();
+        if (staticChildren != null) {
+            for (Widget child : staticChildren) {
+                collectWidgetTextTokens(child, tokens);
+            }
+        }
+
+        Widget[] nestedChildren = widget.getNestedChildren();
+        if (nestedChildren != null) {
+            for (Widget child : nestedChildren) {
+                collectWidgetTextTokens(child, tokens);
+            }
+        }
+    }
+
+    private Integer parseWaveToken(String token) {
+        if (token == null) {
+            return null;
+        }
+        String cleaned = token.trim();
+        if (cleaned.isEmpty()) {
+            return null;
+        }
+
+        if (cleaned.endsWith("+")) {
+            // Any plus-level row should contribute to the 9+ bucket used by dryness
+            // probabilities (e.g. 8+, 9+, 10+ all map to bucket 9).
+            return 9;
+        }
+
+        try {
+            return Integer.parseInt(cleaned);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private Long parseCountToken(String token) {
+        if (token == null) {
+            return null;
+        }
+        String cleaned = token.replace(",", "").trim();
+        if (cleaned.isEmpty()) {
+            return null;
+        }
+        try {
+            long parsed = Long.parseLong(cleaned);
+            return parsed >= 0 ? parsed : null;
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private int normalizeWaveKey(int wave) {
+        if (wave < 1) {
+            return 1;
+        }
+        return wave >= 9 ? 9 : wave;
     }
 
     private String formatLootValueText(long originalValue, long adjustedValue, long adjustedHaValue) {
@@ -895,10 +1354,32 @@ public class MokhaLootTrackerPlugin extends Plugin {
      * disconnect)
      */
     private void moveCurrentRunUnclaimedToHistorical() {
+        incrementLocalWaveCompletionsFromCurrentRun();
         historicalRunService.moveCurrentRunUnclaimedToHistorical(
                 lootByWave,
                 historicalUnclaimedByWave,
                 historicalUnclaimedItemsByWave);
+    }
+
+    private void incrementLocalWaveCompletionsFromCurrentRun() {
+        if (!highscoresBaselineSynced) {
+            return;
+        }
+
+        for (Map.Entry<Integer, List<LootItem>> entry : lootByWave.entrySet()) {
+            if (entry.getValue() == null || entry.getValue().isEmpty()) {
+                continue;
+            }
+
+            int waveKey = normalizeWaveKey(entry.getKey());
+            if (waveKey < 1) {
+                continue;
+            }
+
+            localCompletedRunsSinceLastSyncByWave.put(
+                    waveKey,
+                    localCompletedRunsSinceLastSyncByWave.getOrDefault(waveKey, 0L) + 1L);
+        }
     }
 
     /**
@@ -1024,6 +1505,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
         historicalClaimedByWave.clear();
         historicalClaimedByWave.putAll(historicalDataManager.getHistoricalClaimedByWave());
 
+        historicalCompletedRunsByWave.clear();
+        historicalCompletedRunsByWave.putAll(historicalDataManager.getHistoricalCompletedRunsByWave());
+        localCompletedRunsSinceLastSyncByWave.clear();
+        collectionLogClaimedUniqueCounts.clear();
+        collectionLogClaimedUniqueCounts.putAll(historicalDataManager.getCollectionLogClaimedUniqueCounts());
+        highscoresBaselineSynced = !historicalCompletedRunsByWave.isEmpty();
+
         historicalTotalClaimed = historicalDataManager.getHistoricalTotalClaimed();
         historicalClaims = historicalDataManager.getHistoricalClaims();
         historicalDeaths = historicalDataManager.getHistoricalDeaths();
@@ -1117,6 +1605,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         historicalDataManager.setHistoricalClaimedItemsByWave(historicalClaimedItemsByWave);
         historicalDataManager.setHistoricalSuppliesUsed(historicalSuppliesUsed);
         historicalDataManager.setHistoricalClaimedByWave(historicalClaimedByWave);
+        historicalDataManager.setHistoricalCompletedRunsByWave(historicalCompletedRunsByWave);
+        historicalDataManager.setCollectionLogClaimedUniqueCounts(collectionLogClaimedUniqueCounts);
         historicalDataManager.setHistoricalTotalClaimed(historicalTotalClaimed);
         historicalDataManager.setHistoricalClaims(historicalClaims);
         historicalDataManager.setHistoricalDeaths(historicalDeaths);
@@ -1185,6 +1675,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 || historicalClaims > 0
                 || historicalDeaths > 0
                 || !historicalClaimedByWave.isEmpty()
+                || !historicalCompletedRunsByWave.isEmpty()
                 || !historicalClaimedItemsByWave.isEmpty()
                 || !historicalSuppliesUsed.isEmpty()
                 || !historicalUnclaimedByWave.isEmpty()
@@ -1212,6 +1703,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         historicalClaims = 0;
         historicalDeaths = 0;
         historicalClaimedByWave.clear();
+        historicalCompletedRunsByWave.clear();
         historicalClaimedItemsByWave.clear();
         historicalSuppliesUsed.clear();
         historicalUnclaimedByWave.clear();
@@ -1231,6 +1723,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         historicalTotalClaimed = 0;
         historicalClaims = 0;
         historicalClaimedByWave.clear();
+        historicalCompletedRunsByWave.clear();
         historicalClaimedItemsByWave.clear();
 
         updatePanelData();
@@ -1636,6 +2129,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
      * Update historical data when loot is claimed
      */
     private void updateHistoricalDataOnClaim() {
+        incrementLocalWaveCompletionsFromCurrentRun();
+
         long claimedValue = historicalRunService.applyClaimedLoot(
                 lootByWave,
                 historicalClaimedByWave,
@@ -1735,6 +2230,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         long uniqueClaimsCount = valueCalculationService
                 .calculateHistoricalUniqueClaimCount(historicalClaimedItemsByWave);
+
+        long totalWaveRolls = calculateTotalHistoricalWaveRolls();
+        ExpectedDropsByItem expectedDropsByItem = calculateHistoricalExpectedDropsByItem();
+        panel.updateHistoricalDryness(
+                totalWaveRolls,
+                expectedDropsByItem.total(),
+                uniqueClaimsCount,
+                expectedDropsByItem.dom,
+                expectedDropsByItem.treads,
+                expectedDropsByItem.eye,
+                expectedDropsByItem.cloth,
+                calculateHistoricalReceivedCountForUnique(DOM_NAME),
+                calculateHistoricalReceivedCountForUnique(AVERNIC_TREADS_NAME),
+                calculateHistoricalReceivedCountForUnique(EYE_OF_AYAK_NAME),
+                calculateHistoricalReceivedCountForUnique(MOKHA_CLOTH_NAME));
 
         // Update Profit/Loss section
         panel.updateProfitLoss(historicalTotalClaimed, historicalSupplyCost, panelData.totalUnclaimed,
@@ -1883,6 +2393,147 @@ public class MokhaLootTrackerPlugin extends Plugin {
             default:
                 return UNIQUE_CHANCE_DOM_DELVE_9_PLUS;
         }
+    }
+
+    private long calculateTotalHistoricalWaveRolls() {
+        long total = 0;
+        for (long count : getEffectiveHistoricalCompletedRunsByWave().values()) {
+            total += count;
+        }
+        return total;
+    }
+
+    private double calculateHistoricalExpectedUniqueDrops() {
+        return calculateHistoricalExpectedDropsByItem().total();
+    }
+
+    private ExpectedDropsByItem calculateHistoricalExpectedDropsByItem() {
+        ExpectedDropsByItem expected = new ExpectedDropsByItem();
+
+        for (Map.Entry<Integer, Long> entry : getEffectiveHistoricalCompletedRunsByWave().entrySet()) {
+            int wave = entry.getKey();
+            long completedCount = entry.getValue();
+
+            if (wave < 2 || completedCount <= 0) {
+                continue;
+            }
+
+            expected.cloth += completedCount * getClothUniqueChanceForDelve(wave);
+
+            if (wave >= 3) {
+                expected.eye += completedCount * getStandardUniqueChanceForDelve(wave);
+            }
+
+            if (wave >= 4) {
+                expected.treads += completedCount * getStandardUniqueChanceForDelve(wave);
+            }
+
+            if (wave >= 6) {
+                expected.dom += completedCount * getDomUniqueChanceForDelve(wave);
+            }
+        }
+
+        return expected;
+    }
+
+    private long calculateHistoricalReceivedCountForUnique(String uniqueName) {
+        if (uniqueName == null || uniqueName.trim().isEmpty()) {
+            return 0;
+        }
+
+        String canonicalTarget = canonicalizeTrackedUniqueName(uniqueName);
+        if (canonicalTarget == null) {
+            return 0;
+        }
+
+        long total = 0;
+
+        for (Map<String, ItemAggregate> itemsByName : historicalClaimedItemsByWave.values()) {
+            for (ItemAggregate item : itemsByName.values()) {
+                if (item == null || item.name == null) {
+                    continue;
+                }
+
+                String itemCanonicalName = canonicalizeTrackedUniqueName(item.name);
+                if (canonicalTarget.equals(itemCanonicalName)) {
+                    total += item.totalQuantity;
+                }
+            }
+        }
+
+        long collectionLogCount = collectionLogClaimedUniqueCounts.getOrDefault(canonicalTarget, 0L);
+        return Math.max(total, collectionLogCount);
+    }
+
+    private long calculateEffectiveHistoricalUniqueClaimCount() {
+        return calculateHistoricalReceivedCountForUnique(MOKHA_CLOTH_NAME)
+                + calculateHistoricalReceivedCountForUnique(EYE_OF_AYAK_NAME)
+                + calculateHistoricalReceivedCountForUnique(AVERNIC_TREADS_NAME)
+                + calculateHistoricalReceivedCountForUnique(DOM_NAME);
+    }
+
+    private String canonicalizeTrackedUniqueName(String rawName) {
+        if (rawName == null) {
+            return null;
+        }
+
+        String normalized = rawName.trim().toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty()) {
+            return null;
+        }
+
+        if (normalized.startsWith("mokhaiotl cloth")) {
+            return MOKHA_CLOTH_NAME;
+        }
+        if (normalized.startsWith("eye of ayak")) {
+            return EYE_OF_AYAK_NAME;
+        }
+        if (normalized.startsWith("avernic treads")) {
+            return AVERNIC_TREADS_NAME;
+        }
+        if (normalized.startsWith("dom")) {
+            return DOM_NAME;
+        }
+
+        return null;
+    }
+
+    private Map<Integer, Long> getEffectiveHistoricalCompletedRunsByWave() {
+        if (!highscoresBaselineSynced || localCompletedRunsSinceLastSyncByWave.isEmpty()) {
+            return historicalCompletedRunsByWave;
+        }
+
+        Map<Integer, Long> combined = new HashMap<>(historicalCompletedRunsByWave);
+        for (Map.Entry<Integer, Long> entry : localCompletedRunsSinceLastSyncByWave.entrySet()) {
+            combined.put(entry.getKey(), combined.getOrDefault(entry.getKey(), 0L) + entry.getValue());
+        }
+        return combined;
+    }
+
+    private double getExpectedUniqueDropsPerCompletionForWave(int wave) {
+        if (wave < 2) {
+            return 0.0;
+        }
+
+        double expected = 0.0;
+
+        // Cloth starts at level 2.
+        expected += getClothUniqueChanceForDelve(wave);
+
+        // At level 3 only one standard unique roll is available; levels 4+
+        // have both standard unique rolls.
+        if (wave == 3) {
+            expected += getStandardUniqueChanceForDelve(wave);
+        } else if (wave >= 4) {
+            expected += getStandardUniqueChanceForDelve(wave) * 2.0;
+        }
+
+        // Dom starts at level 6.
+        if (wave >= 6) {
+            expected += getDomUniqueChanceForDelve(wave);
+        }
+
+        return expected;
     }
 
     /**

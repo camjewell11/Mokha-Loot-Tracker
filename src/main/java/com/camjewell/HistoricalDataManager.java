@@ -30,6 +30,8 @@ public class HistoricalDataManager {
 
     private Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave;
     private Map<Integer, Long> historicalClaimedByWave;
+    private Map<Integer, Long> historicalCompletedRunsByWave;
+    private Map<String, Long> collectionLogClaimedUniqueCounts;
     private Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave;
     private Map<Integer, Long> historicalUnclaimedByWave;
     private Map<String, ItemAggregate> historicalSuppliesUsed;
@@ -51,6 +53,8 @@ public class HistoricalDataManager {
         this.historicalClaimedItemsByWave = new HashMap<>();
         this.historicalSuppliesUsed = new HashMap<>();
         this.historicalClaimedByWave = new HashMap<>();
+        this.historicalCompletedRunsByWave = new HashMap<>();
+        this.collectionLogClaimedUniqueCounts = new HashMap<>();
         this.historicalTotalClaimed = 0;
         this.historicalClaims = 0;
         this.historicalDeaths = 0;
@@ -161,6 +165,10 @@ public class HistoricalDataManager {
         return historicalClaimedByWave;
     }
 
+    public Map<Integer, Long> getHistoricalCompletedRunsByWave() {
+        return historicalCompletedRunsByWave;
+    }
+
     public long getHistoricalTotalClaimed() {
         return historicalTotalClaimed;
     }
@@ -171,6 +179,10 @@ public class HistoricalDataManager {
 
     public long getHistoricalDeaths() {
         return historicalDeaths;
+    }
+
+    public Map<String, Long> getCollectionLogClaimedUniqueCounts() {
+        return collectionLogClaimedUniqueCounts;
     }
 
     public Map<Integer, Long> getHistoricalUnclaimedByWave() {
@@ -194,6 +206,10 @@ public class HistoricalDataManager {
         this.historicalClaimedByWave = data;
     }
 
+    public void setHistoricalCompletedRunsByWave(Map<Integer, Long> data) {
+        this.historicalCompletedRunsByWave = data;
+    }
+
     public void setHistoricalTotalClaimed(long total) {
         this.historicalTotalClaimed = total;
     }
@@ -204,6 +220,10 @@ public class HistoricalDataManager {
 
     public void setHistoricalDeaths(long deaths) {
         this.historicalDeaths = deaths;
+    }
+
+    public void setCollectionLogClaimedUniqueCounts(Map<String, Long> data) {
+        this.collectionLogClaimedUniqueCounts = data;
     }
 
     public void setHistoricalUnclaimedByWave(Map<Integer, Long> data) {
@@ -228,6 +248,8 @@ public class HistoricalDataManager {
         data.historicalClaimedItemsByWave = historicalClaimedItemsByWave;
         data.historicalUnclaimedItemsByWave = historicalUnclaimedItemsByWave;
         data.historicalClaimedByWave = historicalClaimedByWave;
+        data.historicalCompletedRunsByWave = historicalCompletedRunsByWave;
+        data.collectionLogClaimedUniqueCounts = collectionLogClaimedUniqueCounts;
         data.historicalUnclaimedByWave = historicalUnclaimedByWave;
         data.historicalSuppliesUsed = historicalSuppliesUsed;
         data.historicalTotalClaimed = historicalTotalClaimed;
@@ -247,6 +269,12 @@ public class HistoricalDataManager {
                 : new HashMap<>();
         this.historicalClaimedByWave = safeData.historicalClaimedByWave != null
                 ? safeData.historicalClaimedByWave
+                : new HashMap<>();
+        this.historicalCompletedRunsByWave = safeData.historicalCompletedRunsByWave != null
+                ? safeData.historicalCompletedRunsByWave
+                : new HashMap<>();
+        this.collectionLogClaimedUniqueCounts = safeData.collectionLogClaimedUniqueCounts != null
+                ? safeData.collectionLogClaimedUniqueCounts
                 : new HashMap<>();
         this.historicalTotalClaimed = safeData.historicalTotalClaimed;
         this.historicalClaims = safeData.historicalClaims;
@@ -268,7 +296,10 @@ public class HistoricalDataManager {
             }
             return data.historicalClaims > 0
                     || data.historicalTotalClaimed > 0
-                    || (data.historicalClaimedItemsByWave != null && !data.historicalClaimedItemsByWave.isEmpty());
+                    || (data.historicalClaimedItemsByWave != null && !data.historicalClaimedItemsByWave.isEmpty())
+                    || (data.historicalCompletedRunsByWave != null && !data.historicalCompletedRunsByWave.isEmpty())
+                    || (data.collectionLogClaimedUniqueCounts != null
+                            && !data.collectionLogClaimedUniqueCounts.isEmpty());
         } catch (IOException e) {
             return false;
         }
@@ -313,6 +344,8 @@ public class HistoricalDataManager {
         // Legacy single-profile fields (pre-player separation).
         Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave;
         Map<Integer, Long> historicalClaimedByWave;
+        Map<Integer, Long> historicalCompletedRunsByWave;
+        Map<String, Long> collectionLogClaimedUniqueCounts;
         Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave;
         Map<Integer, Long> historicalUnclaimedByWave;
         Map<String, ItemAggregate> historicalSuppliesUsed;
@@ -323,6 +356,8 @@ public class HistoricalDataManager {
         private boolean hasLegacyData() {
             return historicalClaimedItemsByWave != null ||
                     historicalClaimedByWave != null ||
+                    historicalCompletedRunsByWave != null ||
+                    collectionLogClaimedUniqueCounts != null ||
                     historicalUnclaimedItemsByWave != null ||
                     historicalUnclaimedByWave != null ||
                     historicalSuppliesUsed != null ||
@@ -335,6 +370,8 @@ public class HistoricalDataManager {
             HistoricalData data = new HistoricalData();
             data.historicalClaimedItemsByWave = historicalClaimedItemsByWave;
             data.historicalClaimedByWave = historicalClaimedByWave;
+            data.historicalCompletedRunsByWave = historicalCompletedRunsByWave;
+            data.collectionLogClaimedUniqueCounts = collectionLogClaimedUniqueCounts;
             data.historicalUnclaimedItemsByWave = historicalUnclaimedItemsByWave;
             data.historicalUnclaimedByWave = historicalUnclaimedByWave;
             data.historicalSuppliesUsed = historicalSuppliesUsed;
@@ -348,6 +385,8 @@ public class HistoricalDataManager {
     private static class HistoricalData {
         Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave;
         Map<Integer, Long> historicalClaimedByWave;
+        Map<Integer, Long> historicalCompletedRunsByWave;
+        Map<String, Long> collectionLogClaimedUniqueCounts;
         Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave;
         Map<Integer, Long> historicalUnclaimedByWave;
         Map<String, ItemAggregate> historicalSuppliesUsed;

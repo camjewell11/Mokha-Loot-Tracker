@@ -183,6 +183,21 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel performanceSpecialAttacksUsedLabel;
     private JLabel performanceVenomApplicationsLabel;
 
+    // Dryness section
+    private JPanel drynessContainer;
+    private boolean drynessCollapsed = false;
+    private JPanel drynessSectionPanel;
+    private JPanel drynessSeparatorPanel;
+    private JLabel dryAnyUniqueLabel;
+    private JLabel dryAnyUniqueOddsLabel;
+    private JLabel dryClothLabel;
+    private JLabel dryEyeLabel;
+    private JLabel dryExpectedClothLabel;
+    private JLabel dryExpectedEyeLabel;
+    private JLabel dryExpectedTreadsLabel;
+    private JLabel dryExpectedDomLabel;
+    private JLabel drySyncWarningLabel;
+
     private final JPanel statsPanel = new JPanel();
     private final Runnable onClearData;
     private final Runnable onRecalculateTotals;
@@ -428,6 +443,14 @@ public class MokhaLootPanel extends PluginPanel {
         // Supplies Used (All Time) Section
         statsPanel.add(createSuppliesTotalSection());
         statsPanel.add(createSeparator(5));
+
+        // Dryness Section
+        drynessSectionPanel = createDrynessSection();
+        drynessSeparatorPanel = createSeparator(5);
+        drynessSectionPanel.setVisible(config.showDrynessPanel());
+        drynessSeparatorPanel.setVisible(config.showDrynessPanel());
+        statsPanel.add(drynessSectionPanel);
+        statsPanel.add(drynessSeparatorPanel);
     }
 
     private void configureActionButton(JButton button, Color backgroundColor) {
@@ -1175,6 +1198,107 @@ public class MokhaLootPanel extends PluginPanel {
         return panel;
     }
 
+    private JPanel createDrynessSection() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        JButton collapseButton = new JButton(getArrowOrFallback("▾", "↓"));
+        collapseButton.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
+        collapseButton.setForeground(Color.WHITE);
+        collapseButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        collapseButton.setBorderPainted(false);
+        collapseButton.setFocusPainted(false);
+        collapseButton.setPreferredSize(new Dimension(18, 18));
+        collapseButton.setMaximumSize(new Dimension(18, 18));
+
+        JLabel title = new JLabel("Dryness");
+        title.setFont(FontManager.getRunescapeBoldFont());
+        title.setForeground(new Color(230, 210, 120));
+
+        JPanel titleRow = new JPanel(new BorderLayout());
+        titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        titleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+        titleRow.add(title, BorderLayout.WEST);
+        titleRow.add(collapseButton, BorderLayout.EAST);
+        panel.add(titleRow);
+
+        drynessContainer = new JPanel();
+        drynessContainer.setLayout(new BoxLayout(drynessContainer, BoxLayout.Y_AXIS));
+        drynessContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        dryAnyUniqueLabel = new JLabel("N/A");
+        dryAnyUniqueLabel.setFont(FontManager.getRunescapeFont());
+        dryAnyUniqueLabel.setForeground(Color.WHITE);
+        drynessContainer.add(createStatRow("Wave Rolls:", dryAnyUniqueLabel));
+
+        dryAnyUniqueOddsLabel = new JLabel("N/A");
+        dryAnyUniqueOddsLabel.setFont(FontManager.getRunescapeFont());
+        dryAnyUniqueOddsLabel.setForeground(Color.LIGHT_GRAY);
+        drynessContainer.add(createStatRow("Expected Drops:", dryAnyUniqueOddsLabel));
+
+        drynessContainer.add(createInternalSeparator());
+
+        dryClothLabel = new JLabel("N/A");
+        dryClothLabel.setFont(FontManager.getRunescapeFont());
+        dryClothLabel.setForeground(Color.WHITE);
+        drynessContainer.add(createStatRow("Drops Received:", dryClothLabel));
+
+        dryEyeLabel = new JLabel("N/A");
+        dryEyeLabel.setFont(FontManager.getRunescapeBoldFont());
+        dryEyeLabel.setForeground(new Color(230, 210, 120));
+        drynessContainer.add(createStatRow("Dryness Value:", dryEyeLabel));
+
+        drynessContainer.add(createInternalSeparator());
+
+        dryExpectedDomLabel = new JLabel("0.00 / 0");
+        dryExpectedDomLabel.setFont(FontManager.getRunescapeFont());
+        dryExpectedDomLabel.setForeground(Color.WHITE);
+        drynessContainer.add(createStatRow("Dom Expected/Received:", dryExpectedDomLabel));
+
+        dryExpectedTreadsLabel = new JLabel("0.00 / 0");
+        dryExpectedTreadsLabel.setFont(FontManager.getRunescapeFont());
+        dryExpectedTreadsLabel.setForeground(Color.WHITE);
+        drynessContainer.add(createStatRow("Treads Expected/Received:", dryExpectedTreadsLabel));
+
+        dryExpectedEyeLabel = new JLabel("0.00 / 0");
+        dryExpectedEyeLabel.setFont(FontManager.getRunescapeFont());
+        dryExpectedEyeLabel.setForeground(Color.WHITE);
+        drynessContainer.add(createStatRow("Eye Expected/Received:", dryExpectedEyeLabel));
+
+        dryExpectedClothLabel = new JLabel("0.00 / 0");
+        dryExpectedClothLabel.setFont(FontManager.getRunescapeFont());
+        dryExpectedClothLabel.setForeground(Color.WHITE);
+        drynessContainer.add(createStatRow("Cloth Expected/Received:", dryExpectedClothLabel));
+
+        drynessContainer.add(createInternalSeparator());
+
+        drySyncWarningLabel = new JLabel(
+                "Sync highscores and collection log to initialize dryness.");
+        drySyncWarningLabel.setFont(FontManager.getRunescapeSmallFont());
+        drySyncWarningLabel.setForeground(new Color(220, 70, 70));
+        drySyncWarningLabel.setVisible(false);
+
+        JPanel warningRow = new JPanel(new BorderLayout());
+        warningRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        warningRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+        warningRow.add(drySyncWarningLabel, BorderLayout.WEST);
+        drynessContainer.add(warningRow);
+
+        panel.add(drynessContainer);
+
+        collapseButton.addActionListener(e -> {
+            drynessCollapsed = !drynessCollapsed;
+            drynessContainer.setVisible(!drynessCollapsed);
+            collapseButton.setText(getArrowOrFallback(drynessCollapsed ? "▸" : "▾",
+                    drynessCollapsed ? "→" : "↓"));
+            panel.revalidate();
+            panel.repaint();
+        });
+
+        return panel;
+    }
+
     void updatePerformance(int prayerUsed, int hpLost, int hpRegained, int specialAttacksUsed, int venomApplications) {
         SwingUtilities.invokeLater(() -> {
             if (performancePrayerUsedLabel != null)
@@ -1196,6 +1320,17 @@ public class MokhaLootPanel extends PluginPanel {
                 performanceSectionPanel.setVisible(visible);
             if (performanceSeparatorPanel != null)
                 performanceSeparatorPanel.setVisible(visible);
+            statsPanel.revalidate();
+            statsPanel.repaint();
+        });
+    }
+
+    void setDrynessSectionVisible(boolean visible) {
+        SwingUtilities.invokeLater(() -> {
+            if (drynessSectionPanel != null)
+                drynessSectionPanel.setVisible(visible);
+            if (drynessSeparatorPanel != null)
+                drynessSeparatorPanel.setVisible(visible);
             statsPanel.revalidate();
             statsPanel.repaint();
         });
@@ -1473,6 +1608,109 @@ public class MokhaLootPanel extends PluginPanel {
                 totalExcludingDomDisplay));
     }
 
+    void updateHistoricalDryness(long waveRollsTracked, double expectedDrops, long dropsReceived,
+            double expectedDom, double expectedTreads, double expectedEye, double expectedCloth,
+            long receivedDom, long receivedTreads, long receivedEye, long receivedCloth) {
+        if (dryAnyUniqueLabel == null) {
+            return;
+        }
+
+        double drynessValue = dropsReceived - expectedDrops;
+
+        dryAnyUniqueLabel.setText(String.valueOf(waveRollsTracked));
+        dryAnyUniqueOddsLabel.setText(String.format("%.2f", expectedDrops));
+        dryClothLabel.setText(String.valueOf(dropsReceived));
+        dryEyeLabel.setText(String.format("%.2f", drynessValue));
+
+        if (dryExpectedDomLabel != null) {
+            dryExpectedDomLabel.setText(String.format("%.2f / %d", expectedDom, receivedDom));
+            dryExpectedDomLabel.setForeground(getDrynessGradientColor(receivedDom - expectedDom));
+        }
+        if (dryExpectedTreadsLabel != null) {
+            dryExpectedTreadsLabel.setText(String.format("%.2f / %d", expectedTreads, receivedTreads));
+            dryExpectedTreadsLabel.setForeground(getDrynessGradientColor(receivedTreads - expectedTreads));
+        }
+        if (dryExpectedEyeLabel != null) {
+            dryExpectedEyeLabel.setText(String.format("%.2f / %d", expectedEye, receivedEye));
+            dryExpectedEyeLabel.setForeground(getDrynessGradientColor(receivedEye - expectedEye));
+        }
+        if (dryExpectedClothLabel != null) {
+            dryExpectedClothLabel.setText(String.format("%.2f / %d", expectedCloth, receivedCloth));
+            dryExpectedClothLabel.setForeground(getDrynessGradientColor(receivedCloth - expectedCloth));
+        }
+
+        if (drySyncWarningLabel != null) {
+            boolean noWavesLogged = waveRollsTracked == 0;
+            boolean noItemsLogged = dropsReceived == 0
+                    && receivedDom == 0
+                    && receivedTreads == 0
+                    && receivedEye == 0
+                    && receivedCloth == 0;
+            boolean expectedExactlyZero = Math.abs(expectedDrops) < 1e-9;
+            drySyncWarningLabel.setVisible(expectedExactlyZero && noWavesLogged && noItemsLogged);
+        }
+    }
+
+    private void setDrynessUnavailable() {
+        if (dryAnyUniqueLabel != null) {
+            dryAnyUniqueLabel.setText("0");
+        }
+        if (dryAnyUniqueOddsLabel != null) {
+            dryAnyUniqueOddsLabel.setText("0");
+        }
+        if (dryClothLabel != null) {
+            dryClothLabel.setText("0");
+        }
+        if (dryEyeLabel != null) {
+            dryEyeLabel.setText("N/A");
+        }
+        if (dryExpectedClothLabel != null) {
+            dryExpectedClothLabel.setText("0.00 / 0");
+            dryExpectedClothLabel.setForeground(Color.WHITE);
+        }
+        if (dryExpectedEyeLabel != null) {
+            dryExpectedEyeLabel.setText("0.00 / 0");
+            dryExpectedEyeLabel.setForeground(Color.WHITE);
+        }
+        if (dryExpectedTreadsLabel != null) {
+            dryExpectedTreadsLabel.setText("0.00 / 0");
+            dryExpectedTreadsLabel.setForeground(Color.WHITE);
+        }
+        if (dryExpectedDomLabel != null) {
+            dryExpectedDomLabel.setText("0.00 / 0");
+            dryExpectedDomLabel.setForeground(Color.WHITE);
+        }
+        if (drySyncWarningLabel != null) {
+            drySyncWarningLabel.setVisible(true);
+        }
+    }
+
+    private Color getDrynessGradientColor(double overUnderRate) {
+        if (Math.abs(overUnderRate) < 1e-9) {
+            return Color.WHITE;
+        }
+
+        // Clamp to the +/-3 range requested by design.
+        double clamped = Math.max(-3.0, Math.min(3.0, overUnderRate));
+        double strength = Math.abs(clamped) / 3.0;
+
+        Color target = clamped > 0
+                ? new Color(0, 200, 0)
+                : new Color(200, 0, 0);
+
+        return blendColors(Color.WHITE, target, strength);
+    }
+
+    private Color blendColors(Color start, Color end, double t) {
+        double clampedT = Math.max(0.0, Math.min(1.0, t));
+
+        int r = (int) Math.round(start.getRed() + (end.getRed() - start.getRed()) * clampedT);
+        int g = (int) Math.round(start.getGreen() + (end.getGreen() - start.getGreen()) * clampedT);
+        int b = (int) Math.round(start.getBlue() + (end.getBlue() - start.getBlue()) * clampedT);
+
+        return new Color(r, g, b);
+    }
+
     private double toFlooredOneInNDecimal(double cumulativePercent) {
         if (cumulativePercent <= 0) {
             return 0;
@@ -1690,6 +1928,8 @@ public class MokhaLootPanel extends PluginPanel {
         suppliesTotalValueLabel.setText("0 gp");
         suppliesTotalHeaderLabel.setText("0 gp");
         suppliesTotalItemsPanel.removeAll();
+
+        setDrynessUnavailable();
 
         // Refresh the panel
         statsPanel.revalidate();
