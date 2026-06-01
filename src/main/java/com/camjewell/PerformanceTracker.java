@@ -79,6 +79,15 @@ final class PerformanceTracker {
         lastSpecialAttackEnergy = currentSpecialAttackEnergy;
     }
 
+    void syncCurrentState(int prayerPoints, int hitpoints, boolean currentlyVenomed, int specialAttackEnergy) {
+        lastPrayerPoints = prayerPoints;
+        lastHitpoints = hitpoints;
+        wasVenomedLastTick = currentlyVenomed;
+        lastSpecialAttackEnergy = specialAttackEnergy;
+        suppressConsumableHealTicksRemaining = 0;
+        suppressConsumableHpLossTicksRemaining = 0;
+    }
+
     void onStatChanged(StatChanged event) {
         if (event.getSkill() == Skill.PRAYER) {
             int current = event.getBoostedLevel();

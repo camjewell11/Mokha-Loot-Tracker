@@ -41,6 +41,7 @@ import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.WidgetLoaded;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
@@ -88,10 +89,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private static final double UNIQUE_CHANCE_DOM_DELVE_7 = 1.0 / 750.0;
     private static final double UNIQUE_CHANCE_DOM_DELVE_8 = 1.0 / 500.0;
     private static final double UNIQUE_CHANCE_DOM_DELVE_9_PLUS = 1.0 / 250.0;
-    private static final int HIGHSCORES_WIDGET_GROUP_ID = 920;
-    private static final int HIGHSCORES_LEVELS_CHILD_ID = 6;
-    private static final int COLLECTION_LOG_BOSS_SELECTED_WIDGET_ID = 40697868;
-    private static final int COLLECTION_LOG_ITEMS_CONTAINER_WIDGET_ID = 40697893;
+    private static final int HIGHSCORES_WIDGET_GROUP_ID = InterfaceID.DomScoreboard.UNIVERSE >>> 16;
+    private static final int HIGHSCORES_LEVELS_CHILD_ID = InterfaceID.DomScoreboard.PERSONAL & 0xFFFF;
+    private static final int COLLECTION_LOG_BOSS_SELECTED_WIDGET_ID = InterfaceID.Collection.BOSS_TEXT;
+    private static final int COLLECTION_LOG_ITEMS_CONTAINER_WIDGET_ID = InterfaceID.Collection.ITEMS_CONTENTS;
+    private static final int DOM_LOOT_VALUE_WIDGET_ID = InterfaceID.DomEndLevelUi.LOOT_VALUE;
+    private static final int DOM_LOOT_CONTENTS_WIDGET_ID = InterfaceID.DomEndLevelUi.LOOT_CONTENTS;
     private static final int COLLECTION_LOG_EXPECTED_UNIQUE_SLOTS = 4;
     private static final Pattern WAVE_KEYWORD_LINE_PATTERN = Pattern
             .compile("(?i)\\bwave\\s*(\\d+\\+?)\\b\\s*[:\\-]?\\s*([\\d,]+)");
@@ -348,8 +351,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Detect entering arena via "Jump over gap"
         if (option != null && option.contains("Jump-over")) {
             if (!inMokhaArena) {
-                log.info("[Mokha] ===== ARENA ENTRY VIA JUMP-OVER =====");
-                log.info("[Mokha] Initializing new run tracking");
+                log.debug("[Mokha] ===== ARENA ENTRY VIA JUMP-OVER =====");
+                log.debug("[Mokha] Initializing new run tracking");
                 // Fallback cleanup: if supplies were left from a previous run (e.g., death not
                 // logged or disconnect),
                 // move them to historical before starting new run
@@ -375,14 +378,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
                 // Initialize supply snapshots for consumption tracking
                 int arenaEntryAmmo = supplyTrackingService.initializeForArenaEntry();
-                log.info("[Mokha] Arena entry complete. Initial snapshot captured: {} items, Blowpipe ammo: {}",
+                log.debug("[Mokha] Arena entry complete. Initial snapshot captured: {} items, Blowpipe ammo: {}",
                         lastCombinedSnapshot.size(), arenaEntryAmmo);
             }
         }
 
         // Detect "Descend" button - continues to next wave without claiming loot
         if (option != null && option.equalsIgnoreCase("Descend")) {
-            log.info("[Mokha] Descend button clicked, moving to wave {}", currentWaveNumber + 1);
+            log.debug("[Mokha] Descend button clicked, moving to wave {}", currentWaveNumber + 1);
             // Print accumulated loot so far (not claimed yet, could still be lost)
             printSuppliesConsumed();
             printAccumulatedLoot();
@@ -397,9 +400,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // Detect "Leave" button - player exits arena (loot is claimed, whether taken to
         // inv/bank or not)
         if (option != null && option.equals("Leave")) {
-            log.info("[Mokha] ===== LEAVE BUTTON DETECTED - player leaving arena with claimed loot");
+            log.debug("[Mokha] ===== LEAVE BUTTON DETECTED - player leaving arena with claimed loot");
             if (inMokhaArena) {
-                log.info("[Mokha] Arena state cleared: transitioning from inMokhaArena=true to false");
+                log.debug("[Mokha] Arena state cleared: transitioning from inMokhaArena=true to false");
                 // Print supplies consumed and claimed loot before clearing state
                 printSuppliesConsumed();
                 printAccumulatedLoot();
@@ -416,7 +419,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 applyArenaState(arenaStateService.createArenaExitState());
                 clearCurrentRunTrackingCollections();
 
-                log.info("[Mokha] All arena state cleared. Snapshot size: {}, Supplies consumed size: {}",
+                log.debug("[Mokha] All arena state cleared. Snapshot size: {}, Supplies consumed size: {}",
                         lastCombinedSnapshot.size(), totalSuppliesConsumed.size());
 
                 // Update panel to show cleared current run data
@@ -445,12 +448,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
             location = client.getLocalPlayer().getWorldLocation();
         }
 
+        boolean performanceTrackingActive = isPerformanceTrackingActive(location);
         boolean inConsumptionBounds = isInsideConsumptionBounds(location);
         supplyTrackingService.onGameTick(inMokhaArena, isDead, inConsumptionBounds, lastArenaExitTime);
 
         // Count venom transitions and special attack uses during active runs.
-        if (inMokhaArena && !isDead) {
+        if (performanceTrackingActive) {
             performanceTracker.onVenomAndSpecialTick(
+                    isCurrentlyVenomed(),
+                    client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT));
+        } else if (inMokhaArena && !isDead) {
+            // Keep baselines in sync while paused at entrance so those deltas are not
+            // counted when entering combat bounds.
+            performanceTracker.syncCurrentState(
+                    client.getBoostedSkillLevel(Skill.PRAYER),
+                    client.getBoostedSkillLevel(Skill.HITPOINTS),
                     isCurrentlyVenomed(),
                     client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT));
         }
@@ -492,7 +504,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 int bossHealth = boss.getHealthRatio();
                 if (bossHealth == 0) {
                     bossDefeatedThisWave = true;
-                    log.info("[Mokha] ===== BOSS DEFEATED - Wave {} =====", currentWaveNumber);
+                    log.debug("[Mokha] ===== BOSS DEFEATED - Wave {} =====", currentWaveNumber);
                 }
             }
         }
@@ -503,10 +515,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
         boolean leftInstance = client.getLocalPlayer() == null || isOutsideInstancedRegion();
         if (inMokhaArena && bossWasEverPresentThisWave && !bossCurrentlyPresent && !lastDescendClickJustHappened
                 && !isDead && leftInstance) {
-            log.info("[Mokha] ===== TELEPORT DETECTED (boss disappeared) =====");
-            log.info("[Mokha] Boss defeated this wave: {}", bossDefeatedThisWave);
-            log.info("[Mokha] Current wave: {}", currentWaveNumber);
-            log.info("[Mokha] Unclaimed loot waves: {}", lootByWave.size());
+            log.debug("[Mokha] ===== TELEPORT DETECTED (boss disappeared) =====");
+            log.debug("[Mokha] Boss defeated this wave: {}", bossDefeatedThisWave);
+            log.debug("[Mokha] Current wave: {}", currentWaveNumber);
+            log.debug("[Mokha] Unclaimed loot waves: {}", lootByWave.size());
             handleTeleportExit();
         }
 
@@ -527,8 +539,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (currentlyDead && !isDead && inMokhaArena) {
                 isDead = true;
                 historicalDeaths += 1;
-                log.info("[Mokha] ===== PLAYER DEATH - Wave {} =====", currentWaveNumber);
-                log.info("[Mokha] Total deaths this run: {}", historicalDeaths);
+                log.debug("[Mokha] ===== PLAYER DEATH - Wave {} =====", currentWaveNumber);
+                log.debug("[Mokha] Total deaths this run: {}", historicalDeaths);
 
                 // Print supplies consumed before death
                 printSuppliesConsumed();
@@ -599,7 +611,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (groupId == HIGHSCORES_WIDGET_GROUP_ID) {
             Map<Integer, Long> parsed = parseWaveCompletionsFromWidgetGroup(groupId);
             if (!parsed.isEmpty() && syncHistoricalRunsFromHighscoresData(parsed)) {
-                log.info("[Mokha] Synced {} highscores wave buckets from widget group {}",
+                log.debug("[Mokha] Synced {} highscores wave buckets from widget group {}",
                         parsed.size(), groupId);
                 updatePanelData();
                 saveHistoricalData();
@@ -703,7 +715,15 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     @Subscribe
     public void onStatChanged(StatChanged event) {
-        if (!inMokhaArena || isDead) {
+        WorldPoint location = client.getLocalPlayer() != null ? client.getLocalPlayer().getWorldLocation() : null;
+        if (!isPerformanceTrackingActive(location)) {
+            if (inMokhaArena && !isDead) {
+                performanceTracker.syncCurrentState(
+                        client.getBoostedSkillLevel(Skill.PRAYER),
+                        client.getBoostedSkillLevel(Skill.HITPOINTS),
+                        isCurrentlyVenomed(),
+                        client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT));
+            }
             return;
         }
         performanceTracker.onStatChanged(event);
@@ -758,8 +778,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private void updateLootWindowDisplayedValue() {
-        Widget valueWidget = client.getWidget(919, 20);
-        Widget lootContainerWidget = client.getWidget(919, 19);
+        Widget valueWidget = getWidgetByPackedId(DOM_LOOT_VALUE_WIDGET_ID);
+        Widget lootContainerWidget = getWidgetByPackedId(DOM_LOOT_CONTENTS_WIDGET_ID);
         if (valueWidget == null || lootContainerWidget == null) {
             return;
         }
@@ -1306,11 +1326,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
      * Routes loot to claimed or unclaimed based on whether boss was defeated
      */
     private void handleTeleportExit() {
-        log.info("[Mokha] ===== HANDLING TELEPORT EXIT =====");
-        log.info("[Mokha] Boss defeated: {}", bossDefeatedThisWave);
-        log.info("[Mokha] Wave: {}", currentWaveNumber);
-        log.info("[Mokha] Loot by wave entries: {}", lootByWave.size());
-        log.info("[Mokha] Total supplies consumed: {}", totalSuppliesConsumed.size());
+        log.debug("[Mokha] ===== HANDLING TELEPORT EXIT =====");
+        log.debug("[Mokha] Boss defeated: {}", bossDefeatedThisWave);
+        log.debug("[Mokha] Wave: {}", currentWaveNumber);
+        log.debug("[Mokha] Loot by wave entries: {}", lootByWave.size());
+        log.debug("[Mokha] Total supplies consumed: {}", totalSuppliesConsumed.size());
 
         // Print supplies consumed
         printSuppliesConsumed();
@@ -1323,8 +1343,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Route loot - teleporting out always results in unclaimed loot
         // (player abandoned arena without claiming)
-        log.info("[Mokha] ===== ADDING LOOT TO UNCLAIMED (teleport exit) =====");
-        log.info("[Mokha] Boss was defeated: {}", bossDefeatedThisWave);
+        log.debug("[Mokha] ===== ADDING LOOT TO UNCLAIMED (teleport exit) =====");
+        log.debug("[Mokha] Boss was defeated: {}", bossDefeatedThisWave);
         printAccumulatedLoot();
         capturePreviousRunSnapshot(false);
         moveCurrentRunUnclaimedToHistorical();
@@ -1377,7 +1397,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
      */
     private void printSuppliesConsumed() {
         if (totalSuppliesConsumed.isEmpty()) {
-            log.info("[Mokha] ===== NO SUPPLIES CONSUMED =====");
+            log.debug("[Mokha] ===== NO SUPPLIES CONSUMED =====");
             return;
         }
         long totalValue = 0;
@@ -1388,7 +1408,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             totalValue += (long) getPricePerDose(itemId) * quantity;
         }
 
-        log.info("[Mokha] ===== TOTAL SUPPLIES VALUE: {} gp =====", totalValue);
+        log.debug("[Mokha] ===== TOTAL SUPPLIES VALUE: {} gp =====", totalValue);
     }
 
     /**
@@ -2052,6 +2072,20 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
 
         // Do not track consumption in entrance area where reclaim/setup can happen.
+        return !isAtEntrance(location);
+    }
+
+    private boolean isPerformanceTrackingActive(WorldPoint location) {
+        if (!inMokhaArena || isDead) {
+            return false;
+        }
+
+        if (!isInsideRunBounds(location)) {
+            return false;
+        }
+
+        // Exclude entrance staging area to avoid counting setup/self-damage as run
+        // performance.
         return !isAtEntrance(location);
     }
 
