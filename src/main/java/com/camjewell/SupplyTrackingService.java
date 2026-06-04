@@ -124,7 +124,7 @@ class SupplyTrackingService {
         }
 
         if (hasWeaponAmmoConsumption && !isDead && inConsumptionBounds) {
-            Map<Integer, Integer> currentCombined = buildCombinedSnapshot(currentWeaponAmmo);
+            Map<Integer, Integer> currentCombined = buildCombinedSnapshot();
             checkForConsumption(currentCombined, true, lastArenaExitTime);
         }
 
@@ -164,7 +164,7 @@ class SupplyTrackingService {
     }
 
     private Map<Integer, Integer> buildCombinedSnapshot() {
-        return buildCombinedSnapshot(readWeaponAmmo());
+        return buildCombinedSnapshot(readLiveWeaponAmmo());
     }
 
     private Map<Integer, Integer> buildCombinedSnapshot(Map<Integer, Integer> weaponAmmo) {
@@ -227,16 +227,14 @@ class SupplyTrackingService {
         return map;
     }
 
-    private Map<Integer, Integer> readWeaponAmmo() {
+    // Always accurate — updated by the server every tick without player interaction.
+    private Map<Integer, Integer> readLiveWeaponAmmo() {
         Map<Integer, Integer> map = new HashMap<>();
-        boolean hasBlowpipeAmmoFromVarps = false;
 
-        int equippedWeapon = client.getVarpValue(BUFF_BAR_WEAPON);
         int ammoType = client.getVarpValue(BUFF_BAR_AMMO_TYPE);
         int ammoCount = client.getVarpValue(BUFF_BAR_AMMO_AMOUNT);
         if (ammoType > 0 && ammoCount > 0) {
             map.put(ammoType, ammoCount);
-            hasBlowpipeAmmoFromVarps = true;
         }
 
         int quiverAmmoId = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO);
@@ -245,64 +243,76 @@ class SupplyTrackingService {
             map.put(quiverAmmoId, map.getOrDefault(quiverAmmoId, 0) + quiverAmmoCount);
         }
 
-        if (!hasBlowpipeAmmoFromVarps) {
-            String preferredKey = null;
-            switch (equippedWeapon) {
-                case 12926:
-                    preferredKey = BLOWPIPE_STORAGE_CONFIG_KEY;
-                    break;
-                case 31575:
-                    preferredKey = CAMPHOR_BLOWPIPE_STORAGE_CONFIG_KEY;
-                    break;
-                case 31579:
-                    preferredKey = IRONWOOD_BLOWPIPE_STORAGE_CONFIG_KEY;
-                    break;
-                case 31583:
-                    preferredKey = ROSEWOOD_BLOWPIPE_STORAGE_CONFIG_KEY;
-                    break;
-                case 28687:
-                    preferredKey = BLAZING_BLOWPIPE_STORAGE_CONFIG_KEY;
-                    break;
-                default:
-                    break;
+        return map;
+    }
+
+    // Extends readLiveWeaponAmmo() with a tictac7x-charges config fallback for blowpipes whose
+    // ammo is not exposed via BUFF_BAR varps. The config is only updated when the player opens
+    // the blowpipe interface, so it may be stale. Use for trigger detection only — never include
+    // this in the combined inventory snapshot (use readLiveWeaponAmmo() there instead).
+    private Map<Integer, Integer> readWeaponAmmo() {
+        Map<Integer, Integer> map = readLiveWeaponAmmo();
+        if (!map.isEmpty()) {
+            return map;
+        }
+
+        int equippedWeapon = client.getVarpValue(BUFF_BAR_WEAPON);
+        String preferredKey = null;
+        switch (equippedWeapon) {
+            case 12926:
+                preferredKey = BLOWPIPE_STORAGE_CONFIG_KEY;
+                break;
+            case 31575:
+                preferredKey = CAMPHOR_BLOWPIPE_STORAGE_CONFIG_KEY;
+                break;
+            case 31579:
+                preferredKey = IRONWOOD_BLOWPIPE_STORAGE_CONFIG_KEY;
+                break;
+            case 31583:
+                preferredKey = ROSEWOOD_BLOWPIPE_STORAGE_CONFIG_KEY;
+                break;
+            case 28687:
+                preferredKey = BLAZING_BLOWPIPE_STORAGE_CONFIG_KEY;
+                break;
+            default:
+                break;
+        }
+
+        String[] fallbackKeys = new String[] {
+                preferredKey,
+                BLOWPIPE_STORAGE_CONFIG_KEY,
+                CAMPHOR_BLOWPIPE_STORAGE_CONFIG_KEY,
+                IRONWOOD_BLOWPIPE_STORAGE_CONFIG_KEY,
+                ROSEWOOD_BLOWPIPE_STORAGE_CONFIG_KEY,
+                BLAZING_BLOWPIPE_STORAGE_CONFIG_KEY
+        };
+
+        for (String key : fallbackKeys) {
+            if (key == null) {
+                continue;
             }
 
-            String[] fallbackKeys = new String[] {
-                    preferredKey,
-                    BLOWPIPE_STORAGE_CONFIG_KEY,
-                    CAMPHOR_BLOWPIPE_STORAGE_CONFIG_KEY,
-                    IRONWOOD_BLOWPIPE_STORAGE_CONFIG_KEY,
-                    ROSEWOOD_BLOWPIPE_STORAGE_CONFIG_KEY,
-                    BLAZING_BLOWPIPE_STORAGE_CONFIG_KEY
-            };
+            String serialized = configManager.getConfiguration(WEAPON_CHARGES_CONFIG_GROUP, key);
+            if (serialized == null || serialized.isEmpty()) {
+                continue;
+            }
 
-            for (String key : fallbackKeys) {
-                if (key == null) {
-                    continue;
-                }
-
-                String serialized = configManager.getConfiguration(WEAPON_CHARGES_CONFIG_GROUP, key);
-                if (serialized == null || serialized.isEmpty()) {
-                    continue;
-                }
-
-                try {
-                    BlowpipeStorageEntry[] entries = gson.fromJson(serialized, BlowpipeStorageEntry[].class);
-                    boolean hadEntries = false;
-                    if (entries != null) {
-                        for (BlowpipeStorageEntry entry : entries) {
-                            if (entry != null && entry.itemId > 0 && entry.quantity > 0) {
-                                map.put(entry.itemId, map.getOrDefault(entry.itemId, 0) + entry.quantity);
-                                hadEntries = true;
-                            }
+            try {
+                BlowpipeStorageEntry[] entries = gson.fromJson(serialized, BlowpipeStorageEntry[].class);
+                boolean hadEntries = false;
+                if (entries != null) {
+                    for (BlowpipeStorageEntry entry : entries) {
+                        if (entry != null && entry.itemId > 0 && entry.quantity > 0) {
+                            map.put(entry.itemId, map.getOrDefault(entry.itemId, 0) + entry.quantity);
+                            hadEntries = true;
                         }
                     }
-                    if (hadEntries) {
-                        break;
-                    }
-                } catch (JsonParseException ex) {
-                    // Ignore malformed payloads and continue trying keys.
                 }
+                if (hadEntries) {
+                    break;
+                }
+            } catch (JsonParseException ex) {
+                // Ignore malformed payloads and continue trying keys.
             }
         }
 
