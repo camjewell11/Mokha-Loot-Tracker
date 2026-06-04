@@ -109,7 +109,7 @@ class SupplyTrackingService {
         return ammoSum;
     }
 
-    void onGameTick(boolean inMokhaArena, boolean isDead, boolean inConsumptionBounds, long lastArenaExitTime) {
+    void onGameTick(boolean isDead, boolean inConsumptionBounds, long lastArenaExitTime) {
         Map<Integer, Integer> currentWeaponAmmo = readWeaponAmmo();
         boolean hasWeaponAmmoConsumption = false;
 
@@ -123,8 +123,8 @@ class SupplyTrackingService {
             }
         }
 
-        if (hasWeaponAmmoConsumption && inMokhaArena && !isDead && inConsumptionBounds) {
-            Map<Integer, Integer> currentCombined = buildCombinedSnapshot();
+        if (hasWeaponAmmoConsumption && !isDead && inConsumptionBounds) {
+            Map<Integer, Integer> currentCombined = buildCombinedSnapshot(currentWeaponAmmo);
             checkForConsumption(currentCombined, true, lastArenaExitTime);
         }
 
@@ -164,6 +164,10 @@ class SupplyTrackingService {
     }
 
     private Map<Integer, Integer> buildCombinedSnapshot() {
+        return buildCombinedSnapshot(readWeaponAmmo());
+    }
+
+    private Map<Integer, Integer> buildCombinedSnapshot(Map<Integer, Integer> weaponAmmo) {
         Map<Integer, Integer> combined = new HashMap<>();
 
         ItemContainer inventory = client.getItemContainer(INVENTORY_CONTAINER_ID);
@@ -189,7 +193,6 @@ class SupplyTrackingService {
             combined.put(entry.getKey(), combined.getOrDefault(entry.getKey(), 0) + entry.getValue());
         }
 
-        Map<Integer, Integer> weaponAmmo = readWeaponAmmo();
         for (Map.Entry<Integer, Integer> entry : weaponAmmo.entrySet()) {
             combined.put(entry.getKey(), combined.getOrDefault(entry.getKey(), 0) + entry.getValue());
         }

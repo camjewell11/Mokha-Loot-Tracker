@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.inject.Inject;
 import javax.swing.JOptionPane;
@@ -34,6 +36,8 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.events.NpcDespawned;
+import net.runelite.api.events.NpcSpawned;
 import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.gameval.InterfaceID;
@@ -68,6 +72,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private static final int ARENA_EXIT_GRACE_TICKS = 5;
     private static final int DOM_LOOT_VALUE_WIDGET_ID = InterfaceID.DomEndLevelUi.LOOT_VALUE;
     private static final int DOM_LOOT_CONTENTS_WIDGET_ID = InterfaceID.DomEndLevelUi.LOOT_CONTENTS;
+    private static final Pattern DOSE_PATTERN = Pattern.compile("\\((\\d+)\\)$");
 
     /**
      * Region IDs observed during Doom runs from location recorder logs.
@@ -127,6 +132,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private boolean bossSeenThisRun = false;
     private boolean bossDefeatedThisWave = false;
     private boolean bossWasEverPresentThisWave = false; // Track if boss appeared this wave (for teleport detection)
+    private NPC trackedBoss = null;
     private boolean lastDescendClickJustHappened = false; // Track if Descend was just clicked
     private long lastArenaExitTime = 0; // Track when player last exited arena to detect stale snapshot usage
     private int ticksOutsideArenaBounds = 0; // Failsafe: detect stale in-arena state
@@ -354,8 +360,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
 
         boolean performanceTrackingActive = isPerformanceTrackingActive(location);
-        boolean inConsumptionBounds = isInsideConsumptionBounds(location);
-        supplyTrackingService.onGameTick(inMokhaArena, isDead, inConsumptionBounds, lastArenaExitTime);
+        if (inMokhaArena) {
+            boolean inConsumptionBounds = isInsideConsumptionBounds(location);
+            supplyTrackingService.onGameTick(isDead, inConsumptionBounds, lastArenaExitTime);
+        }
 
         // Count venom transitions and special attack uses during active runs.
         if (performanceTrackingActive) {
@@ -394,7 +402,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
 
         boolean shouldCheckBoss = inMokhaArena || (location != null && isAtEntrance(location));
-        NPC boss = shouldCheckBoss ? getBoss() : null;
+        NPC boss = shouldCheckBoss ? trackedBoss : null;
         boolean bossCurrentlyPresent = (boss != null);
 
         if (inMokhaArena && !bossSeenThisRun && bossCurrentlyPresent) {
@@ -525,6 +533,20 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (groupId == InterfaceID.Collection.BOSS_TEXT >>> 16 && highscoresSyncService.attemptCollectionLogUniqueSync()) {
             updatePanelData();
             saveHistoricalData();
+        }
+    }
+
+    @Subscribe
+    public void onNpcSpawned(NpcSpawned event) {
+        if (event.getNpc().getId() == DOOM_BOSS_NPC_ID) {
+            trackedBoss = event.getNpc();
+        }
+    }
+
+    @Subscribe
+    public void onNpcDespawned(NpcDespawned event) {
+        if (event.getNpc() == trackedBoss) {
+            trackedBoss = null;
         }
     }
 
@@ -830,20 +852,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return Math.max(0, itemManager.getItemComposition(itemId).getHaPrice());
     }
 
-    @SuppressWarnings("deprecation")
-    private NPC getBoss() {
-        List<NPC> npcs = client.getNpcs();
-        if (npcs == null || npcs.isEmpty()) {
-            return null;
-        }
-        for (NPC npc : npcs) {
-            if (npc != null && npc.getId() == DOOM_BOSS_NPC_ID) {
-                return npc;
-            }
-        }
-        return null;
-    }
-
     /**
      * Handle teleport exit from arena
      * Routes loot to claimed or unclaimed based on whether boss was defeated
@@ -940,11 +948,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
      * E.g., "Super combat potion(2)" -> "Super combat potion"
      */
     private String getBasePotionName(String itemName) {
-        // Remove dose indicators like (1), (2), (3), (4)
-        if (itemName.matches(".*\\(\\d+\\)$")) {
-            return itemName.replaceAll("\\(\\d+\\)$", "").trim();
-        }
-        return itemName;
+        return DOSE_PATTERN.matcher(itemName).replaceAll("").trim();
     }
 
     /**
@@ -957,17 +961,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private int getPricePerDose(int itemId) {
         String itemName = itemManager.getItemComposition(itemId).getName();
         int fullPrice = itemManager.getItemPrice(itemId);
-
-        // Check if item has a dose suffix like (1), (2), (3), (4)
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\((\\d+)\\)$");
-        java.util.regex.Matcher matcher = pattern.matcher(itemName);
+        Matcher matcher = DOSE_PATTERN.matcher(itemName);
         if (matcher.find()) {
-            // Item has doses - divide by dose count
-            int doseCount = Integer.parseInt(matcher.group(1));
-            return fullPrice / doseCount;
+            return fullPrice / Integer.parseInt(matcher.group(1));
         }
-
-        // Item doesn't have doses - return full price
         return fullPrice;
     }
 

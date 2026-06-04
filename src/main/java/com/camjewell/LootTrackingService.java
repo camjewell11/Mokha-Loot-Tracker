@@ -25,6 +25,8 @@ class LootTrackingService {
     private final Map<Integer, Integer> previousLootSnapshot;
 
     private boolean lootWindowWasVisible = false;
+    private String cachedAlertRulesRaw = null;
+    private List<LootAlertRule> cachedAlertRules = Collections.emptyList();
 
     private static final class LootAlertRule {
         String name;
@@ -147,10 +149,21 @@ class LootTrackingService {
         return newLootByItemId;
     }
 
-    private List<LootAlertRule> parseLootAlertRules() {
-        List<LootAlertRule> rules = new ArrayList<>();
+    private List<LootAlertRule> getAlertRules() {
         String raw = config.lootAlertLines();
-        if (raw == null || raw.trim().isEmpty()) {
+        if (raw == null) {
+            raw = "";
+        }
+        if (!raw.equals(cachedAlertRulesRaw)) {
+            cachedAlertRulesRaw = raw;
+            cachedAlertRules = parseAlertRules(raw);
+        }
+        return cachedAlertRules;
+    }
+
+    private List<LootAlertRule> parseAlertRules(String raw) {
+        List<LootAlertRule> rules = new ArrayList<>();
+        if (raw.trim().isEmpty()) {
             return rules;
         }
 
@@ -198,7 +211,7 @@ class LootTrackingService {
             return;
         }
 
-        List<LootAlertRule> rules = parseLootAlertRules();
+        List<LootAlertRule> rules = getAlertRules();
         if (rules.isEmpty()) {
             return;
         }
