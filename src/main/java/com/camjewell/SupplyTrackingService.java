@@ -164,7 +164,7 @@ class SupplyTrackingService {
     }
 
     private Map<Integer, Integer> buildCombinedSnapshot() {
-        return buildCombinedSnapshot(readLiveWeaponAmmo());
+        return buildCombinedSnapshot(readWeaponAmmo());
     }
 
     private Map<Integer, Integer> buildCombinedSnapshot(Map<Integer, Integer> weaponAmmo) {
@@ -246,10 +246,10 @@ class SupplyTrackingService {
         return map;
     }
 
-    // Extends readLiveWeaponAmmo() with a tictac7x-charges config fallback for blowpipes whose
-    // ammo is not exposed via BUFF_BAR varps. The config is only updated when the player opens
-    // the blowpipe interface, so it may be stale. Use for trigger detection only — never include
-    // this in the combined inventory snapshot (use readLiveWeaponAmmo() there instead).
+    // Returns live ammo first (BUFF_BAR varps, updated every tick for conventional ranged weapons).
+    // Falls back to tictac7x-charges config for blowpipes, whose darts are stored inside the weapon
+    // and not exposed via BUFF_BAR varps. The config is only updated when the player opens the
+    // blowpipe interface, so blowpipe dart counts are only tracked at "check" events, not per-shot.
     private Map<Integer, Integer> readWeaponAmmo() {
         Map<Integer, Integer> map = readLiveWeaponAmmo();
         if (!map.isEmpty()) {

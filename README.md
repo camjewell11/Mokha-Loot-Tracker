@@ -27,8 +27,12 @@ A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during D
 - **Persistent Statistics**: All data is saved per-account and persists across sessions, including historical claimed/unclaimed loot, supplies, and deaths.
 - **Clipboard Export/Import for Historical Data**: Export the active character's historical profile to clipboard and import from clipboard with overwrite support.
 - **Player-Safe Historical Import**: Import validates the payload player key and only allows overwrite for the currently logged-in character.
-- **Comprehensive Side Panel**: Summary, current run, claimed/unclaimed loot by wave, supplies (current/historical), and interactive controls.
+- **Comprehensive Side Panel**: Summary, current run, claimed/unclaimed loot by wave, supplies (current/historical), performance metrics, and interactive controls.
 - **Data Migration**: Automatically migrates old config-based data to new file-based storage.
+- **Performance Metrics**: Tracks prayer points used, HP lost/regained, special attack uses, and venom applications per run. Consumable healing and passive regen are excluded for accuracy.
+- **Dryness Tracking**: Shows expected vs. actual unique drops based on your historical wave completions, with cumulative probability calculations.
+- **Highscores & Collection Log Sync**: Automatically syncs wave completion counts from the Dom Scoreboard and unique item counts from the Collection Log.
+- **Blowpipe Live Ammo Tracking**: Tracks blowpipe ammo consumption using server-pushed varps — no longer requires manually opening the blowpipe interface to register usage.
 
 ## How It Works
 
@@ -58,13 +62,14 @@ Mokha Loot Tracker automatically detects when you enter the Mokha arena and trac
 
 Click the Mokha Loot icon in the RuneLite sidebar to view:
 
-- **Summary**: Total claimed, supply cost, profit/loss, total unclaimed, claim/unclaim ratio, total claims, total deaths.
+- **Summary**: Total claimed, supply cost, profit/loss, total unclaimed, claim/unclaim ratio, total claims, total deaths, dryness statistics.
 - **Current Run**: Real-time value and item breakdown of unclaimed loot for the current run, with summary/by-wave toggle (summary by default).
 - **Previous Run**: Last run status/value plus loot and supplies, with collapsible section states and by-wave breakdown.
 - **Claimed Loot by Wave**: Expandable/collapsible sections for each wave (1-8, 9+), with itemized loot and values. Combined all-waves view available.
 - **Unclaimed Loot by Wave**: Same as above, for loot lost on death. Combined all-waves view available.
 - **Supplies Used (Current Run)**: Live supplies consumed, with dose/rune normalization and values.
 - **Supplies Used (All Time)**: Historical supplies consumed across all runs.
+- **Performance Metrics**: Per-run display of prayer used, HP lost/regained, special attack uses, and venom applications.
 
 All sections support:
 
@@ -180,7 +185,17 @@ This plugin is open source and available under standard RuneLite plugin licensin
 
 ## Changelog
 
-### Latest (v7.0)
+### v8.0
+
+- **Performance Metrics**: New panel section tracking prayer used, HP lost/regained, special attack uses, and venom applications per run. Consumable healing and passive +1 HP regen ticks are excluded to keep metrics action-focused. Food consumed outside the arena is not counted.
+- **Dryness Tracking**: Displays expected vs. actual unique drops using cumulative probability math across your historical wave completions. Shows dry streak across all tracked runs.
+- **Highscores & Collection Log Sync**: Automatically reads wave completion counts from the Dom Scoreboard widget and unique item counts from the Collection Log when they are opened in-game. Supports both "Personal Completions" and "Universe" scoreboard formats.
+- **Blowpipe Live Ammo Tracking**: Blowpipe ammo and dart consumption now use server-pushed `BUFF_BAR` varps (updated every tick without player interaction). Eliminates false positives from outside-arena usage — no longer requires manually opening the blowpipe interface to register or baseline ammo counts.
+- **Loot Alerts use System Notifications**: Alert triggers now fire a RuneLite system notification in addition to the in-game chat message.
+- **Performance Improvements**: Event-based NPC tracking via `NpcSpawned`/`NpcDespawned` (replaces O(n) scan every tick); supply tracking gated to arena-only; alert rule parsing cached and reused until config changes; dose regex compiled once at class load.
+- **Code Refactor**: Extracted `DrynessMath`, `HighscoresSyncService`, `ItemAggregate`, `ItemData`, `LootItem`, and `ExpectedDropsByItem` from the main plugin class, reducing it from ~2,700 to ~2,100 lines.
+
+### v7.0
 
 - Added Current Run summary/by-wave display toggle in the section header using arrow-style controls
 - Set Current Run default mode to summary view
@@ -190,13 +205,13 @@ This plugin is open source and available under standard RuneLite plugin licensin
 - Added clipboard Import Stats with overwrite support for historical data
 - Added strict player-key validation so imports only overwrite the currently logged-in character profile
 
-### Latest (v6.0)
+### v6.0
 
 - Added display sort mode for loot/supplies views (default: by value)
 - Added historical edit mode toggle for click-to-remove entry correction in panel
 - Added per-entry historical deletion flow with immediate totals/value refresh and persistence
 
-### Latest (v2.0)
+### v2.0
 
 - Added optional collect-loot value rewrite showing `original gp (adjusted gp)`
 - Added setting toggle to enable/disable adjusted collect-loot display
