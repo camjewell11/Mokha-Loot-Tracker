@@ -38,33 +38,6 @@ public class MokhaLootPanel extends PluginPanel {
     private static final Color VENOM_COLOR = new Color(0, 128, 0);
     private static final Color HP_REGAINED_COLOR = new Color(60, 180, 60);
 
-    /**
-     * Represents item data for display (name, quantity, price per item, total
-     * value)
-     */
-    public static class ItemData {
-        public String name;
-        public int quantity;
-        public int pricePerItem;
-        public long totalValue;
-        public int haPricePerItem;
-        public long totalHaValue;
-
-        public ItemData(String name, int quantity, int pricePerItem, long totalValue) {
-            this(name, quantity, pricePerItem, totalValue, 0, 0);
-        }
-
-        public ItemData(String name, int quantity, int pricePerItem, long totalValue, int haPricePerItem,
-                long totalHaValue) {
-            this.name = name;
-            this.quantity = quantity;
-            this.pricePerItem = pricePerItem;
-            this.totalValue = totalValue;
-            this.haPricePerItem = haPricePerItem;
-            this.totalHaValue = totalHaValue;
-        }
-    }
-
     private final MokhaLootTrackerConfig config;
     private final java.util.function.BooleanSupplier isInRun;
     private boolean displayHaValueOnHover;
@@ -214,8 +187,8 @@ public class MokhaLootPanel extends PluginPanel {
 
     // Add these fields to hold references to the historical data maps (set via
     // setter or constructor)
-    private Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalClaimedItemsByWave;
-    private Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalUnclaimedItemsByWave;
+    private Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave;
+    private Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave;
 
     public MokhaLootPanel(MokhaLootTrackerConfig config) {
         this(config, null, null, null, null, null, null, null, null, null, null, null, null, null);
@@ -2439,8 +2412,8 @@ public class MokhaLootPanel extends PluginPanel {
         return LootPanelDisplayUtils.sortItemDataForDisplay(items, config.displaySortMode());
     }
 
-    private List<MokhaLootTrackerPlugin.ItemAggregate> sortAggregatesForDisplay(
-            java.util.Collection<MokhaLootTrackerPlugin.ItemAggregate> items) {
+    private List<ItemAggregate> sortAggregatesForDisplay(
+            java.util.Collection<ItemAggregate> items) {
         return LootPanelDisplayUtils.sortAggregatesForDisplay(items, config.displaySortMode());
     }
 
@@ -2529,11 +2502,11 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     // Add setters for these maps
-    public void setHistoricalClaimedItemsByWave(Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> map) {
+    public void setHistoricalClaimedItemsByWave(Map<Integer, Map<String, ItemAggregate>> map) {
         this.historicalClaimedItemsByWave = map;
     }
 
-    public void setHistoricalUnclaimedItemsByWave(Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> map) {
+    public void setHistoricalUnclaimedItemsByWave(Map<Integer, Map<String, ItemAggregate>> map) {
         this.historicalUnclaimedItemsByWave = map;
     }
 }

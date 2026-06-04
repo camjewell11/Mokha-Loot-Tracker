@@ -25,7 +25,7 @@ final class LootPanelCombinedSectionRenderer {
 
     static void renderCombinedWaveItems(
             JPanel targetPanel,
-            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalByWave,
+            Map<Integer, Map<String, ItemAggregate>> historicalByWave,
             MokhaDisplaySortMode sortMode,
             boolean displayHaValueOnHover,
             boolean usePricePerItemForUniqueColor,
@@ -39,7 +39,7 @@ final class LootPanelCombinedSectionRenderer {
         long totalValue = combinedResult.getTotalValue();
         long totalHaValue = combinedResult.getTotalHaValue();
 
-        for (MokhaLootTrackerPlugin.ItemAggregate aggregate : LootPanelDisplayUtils
+        for (ItemAggregate aggregate : LootPanelDisplayUtils
                 .sortAggregatesForDisplay(combinedResult.getCombined().values(), sortMode)) {
             JPanel itemRow = new JPanel(new BorderLayout());
             itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -113,7 +113,7 @@ final class LootPanelCombinedSectionRenderer {
         targetPanel.repaint();
     }
 
-    private static boolean isUltraValuable(MokhaLootTrackerPlugin.ItemAggregate aggregate,
+    private static boolean isUltraValuable(ItemAggregate aggregate,
             boolean usePricePerItemForUniqueColor) {
         if ("Dom".equalsIgnoreCase(aggregate.name)) {
             return true;

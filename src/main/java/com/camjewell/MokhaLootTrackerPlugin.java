@@ -6,18 +6,13 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.IntToDoubleFunction;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.inject.Inject;
 import javax.swing.JOptionPane;
@@ -71,40 +66,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private static final int SUN_KISSED_BONES_HA_VALUE = 96;
     private static final String DEFAULT_PLAYER_PROFILE_KEY = "default";
     private static final int ARENA_EXIT_GRACE_TICKS = 5;
-    private static final double UNIQUE_CHANCE_DELVE_2 = 1.0 / 2500.0;
-    private static final double UNIQUE_CHANCE_DELVE_3 = 1.0 / 1000.0;
-    private static final double UNIQUE_CHANCE_DELVE_4 = 1.0 / 450.0;
-    private static final double UNIQUE_CHANCE_DELVE_5 = 1.0 / 270.0;
-    private static final double UNIQUE_CHANCE_DELVE_6 = 1.0 / 255.0;
-    private static final double UNIQUE_CHANCE_DELVE_7 = 1.0 / 240.0;
-    private static final double UNIQUE_CHANCE_DELVE_8 = 1.0 / 210.0;
-    private static final double UNIQUE_CHANCE_DELVE_9_PLUS = 1.0 / 180.0;
-    private static final double UNIQUE_CHANCE_STANDARD_DELVE_3 = 1.0 / 2000.0;
-    private static final double UNIQUE_CHANCE_STANDARD_DELVE_4 = 1.0 / 1350.0;
-    private static final double UNIQUE_CHANCE_STANDARD_DELVE_5 = 1.0 / 810.0;
-    private static final double UNIQUE_CHANCE_STANDARD_DELVE_6 = 1.0 / 765.0;
-    private static final double UNIQUE_CHANCE_STANDARD_DELVE_7 = 1.0 / 720.0;
-    private static final double UNIQUE_CHANCE_STANDARD_DELVE_8 = 1.0 / 630.0;
-    private static final double UNIQUE_CHANCE_STANDARD_DELVE_9_PLUS = 1.0 / 540.0;
-    private static final double UNIQUE_CHANCE_DOM_DELVE_6 = 1.0 / 1000.0;
-    private static final double UNIQUE_CHANCE_DOM_DELVE_7 = 1.0 / 750.0;
-    private static final double UNIQUE_CHANCE_DOM_DELVE_8 = 1.0 / 500.0;
-    private static final double UNIQUE_CHANCE_DOM_DELVE_9_PLUS = 1.0 / 250.0;
-    private static final int COLLECTION_LOG_BOSS_SELECTED_WIDGET_ID = InterfaceID.Collection.BOSS_TEXT;
-    private static final int COLLECTION_LOG_ITEMS_CONTAINER_WIDGET_ID = InterfaceID.Collection.ITEMS_CONTENTS;
     private static final int DOM_LOOT_VALUE_WIDGET_ID = InterfaceID.DomEndLevelUi.LOOT_VALUE;
     private static final int DOM_LOOT_CONTENTS_WIDGET_ID = InterfaceID.DomEndLevelUi.LOOT_CONTENTS;
-    private static final int COLLECTION_LOG_EXPECTED_UNIQUE_SLOTS = 4;
-    private static final Pattern WAVE_KEYWORD_LINE_PATTERN = Pattern
-            .compile("(?i)\\bwave\\s*(\\d+\\+?)\\b\\s*[:\\-]?\\s*([\\d,]+)");
-    private static final Pattern WAVE_COMPACT_LINE_PATTERN = Pattern
-            .compile("^(\\d+\\+?)\\s*[:\\-]?\\s*([\\d,]+)$");
-    private static final Pattern LEVEL_COMPLETION_LINE_PATTERN = Pattern
-            .compile("(?i)\\blevel\\s*(\\d+\\+?)\\b\\s+([\\d,]+)(?:\\s+[a-z])?");
-    private static final Pattern LEVEL_ONLY_LINE_PATTERN = Pattern
-            .compile("(?i)^level\\s*(\\d+\\+?)$");
-    private static final Pattern COUNT_ONLY_LINE_PATTERN = Pattern
-            .compile("^([\\d,]+)(?:\\s+[a-z])?$");
 
     /**
      * Region IDs observed during Doom runs from location recorder logs.
@@ -150,6 +113,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private HistoricalRunService historicalRunService;
     private ValueCalculationService valueCalculationService;
     private PanelDataService panelDataService;
+    private HighscoresSyncService highscoresSyncService;
     private String activeHistoricalPlayerKey = DEFAULT_PLAYER_PROFILE_KEY;
 
     @Inject
@@ -206,76 +170,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private final Map<Integer, Long> historicalCompletedRunsByWave = new HashMap<>(); // Wave -> completed count
     private final Map<Integer, Long> localCompletedRunsSinceLastSyncByWave = new HashMap<>();
     private final Map<String, Long> collectionLogClaimedUniqueCounts = new HashMap<>();
-    private boolean highscoresBaselineSynced;
 
     // Mokhaiotl Cloth handling
     private boolean hasWarnedAboutZeroClothValue = false; // Track if we've already warned player
-
-    /**
-     * Represents a single loot item with name, quantity, and value
-     */
-    static class LootItem {
-        String name;
-        int quantity;
-        int value;
-        int haValue;
-
-        LootItem(String name, int quantity, int value, int haValue) {
-            this.name = name;
-            this.quantity = quantity;
-            this.value = value;
-            this.haValue = haValue;
-        }
-    }
-
-    /**
-     * Aggregates items across multiple runs (for historical tracking)
-     */
-    public static class ItemAggregate {
-        String name;
-        int totalQuantity;
-        int pricePerItem;
-        int haPricePerItem;
-        long totalValue;
-        long totalHaValue;
-
-        ItemAggregate(String name, int quantity, int pricePerItem) {
-            this(name, quantity, pricePerItem, 0);
-        }
-
-        ItemAggregate(String name, int quantity, int pricePerItem, int haPricePerItem) {
-            this.name = name;
-            this.totalQuantity = quantity;
-            this.pricePerItem = pricePerItem;
-            this.haPricePerItem = haPricePerItem;
-            this.totalValue = (long) pricePerItem * quantity;
-            this.totalHaValue = (long) haPricePerItem * quantity;
-        }
-
-        void add(int quantity, int pricePerItem) {
-            add(quantity, pricePerItem, this.haPricePerItem);
-        }
-
-        void add(int quantity, int pricePerItem, int haPricePerItem) {
-            this.totalQuantity += quantity;
-            this.totalValue += (long) pricePerItem * quantity;
-            this.totalHaValue += (long) haPricePerItem * quantity;
-            // Update price per item to latest (could also average, but latest is simpler)
-            this.pricePerItem = pricePerItem;
-            this.haPricePerItem = haPricePerItem;
-        }
-    }
-
-    private static class ExpectedDropsByItem {
-        double cloth;
-        double eye;
-        double treads;
-        double dom;
-
-        double total() {
-            return cloth + eye + treads + dom;
-        }
-    }
 
     @Provides
     MokhaLootTrackerConfig provideConfig(ConfigManager configManager) {
@@ -319,6 +216,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
         historicalRunService = new HistoricalRunService();
         valueCalculationService = new ValueCalculationService();
         panelDataService = new PanelDataService();
+        highscoresSyncService = new HighscoresSyncService(client, itemManager,
+                this::canonicalizeTrackedUniqueName,
+                historicalCompletedRunsByWave, localCompletedRunsSinceLastSyncByWave,
+                collectionLogClaimedUniqueCounts);
 
         // Load persisted historical data (default profile before we know account name)
         activeHistoricalPlayerKey = DEFAULT_PLAYER_PROFILE_KEY;
@@ -433,8 +334,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
     @Subscribe
     public void onGameTick(GameTick event) {
         ensureHistoricalDataLoadedForCurrentPlayer();
-        attemptHighscoresWidgetSyncIfVisible();
-        attemptCollectionLogUniqueSyncIfVisible();
+        if (highscoresSyncService.attemptHighscoresWidgetSync()) {
+            updatePanelData();
+            saveHistoricalData();
+        }
+        if (highscoresSyncService.attemptCollectionLogUniqueSync()) {
+            updatePanelData();
+            saveHistoricalData();
+        }
 
         performanceTracker.onTick();
 
@@ -607,15 +514,15 @@ public class MokhaLootTrackerPlugin extends Plugin {
         int groupId = event.getGroupId();
 
         if (groupId == InterfaceID.DomScoreboard.UNIVERSE >>> 16) {
-            Map<Integer, Long> parsed = parseWaveCompletionsFromDomScoreboard();
-            if (!parsed.isEmpty() && syncHistoricalRunsFromHighscoresData(parsed)) {
+            Map<Integer, Long> parsed = highscoresSyncService.parseWaveCompletionsFromDomScoreboard();
+            if (!parsed.isEmpty() && highscoresSyncService.syncHistoricalRunsFromHighscoresData(parsed)) {
                 log.debug("[Mokha] Synced {} highscores wave buckets from DomScoreboard", parsed.size());
                 updatePanelData();
                 saveHistoricalData();
             }
         }
 
-        if (groupId == InterfaceID.Collection.BOSS_TEXT >>> 16 && syncCollectionLogUniquesFromVisibleWidgets()) {
+        if (groupId == InterfaceID.Collection.BOSS_TEXT >>> 16 && highscoresSyncService.attemptCollectionLogUniqueSync()) {
             updatePanelData();
             saveHistoricalData();
         }
@@ -807,379 +714,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
     }
 
-    private boolean syncHistoricalRunsFromHighscoresData(Map<Integer, Long> parsed) {
-        Map<Integer, Long> normalized = new HashMap<>();
-        for (Map.Entry<Integer, Long> entry : parsed.entrySet()) {
-            int wave = normalizeWaveKey(entry.getKey());
-            long parsedCount = Math.max(0, entry.getValue());
-            normalized.put(wave, parsedCount);
-        }
-
-        boolean changed = !historicalCompletedRunsByWave.equals(normalized)
-                || !localCompletedRunsSinceLastSyncByWave.isEmpty()
-                || !highscoresBaselineSynced;
-
-        if (!changed) {
-            return false;
-        }
-
-        historicalCompletedRunsByWave.clear();
-        historicalCompletedRunsByWave.putAll(normalized);
-        localCompletedRunsSinceLastSyncByWave.clear();
-        highscoresBaselineSynced = true;
-        return true;
-    }
-
-    private void attemptHighscoresWidgetSyncIfVisible() {
-        Widget root = client.getWidget(InterfaceID.DomScoreboard.UNIVERSE);
-        Widget levels = client.getWidget(InterfaceID.DomScoreboard.PERSONAL);
-        boolean rootVisible = root != null && !root.isHidden();
-        boolean levelsVisible = levels != null && !levels.isHidden();
-        if (!rootVisible && !levelsVisible) {
-            return;
-        }
-
-        Map<Integer, Long> parsed = parseWaveCompletionsFromDomScoreboard();
-        if (parsed.isEmpty()) {
-            return;
-        }
-
-        if (syncHistoricalRunsFromHighscoresData(parsed)) {
-            updatePanelData();
-            saveHistoricalData();
-        }
-    }
-
-    private void attemptCollectionLogUniqueSyncIfVisible() {
-        if (syncCollectionLogUniquesFromVisibleWidgets()) {
-            updatePanelData();
-            saveHistoricalData();
-        }
-    }
-
-    private boolean syncCollectionLogUniquesFromVisibleWidgets() {
-        Widget selectedBossWidget = client.getWidget(COLLECTION_LOG_BOSS_SELECTED_WIDGET_ID);
-        Widget itemsContainerWidget = client.getWidget(COLLECTION_LOG_ITEMS_CONTAINER_WIDGET_ID);
-
-        if (selectedBossWidget == null || itemsContainerWidget == null) {
-            return false;
-        }
-
-        if (selectedBossWidget.isHidden() || itemsContainerWidget.isHidden()) {
-            return false;
-        }
-
-        String selectedBossText = selectedBossWidget.getText();
-        if (selectedBossText == null
-                || !selectedBossText.toLowerCase(Locale.ROOT).contains("doom of mokhaiotl")) {
-            return false;
-        }
-
-        Map<String, Long> parsedCounts = parseCollectionLogUniqueCounts(itemsContainerWidget);
-        if (parsedCounts.isEmpty()) {
-            return false;
-        }
-
-        if (parsedCounts.equals(collectionLogClaimedUniqueCounts)) {
-            return false;
-        }
-
-        collectionLogClaimedUniqueCounts.clear();
-        collectionLogClaimedUniqueCounts.putAll(parsedCounts);
-        return true;
-    }
-
-    private Map<String, Long> parseCollectionLogUniqueCounts(Widget itemsContainerWidget) {
-        Map<String, Long> parsed = new HashMap<>();
-        Widget[] children = itemsContainerWidget.getChildren();
-        if (children == null || children.length == 0) {
-            return parsed;
-        }
-
-        int slotsToParse = Math.min(COLLECTION_LOG_EXPECTED_UNIQUE_SLOTS, children.length);
-        for (int slot = 0; slot < slotsToParse; slot++) {
-            Widget itemWidget = children[slot];
-            if (itemWidget == null || itemWidget.isHidden()) {
-                continue;
-            }
-
-            int itemId = itemWidget.getItemId();
-            if (itemId <= 0) {
-                continue;
-            }
-
-            String rawName = itemManager.getItemComposition(itemId).getName();
-            String canonicalUniqueName = canonicalizeTrackedUniqueName(rawName);
-            if (canonicalUniqueName == null) {
-                continue;
-            }
-
-            long quantity = Math.max(0, itemWidget.getItemQuantity());
-            parsed.put(canonicalUniqueName, quantity);
-        }
-
-        return parsed;
-    }
-
-    private Map<Integer, Long> parseWaveCompletionsFromDomScoreboard() {
-        Map<Integer, Long> parsed = new HashMap<>();
-        boolean sawExpectedFormat = false;
-
-        Widget root = findHighscoresWaveRoot();
-        if (root == null) {
-            return parsed;
-        }
-
-        sawExpectedFormat = collectWaveCompletionsFromWidget(root, parsed);
-
-        // Some scoreboard layouts split "Level N" and completion count into sibling
-        // widgets, so line-based parsing alone misses valid rows.
-        parseWaveCompletionsFromStructuredTokens(root, parsed);
-
-        if (!sawExpectedFormat || parsed.isEmpty()) {
-            return new HashMap<>();
-        }
-
-        return parsed;
-    }
-
-    private Widget findHighscoresWaveRoot() {
-        Widget preferred = client.getWidget(InterfaceID.DomScoreboard.PERSONAL);
-        if (preferred != null && !preferred.isHidden()) {
-            return preferred;
-        }
-
-        Widget primary = client.getWidget(InterfaceID.DomScoreboard.UNIVERSE);
-        if (primary != null && !primary.isHidden()) {
-            return primary;
-        }
-
-        Widget[] roots = client.getWidgetRoots();
-        if (roots == null) {
-            return null;
-        }
-
-        for (Widget root : roots) {
-            if (root == null || root.isHidden()) {
-                continue;
-            }
-            if (root.getId() == InterfaceID.DomScoreboard.UNIVERSE) {
-                return root;
-            }
-        }
-
-        return null;
-    }
-
-    private boolean collectWaveCompletionsFromWidget(Widget widget, Map<Integer, Long> parsed) {
-        boolean sawExpectedFormat = false;
-        if (widget == null || widget.isHidden()) {
-            return false;
-        }
-
-        String text = widget.getText();
-        if (text != null && !text.isEmpty()) {
-            String stripped = text.replaceAll("<[^>]*>", " ").trim();
-            if (!stripped.isEmpty()) {
-                String[] lines = stripped.split("\\r?\\n|<br>|<br/>");
-                for (String rawLine : lines) {
-                    String line = rawLine == null ? "" : rawLine.replace('\u00A0', ' ').trim();
-                    if (line.isEmpty()) {
-                        continue;
-                    }
-
-                    String lowered = line.toLowerCase(Locale.ROOT);
-                    if (lowered.contains("personal completions") || lowered.contains("level")) {
-                        sawExpectedFormat = true;
-                    }
-
-                    if (parseWaveCompletionLine(line, parsed)) {
-                        sawExpectedFormat = true;
-                    }
-                }
-            }
-        }
-
-        Widget[] children = widget.getChildren();
-        if (children != null) {
-            for (Widget child : children) {
-                sawExpectedFormat |= collectWaveCompletionsFromWidget(child, parsed);
-            }
-        }
-
-        Widget[] dynamicChildren = widget.getDynamicChildren();
-        if (dynamicChildren != null) {
-            for (Widget child : dynamicChildren) {
-                sawExpectedFormat |= collectWaveCompletionsFromWidget(child, parsed);
-            }
-        }
-
-        Widget[] staticChildren = widget.getStaticChildren();
-        if (staticChildren != null) {
-            for (Widget child : staticChildren) {
-                sawExpectedFormat |= collectWaveCompletionsFromWidget(child, parsed);
-            }
-        }
-
-        Widget[] nestedChildren = widget.getNestedChildren();
-        if (nestedChildren != null) {
-            for (Widget child : nestedChildren) {
-                sawExpectedFormat |= collectWaveCompletionsFromWidget(child, parsed);
-            }
-        }
-
-        return sawExpectedFormat;
-    }
-
-    private boolean parseWaveCompletionLine(String line, Map<Integer, Long> parsed) {
-        Matcher keywordMatcher = WAVE_KEYWORD_LINE_PATTERN.matcher(line);
-        if (keywordMatcher.find()) {
-            Integer wave = parseWaveToken(keywordMatcher.group(1));
-            Long count = parseCountToken(keywordMatcher.group(2));
-            if (wave != null && count != null) {
-                parsed.merge(normalizeWaveKey(wave), count, Math::max);
-                return true;
-            }
-        }
-
-        Matcher compactMatcher = WAVE_COMPACT_LINE_PATTERN.matcher(line);
-        if (compactMatcher.find()) {
-            Integer wave = parseWaveToken(compactMatcher.group(1));
-            Long count = parseCountToken(compactMatcher.group(2));
-            if (wave != null && count != null && wave >= 1 && wave <= 99) {
-                parsed.merge(normalizeWaveKey(wave), count, Math::max);
-                return true;
-            }
-        }
-
-        Matcher levelMatcher = LEVEL_COMPLETION_LINE_PATTERN.matcher(line);
-        if (levelMatcher.find()) {
-            Integer wave = parseWaveToken(levelMatcher.group(1));
-            Long count = parseCountToken(levelMatcher.group(2));
-            if (wave != null && count != null) {
-                parsed.merge(normalizeWaveKey(wave), count, Math::max);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private void parseWaveCompletionsFromStructuredTokens(Widget root, Map<Integer, Long> parsed) {
-        List<String> tokens = new ArrayList<>();
-        collectWidgetTextTokens(root, tokens);
-
-        Deque<Integer> pendingWaves = new ArrayDeque<>();
-        for (String token : tokens) {
-            Matcher levelOnlyMatcher = LEVEL_ONLY_LINE_PATTERN.matcher(token);
-            if (levelOnlyMatcher.find()) {
-                Integer wave = parseWaveToken(levelOnlyMatcher.group(1));
-                if (wave != null) {
-                    pendingWaves.addLast(wave);
-                }
-                continue;
-            }
-
-            if (pendingWaves.isEmpty()) {
-                continue;
-            }
-
-            Matcher countOnlyMatcher = COUNT_ONLY_LINE_PATTERN.matcher(token);
-            if (countOnlyMatcher.find()) {
-                Long count = parseCountToken(countOnlyMatcher.group(1));
-                if (count != null) {
-                    int wave = pendingWaves.removeFirst();
-                    parsed.merge(normalizeWaveKey(wave), count, Math::max);
-                }
-            }
-        }
-    }
-
-    private void collectWidgetTextTokens(Widget widget, List<String> tokens) {
-        if (widget == null || widget.isHidden()) {
-            return;
-        }
-
-        String text = widget.getText();
-        if (text != null && !text.isEmpty()) {
-            String stripped = text.replaceAll("<[^>]*>", " ").replace('\u00A0', ' ').trim();
-            if (!stripped.isEmpty()) {
-                String[] lines = stripped.split("\\r?\\n|<br>|<br/>");
-                for (String rawLine : lines) {
-                    String line = rawLine == null ? "" : rawLine.trim();
-                    if (!line.isEmpty()) {
-                        tokens.add(line);
-                    }
-                }
-            }
-        }
-
-        Widget[] children = widget.getChildren();
-        if (children != null) {
-            for (Widget child : children) {
-                collectWidgetTextTokens(child, tokens);
-            }
-        }
-
-        Widget[] dynamicChildren = widget.getDynamicChildren();
-        if (dynamicChildren != null) {
-            for (Widget child : dynamicChildren) {
-                collectWidgetTextTokens(child, tokens);
-            }
-        }
-
-        Widget[] staticChildren = widget.getStaticChildren();
-        if (staticChildren != null) {
-            for (Widget child : staticChildren) {
-                collectWidgetTextTokens(child, tokens);
-            }
-        }
-
-        Widget[] nestedChildren = widget.getNestedChildren();
-        if (nestedChildren != null) {
-            for (Widget child : nestedChildren) {
-                collectWidgetTextTokens(child, tokens);
-            }
-        }
-    }
-
-    private Integer parseWaveToken(String token) {
-        if (token == null) {
-            return null;
-        }
-        String cleaned = token.trim();
-        if (cleaned.isEmpty()) {
-            return null;
-        }
-
-        if (cleaned.endsWith("+")) {
-            // Any plus-level row should contribute to the 9+ bucket used by dryness
-            // probabilities (e.g. 8+, 9+, 10+ all map to bucket 9).
-            return 9;
-        }
-
-        try {
-            return Integer.parseInt(cleaned);
-        } catch (NumberFormatException ex) {
-            return null;
-        }
-    }
-
-    private Long parseCountToken(String token) {
-        if (token == null) {
-            return null;
-        }
-        String cleaned = token.replace(",", "").trim();
-        if (cleaned.isEmpty()) {
-            return null;
-        }
-        try {
-            long parsed = Long.parseLong(cleaned);
-            return parsed >= 0 ? parsed : null;
-        } catch (NumberFormatException ex) {
-            return null;
-        }
-    }
 
     private int normalizeWaveKey(int wave) {
         if (wave < 1) {
@@ -1360,7 +894,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private void incrementLocalWaveCompletionsFromCurrentRun() {
-        if (!highscoresBaselineSynced) {
+        if (!highscoresSyncService.isHighscoresBaselineSynced()) {
             return;
         }
 
@@ -1508,7 +1042,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         localCompletedRunsSinceLastSyncByWave.clear();
         collectionLogClaimedUniqueCounts.clear();
         collectionLogClaimedUniqueCounts.putAll(historicalDataManager.getCollectionLogClaimedUniqueCounts());
-        highscoresBaselineSynced = !historicalCompletedRunsByWave.isEmpty();
+        highscoresSyncService.setHighscoresBaselineSynced(!historicalCompletedRunsByWave.isEmpty());
 
         historicalTotalClaimed = historicalDataManager.getHistoricalTotalClaimed();
         historicalClaims = historicalDataManager.getHistoricalClaims();
@@ -1625,7 +1159,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         // One-time legacy migration: if we loaded under the "default" fallback key and
         // now know the real player name, move that data into the player's own profile
         // rather than discarding it by switching to an empty one.
-        // Skip the migration if the player already has their own saved data — in that
+        // Skip the migration if the player already has their own saved data â€” in that
         // case the "default" data is stale and the player's file data should be loaded.
         boolean isLegacyMigration = DEFAULT_PLAYER_PROFILE_KEY.equals(activeHistoricalPlayerKey)
                 && !DEFAULT_PLAYER_PROFILE_KEY.equals(currentKey)
@@ -2243,8 +1777,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
         long uniqueClaimsCount = valueCalculationService
                 .calculateHistoricalUniqueClaimCount(historicalClaimedItemsByWave);
 
-        long totalWaveRolls = calculateTotalHistoricalWaveRolls();
-        ExpectedDropsByItem expectedDropsByItem = calculateHistoricalExpectedDropsByItem();
+        Map<Integer, Long> effectiveRuns = getEffectiveHistoricalCompletedRunsByWave();
+        long totalWaveRolls = DrynessMath.calculateTotalHistoricalWaveRolls(effectiveRuns);
+        ExpectedDropsByItem expectedDropsByItem = DrynessMath.calculateHistoricalExpectedDropsByItem(effectiveRuns);
         panel.updateHistoricalDryness(
                 totalWaveRolls,
                 expectedDropsByItem.total(),
@@ -2283,11 +1818,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 previousRunData.haTotalsByWave);
         panel.updateCurrentRunUniqueChance(
                 currentWaveNumber,
-                calculateCumulativeUniqueChancePercent(currentWaveNumber),
-                calculateCumulativeUniqueChancePercent(2, currentWaveNumber, this::getClothUniqueChanceForDelve),
-                calculateCumulativeUniqueChancePercent(3, currentWaveNumber, this::getStandardUniqueChanceForDelve),
-                calculateCumulativeUniqueChancePercent(4, currentWaveNumber, this::getStandardUniqueChanceForDelve),
-                calculateCumulativeUniqueChancePercent(6, currentWaveNumber, this::getDomUniqueChanceForDelve));
+                DrynessMath.calculateCumulativeUniqueChancePercent(currentWaveNumber),
+                DrynessMath.calculateCumulativeUniqueChancePercent(2, currentWaveNumber, DrynessMath::getClothUniqueChanceForDelve),
+                DrynessMath.calculateCumulativeUniqueChancePercent(3, currentWaveNumber, DrynessMath::getStandardUniqueChanceForDelve),
+                DrynessMath.calculateCumulativeUniqueChancePercent(4, currentWaveNumber, DrynessMath::getStandardUniqueChanceForDelve),
+                DrynessMath.calculateCumulativeUniqueChancePercent(6, currentWaveNumber, DrynessMath::getDomUniqueChanceForDelve));
 
         for (int wave = 1; wave <= 10; wave++) {
             panel.updateClaimedWave(
@@ -2327,125 +1862,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
         for (ItemAggregate item : historicalSuppliesUsed.values()) {
             historicalSupplyCost += item.totalValue;
         }
-    }
-
-    private double calculateCumulativeUniqueChancePercent(int currentDepth) {
-        return calculateCumulativeUniqueChancePercent(2, currentDepth, this::getOverallUniqueChanceForDelve);
-    }
-
-    private double calculateCumulativeUniqueChancePercent(int unlockDepth, int currentDepth,
-            IntToDoubleFunction chanceByDelve) {
-        if (currentDepth < unlockDepth) {
-            return 0;
-        }
-
-        double chanceNoUnique = 1.0;
-        for (int delve = unlockDepth; delve <= currentDepth; delve++) {
-            chanceNoUnique *= (1.0 - chanceByDelve.applyAsDouble(delve));
-        }
-
-        return (1.0 - chanceNoUnique) * 100.0;
-    }
-
-    private double getOverallUniqueChanceForDelve(int delve) {
-        switch (delve) {
-            case 2:
-                return UNIQUE_CHANCE_DELVE_2;
-            case 3:
-                return UNIQUE_CHANCE_DELVE_3;
-            case 4:
-                return UNIQUE_CHANCE_DELVE_4;
-            case 5:
-                return UNIQUE_CHANCE_DELVE_5;
-            case 6:
-                return UNIQUE_CHANCE_DELVE_6;
-            case 7:
-                return UNIQUE_CHANCE_DELVE_7;
-            case 8:
-                return UNIQUE_CHANCE_DELVE_8;
-            default:
-                return UNIQUE_CHANCE_DELVE_9_PLUS;
-        }
-    }
-
-    private double getClothUniqueChanceForDelve(int delve) {
-        if (delve <= 2) {
-            return UNIQUE_CHANCE_DELVE_2;
-        }
-        return getStandardUniqueChanceForDelve(delve);
-    }
-
-    private double getStandardUniqueChanceForDelve(int delve) {
-        switch (delve) {
-            case 3:
-                return UNIQUE_CHANCE_STANDARD_DELVE_3;
-            case 4:
-                return UNIQUE_CHANCE_STANDARD_DELVE_4;
-            case 5:
-                return UNIQUE_CHANCE_STANDARD_DELVE_5;
-            case 6:
-                return UNIQUE_CHANCE_STANDARD_DELVE_6;
-            case 7:
-                return UNIQUE_CHANCE_STANDARD_DELVE_7;
-            case 8:
-                return UNIQUE_CHANCE_STANDARD_DELVE_8;
-            default:
-                return UNIQUE_CHANCE_STANDARD_DELVE_9_PLUS;
-        }
-    }
-
-    private double getDomUniqueChanceForDelve(int delve) {
-        switch (delve) {
-            case 6:
-                return UNIQUE_CHANCE_DOM_DELVE_6;
-            case 7:
-                return UNIQUE_CHANCE_DOM_DELVE_7;
-            case 8:
-                return UNIQUE_CHANCE_DOM_DELVE_8;
-            default:
-                return UNIQUE_CHANCE_DOM_DELVE_9_PLUS;
-        }
-    }
-
-    private long calculateTotalHistoricalWaveRolls() {
-        long total = 0;
-        for (long count : getEffectiveHistoricalCompletedRunsByWave().values()) {
-            total += count;
-        }
-        return total;
-    }
-
-    private double calculateHistoricalExpectedUniqueDrops() {
-        return calculateHistoricalExpectedDropsByItem().total();
-    }
-
-    private ExpectedDropsByItem calculateHistoricalExpectedDropsByItem() {
-        ExpectedDropsByItem expected = new ExpectedDropsByItem();
-
-        for (Map.Entry<Integer, Long> entry : getEffectiveHistoricalCompletedRunsByWave().entrySet()) {
-            int wave = entry.getKey();
-            long completedCount = entry.getValue();
-
-            if (wave < 2 || completedCount <= 0) {
-                continue;
-            }
-
-            expected.cloth += completedCount * getClothUniqueChanceForDelve(wave);
-
-            if (wave >= 3) {
-                expected.eye += completedCount * getStandardUniqueChanceForDelve(wave);
-            }
-
-            if (wave >= 4) {
-                expected.treads += completedCount * getStandardUniqueChanceForDelve(wave);
-            }
-
-            if (wave >= 6) {
-                expected.dom += completedCount * getDomUniqueChanceForDelve(wave);
-            }
-        }
-
-        return expected;
     }
 
     private long calculateHistoricalReceivedCountForUnique(String uniqueName) {
@@ -2511,7 +1927,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private Map<Integer, Long> getEffectiveHistoricalCompletedRunsByWave() {
-        if (!highscoresBaselineSynced || localCompletedRunsSinceLastSyncByWave.isEmpty()) {
+        if (!highscoresSyncService.isHighscoresBaselineSynced() || localCompletedRunsSinceLastSyncByWave.isEmpty()) {
             return historicalCompletedRunsByWave;
         }
 
@@ -2520,32 +1936,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             combined.put(entry.getKey(), combined.getOrDefault(entry.getKey(), 0L) + entry.getValue());
         }
         return combined;
-    }
-
-    private double getExpectedUniqueDropsPerCompletionForWave(int wave) {
-        if (wave < 2) {
-            return 0.0;
-        }
-
-        double expected = 0.0;
-
-        // Cloth starts at level 2.
-        expected += getClothUniqueChanceForDelve(wave);
-
-        // At level 3 only one standard unique roll is available; levels 4+
-        // have both standard unique rolls.
-        if (wave == 3) {
-            expected += getStandardUniqueChanceForDelve(wave);
-        } else if (wave >= 4) {
-            expected += getStandardUniqueChanceForDelve(wave) * 2.0;
-        }
-
-        // Dom starts at level 6.
-        if (wave >= 6) {
-            expected += getDomUniqueChanceForDelve(wave);
-        }
-
-        return expected;
     }
 
     /**

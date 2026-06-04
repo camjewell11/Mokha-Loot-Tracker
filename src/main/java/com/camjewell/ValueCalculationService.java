@@ -6,10 +6,10 @@ import java.util.Map;
 class ValueCalculationService {
     private static final int ULTRA_VALUABLE_THRESHOLD = 20_000_000;
 
-    long calculateUnadjustedCurrentRunLootValue(Map<Integer, List<MokhaLootTrackerPlugin.LootItem>> lootByWave) {
+    long calculateUnadjustedCurrentRunLootValue(Map<Integer, List<LootItem>> lootByWave) {
         long total = 0;
-        for (List<MokhaLootTrackerPlugin.LootItem> items : lootByWave.values()) {
-            for (MokhaLootTrackerPlugin.LootItem item : items) {
+        for (List<LootItem> items : lootByWave.values()) {
+            for (LootItem item : items) {
                 total += item.value;
             }
         }
@@ -17,11 +17,11 @@ class ValueCalculationService {
     }
 
     long calculateCurrentRunLootValue(
-            Map<Integer, List<MokhaLootTrackerPlugin.LootItem>> lootByWave,
+            Map<Integer, List<LootItem>> lootByWave,
             MokhaLootTrackerConfig config) {
         long currentRunValue = 0;
-        for (List<MokhaLootTrackerPlugin.LootItem> items : lootByWave.values()) {
-            for (MokhaLootTrackerPlugin.LootItem item : items) {
+        for (List<LootItem> items : lootByWave.values()) {
+            for (LootItem item : items) {
                 currentRunValue += getAdjustedLootItemValue(item.name, item.value, config);
             }
         }
@@ -29,11 +29,11 @@ class ValueCalculationService {
     }
 
     long calculateCurrentRunLootHaValue(
-            Map<Integer, List<MokhaLootTrackerPlugin.LootItem>> lootByWave,
+            Map<Integer, List<LootItem>> lootByWave,
             MokhaLootTrackerConfig config) {
         long currentRunValue = 0;
-        for (List<MokhaLootTrackerPlugin.LootItem> items : lootByWave.values()) {
-            for (MokhaLootTrackerPlugin.LootItem item : items) {
+        for (List<LootItem> items : lootByWave.values()) {
+            for (LootItem item : items) {
                 currentRunValue += getAdjustedLootItemValue(item.name, item.haValue, config);
             }
         }
@@ -49,10 +49,10 @@ class ValueCalculationService {
     }
 
     void applyIgnoreSettingsToHistoricalItems(
-            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalItems,
+            Map<Integer, Map<String, ItemAggregate>> historicalItems,
             MokhaLootTrackerConfig config) {
-        for (Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveItems : historicalItems.values()) {
-            for (MokhaLootTrackerPlugin.ItemAggregate item : waveItems.values()) {
+        for (Map<String, ItemAggregate> waveItems : historicalItems.values()) {
+            for (ItemAggregate item : waveItems.values()) {
                 if (item.name.equals("Spirit seed")) {
                     item.totalValue = config.ignoreSpiritSeedsValue() ? 0 : 140000L * item.totalQuantity;
                 }
@@ -61,13 +61,13 @@ class ValueCalculationService {
     }
 
     long recalculateHistoricalTotalClaimed(
-            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalClaimedItemsByWave,
+            Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave,
             MokhaLootTrackerConfig config) {
         long total = 0;
         boolean excludeUltra = config.excludeUltraValuableItems();
 
-        for (Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
-            for (MokhaLootTrackerPlugin.ItemAggregate item : waveItems.values()) {
+        for (Map<String, ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
+            for (ItemAggregate item : waveItems.values()) {
                 if (excludeUltra && item.pricePerItem > ULTRA_VALUABLE_THRESHOLD) {
                     continue;
                 }
@@ -79,15 +79,15 @@ class ValueCalculationService {
     }
 
     long calculateTotalUnclaimed(
-            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalUnclaimedItemsByWave,
+            Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave,
             Map<Integer, Long> historicalUnclaimedByWave,
             MokhaLootTrackerConfig config) {
         long totalUnclaimed = 0;
 
         if (config.excludeUltraValuableItems()) {
-            for (Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveItems : historicalUnclaimedItemsByWave
+            for (Map<String, ItemAggregate> waveItems : historicalUnclaimedItemsByWave
                     .values()) {
-                for (MokhaLootTrackerPlugin.ItemAggregate item : waveItems.values()) {
+                for (ItemAggregate item : waveItems.values()) {
                     if (item.pricePerItem <= ULTRA_VALUABLE_THRESHOLD) {
                         totalUnclaimed += item.totalValue;
                     }
@@ -103,18 +103,18 @@ class ValueCalculationService {
     }
 
     void recalculateWaveTotals(
-            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalClaimedItemsByWave,
-            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalUnclaimedItemsByWave,
+            Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave,
+            Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave,
             Map<Integer, Long> historicalClaimedByWave,
             Map<Integer, Long> historicalUnclaimedByWave,
             MokhaLootTrackerConfig config) {
         boolean excludeUltra = config.excludeUltraValuableItems();
 
         historicalClaimedByWave.clear();
-        for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : historicalClaimedItemsByWave
+        for (Map.Entry<Integer, Map<String, ItemAggregate>> waveEntry : historicalClaimedItemsByWave
                 .entrySet()) {
             long waveTotal = 0;
-            for (MokhaLootTrackerPlugin.ItemAggregate item : waveEntry.getValue().values()) {
+            for (ItemAggregate item : waveEntry.getValue().values()) {
                 if (excludeUltra && item.pricePerItem > ULTRA_VALUABLE_THRESHOLD) {
                     continue;
                 }
@@ -124,10 +124,10 @@ class ValueCalculationService {
         }
 
         historicalUnclaimedByWave.clear();
-        for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : historicalUnclaimedItemsByWave
+        for (Map.Entry<Integer, Map<String, ItemAggregate>> waveEntry : historicalUnclaimedItemsByWave
                 .entrySet()) {
             long waveTotal = 0;
-            for (MokhaLootTrackerPlugin.ItemAggregate item : waveEntry.getValue().values()) {
+            for (ItemAggregate item : waveEntry.getValue().values()) {
                 if (excludeUltra && item.pricePerItem > ULTRA_VALUABLE_THRESHOLD) {
                     continue;
                 }
@@ -138,11 +138,11 @@ class ValueCalculationService {
     }
 
     long calculateHistoricalUniqueClaimCount(
-            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalClaimedItemsByWave) {
+            Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave) {
         long uniqueCount = 0;
 
-        for (Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
-            for (MokhaLootTrackerPlugin.ItemAggregate item : waveItems.values()) {
+        for (Map<String, ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
+            for (ItemAggregate item : waveItems.values()) {
                 if (item.pricePerItem > ULTRA_VALUABLE_THRESHOLD || "Dom".equalsIgnoreCase(item.name)) {
                     uniqueCount += item.totalQuantity;
                 }

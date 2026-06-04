@@ -14,8 +14,8 @@ class PanelDataService {
     static final class RunPanelData {
         long totalValue;
         long totalHaValue;
-        Map<String, MokhaLootPanel.ItemData> items = new HashMap<>();
-        Map<Integer, Map<String, MokhaLootPanel.ItemData>> itemsByWave = new TreeMap<>();
+        Map<String, ItemData> items = new HashMap<>();
+        Map<Integer, Map<String, ItemData>> itemsByWave = new TreeMap<>();
         Map<Integer, Long> totalsByWave = new TreeMap<>();
         Map<Integer, Long> haTotalsByWave = new TreeMap<>();
     }
@@ -26,35 +26,35 @@ class PanelDataService {
         long currentSuppliesTotalValue;
         long historicalSuppliesTotalValue;
 
-        Map<String, MokhaLootPanel.ItemData> currentRunItems = new HashMap<>();
-        Map<Integer, Map<String, MokhaLootPanel.ItemData>> currentRunItemsByWave = new HashMap<>();
+        Map<String, ItemData> currentRunItems = new HashMap<>();
+        Map<Integer, Map<String, ItemData>> currentRunItemsByWave = new HashMap<>();
         Map<Integer, Long> currentRunTotalsByWave = new HashMap<>();
         Map<Integer, Long> currentRunHaTotalsByWave = new HashMap<>();
-        Map<String, MokhaLootPanel.ItemData> currentSuppliesData = new HashMap<>();
-        Map<String, MokhaLootPanel.ItemData> historicalSuppliesData = new HashMap<>();
+        Map<String, ItemData> currentSuppliesData = new HashMap<>();
+        Map<String, ItemData> historicalSuppliesData = new HashMap<>();
 
-        Map<Integer, Map<String, MokhaLootPanel.ItemData>> claimedItemsByWave = new HashMap<>();
+        Map<Integer, Map<String, ItemData>> claimedItemsByWave = new HashMap<>();
         Map<Integer, Long> claimedTotalsByWave = new HashMap<>();
 
-        Map<Integer, Map<String, MokhaLootPanel.ItemData>> unclaimedItemsByWave = new HashMap<>();
+        Map<Integer, Map<String, ItemData>> unclaimedItemsByWave = new HashMap<>();
         Map<Integer, Long> unclaimedTotalsByWave = new HashMap<>();
     }
 
     static final class SuppliesPanelData {
         long currentSuppliesTotalValue;
         long historicalSuppliesTotalValue;
-        Map<String, MokhaLootPanel.ItemData> currentSuppliesData = new HashMap<>();
-        Map<String, MokhaLootPanel.ItemData> historicalSuppliesData = new HashMap<>();
+        Map<String, ItemData> currentSuppliesData = new HashMap<>();
+        Map<String, ItemData> historicalSuppliesData = new HashMap<>();
     }
 
     PanelData buildPanelData(
-            Map<Integer, List<MokhaLootTrackerPlugin.LootItem>> lootByWave,
-            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalClaimedItemsByWave,
+            Map<Integer, List<LootItem>> lootByWave,
+            Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave,
             Map<Integer, Long> historicalClaimedByWave,
-            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalUnclaimedItemsByWave,
+            Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave,
             Map<Integer, Long> historicalUnclaimedByWave,
             Map<Integer, Integer> totalSuppliesConsumed,
-            Map<String, MokhaLootTrackerPlugin.ItemAggregate> historicalSuppliesUsed,
+            Map<String, ItemAggregate> historicalSuppliesUsed,
             MokhaLootTrackerConfig config,
             ValueCalculationService valueCalculationService,
             IntFunction<String> getBasePotionNameByItemId,
@@ -74,7 +74,7 @@ class PanelDataService {
                 config);
 
         for (int wave = 1; wave <= 10; wave++) {
-            Map<String, MokhaLootPanel.ItemData> claimedItems = buildWaveItemData(
+            Map<String, ItemData> claimedItems = buildWaveItemData(
                     wave,
                     historicalClaimedItemsByWave,
                     true);
@@ -86,7 +86,7 @@ class PanelDataService {
             data.claimedItemsByWave.put(wave, claimedItems);
             data.claimedTotalsByWave.put(wave, claimedWaveTotal);
 
-            Map<String, MokhaLootPanel.ItemData> unclaimedItems = buildWaveItemData(
+            Map<String, ItemData> unclaimedItems = buildWaveItemData(
                     wave,
                     historicalUnclaimedItemsByWave,
                     false);
@@ -110,18 +110,18 @@ class PanelDataService {
     }
 
     RunPanelData buildRunPanelData(
-            Map<Integer, List<MokhaLootTrackerPlugin.LootItem>> lootByWave,
+            Map<Integer, List<LootItem>> lootByWave,
             MokhaLootTrackerConfig config,
             ValueCalculationService valueCalculationService) {
         RunPanelData data = new RunPanelData();
 
-        for (List<MokhaLootTrackerPlugin.LootItem> waveItems : lootByWave.values()) {
-            for (MokhaLootTrackerPlugin.LootItem item : waveItems) {
+        for (List<LootItem> waveItems : lootByWave.values()) {
+            for (LootItem item : waveItems) {
                 long itemValue = valueCalculationService.getAdjustedLootItemValue(item.name, item.value, config);
                 long itemHaValue = valueCalculationService.getAdjustedLootItemValue(item.name, item.haValue, config);
 
-                MokhaLootPanel.ItemData itemData = data.items.getOrDefault(item.name,
-                        new MokhaLootPanel.ItemData(item.name, 0, 0, 0, 0, 0));
+                ItemData itemData = data.items.getOrDefault(item.name,
+                        new ItemData(item.name, 0, 0, 0, 0, 0));
                 itemData.quantity += item.quantity;
                 itemData.totalValue += itemValue;
                 itemData.totalHaValue += itemHaValue;
@@ -137,18 +137,18 @@ class PanelDataService {
 
         data.items = sortItemDataMapForDisplay(data.items, config);
 
-        for (Map.Entry<Integer, List<MokhaLootTrackerPlugin.LootItem>> waveEntry : lootByWave.entrySet()) {
+        for (Map.Entry<Integer, List<LootItem>> waveEntry : lootByWave.entrySet()) {
             int wave = waveEntry.getKey();
-            Map<String, MokhaLootPanel.ItemData> waveItems = new HashMap<>();
+            Map<String, ItemData> waveItems = new HashMap<>();
             long waveTotal = 0;
             long waveHaTotal = 0;
 
-            for (MokhaLootTrackerPlugin.LootItem item : waveEntry.getValue()) {
+            for (LootItem item : waveEntry.getValue()) {
                 long itemValue = valueCalculationService.getAdjustedLootItemValue(item.name, item.value, config);
                 long itemHaValue = valueCalculationService.getAdjustedLootItemValue(item.name, item.haValue, config);
 
-                MokhaLootPanel.ItemData itemData = waveItems.getOrDefault(item.name,
-                        new MokhaLootPanel.ItemData(item.name, 0, 0, 0, 0, 0));
+                ItemData itemData = waveItems.getOrDefault(item.name,
+                        new ItemData(item.name, 0, 0, 0, 0, 0));
                 itemData.quantity += item.quantity;
                 itemData.totalValue += itemValue;
                 itemData.totalHaValue += itemHaValue;
@@ -172,7 +172,7 @@ class PanelDataService {
 
     SuppliesPanelData buildSuppliesPanelData(
             Map<Integer, Integer> totalSuppliesConsumed,
-            Map<String, MokhaLootTrackerPlugin.ItemAggregate> historicalSuppliesUsed,
+            Map<String, ItemAggregate> historicalSuppliesUsed,
             IntFunction<String> getBasePotionNameByItemId,
             IntUnaryOperator getPricePerDoseByItemId) {
         SuppliesPanelData data = new SuppliesPanelData();
@@ -186,46 +186,46 @@ class PanelDataService {
             data.currentSuppliesTotalValue += totalValue;
 
             if (data.currentSuppliesData.containsKey(baseName)) {
-                MokhaLootPanel.ItemData existing = data.currentSuppliesData.get(baseName);
-                data.currentSuppliesData.put(baseName, new MokhaLootPanel.ItemData(
+                ItemData existing = data.currentSuppliesData.get(baseName);
+                data.currentSuppliesData.put(baseName, new ItemData(
                         baseName,
                         existing.quantity + quantity,
                         pricePerItem,
                         existing.totalValue + totalValue));
             } else {
                 data.currentSuppliesData.put(baseName,
-                        new MokhaLootPanel.ItemData(baseName, quantity, pricePerItem, totalValue));
+                        new ItemData(baseName, quantity, pricePerItem, totalValue));
             }
         }
 
-        for (MokhaLootTrackerPlugin.ItemAggregate agg : historicalSuppliesUsed.values()) {
+        for (ItemAggregate agg : historicalSuppliesUsed.values()) {
             data.historicalSuppliesData.put(agg.name,
-                    new MokhaLootPanel.ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue));
+                    new ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue));
             data.historicalSuppliesTotalValue += agg.totalValue;
         }
 
         return data;
     }
 
-    private Map<String, MokhaLootPanel.ItemData> buildWaveItemData(
+    private Map<String, ItemData> buildWaveItemData(
             int wave,
-            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> source,
+            Map<Integer, Map<String, ItemAggregate>> source,
             boolean combineNinePlus) {
-        Map<String, MokhaLootPanel.ItemData> itemData = new HashMap<>();
+        Map<String, ItemData> itemData = new HashMap<>();
 
         if (wave <= 9 || !combineNinePlus) {
-            Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveItems = source.getOrDefault(wave, new HashMap<>());
-            for (MokhaLootTrackerPlugin.ItemAggregate agg : waveItems.values()) {
+            Map<String, ItemAggregate> waveItems = source.getOrDefault(wave, new HashMap<>());
+            for (ItemAggregate agg : waveItems.values()) {
                 mergeItemData(itemData, agg);
             }
             return itemData;
         }
 
-        for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : source.entrySet()) {
+        for (Map.Entry<Integer, Map<String, ItemAggregate>> waveEntry : source.entrySet()) {
             if (waveEntry.getKey() < 9) {
                 continue;
             }
-            for (MokhaLootTrackerPlugin.ItemAggregate agg : waveEntry.getValue().values()) {
+            for (ItemAggregate agg : waveEntry.getValue().values()) {
                 mergeItemData(itemData, agg);
             }
         }
@@ -236,7 +236,7 @@ class PanelDataService {
     private long calculateClaimedWaveTotal(
             int wave,
             Map<Integer, Long> historicalClaimedByWave,
-            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> historicalClaimedItemsByWave) {
+            Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave) {
         if (wave <= 9) {
             return historicalClaimedByWave.getOrDefault(wave, 0L);
         }
@@ -252,12 +252,12 @@ class PanelDataService {
             return total;
         }
 
-        for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : historicalClaimedItemsByWave
+        for (Map.Entry<Integer, Map<String, ItemAggregate>> waveEntry : historicalClaimedItemsByWave
                 .entrySet()) {
             if (waveEntry.getKey() < 9) {
                 continue;
             }
-            for (MokhaLootTrackerPlugin.ItemAggregate agg : waveEntry.getValue().values()) {
+            for (ItemAggregate agg : waveEntry.getValue().values()) {
                 total += agg.totalValue;
             }
         }
@@ -265,11 +265,11 @@ class PanelDataService {
         return total;
     }
 
-    private void mergeItemData(Map<String, MokhaLootPanel.ItemData> itemData,
-            MokhaLootTrackerPlugin.ItemAggregate agg) {
+    private void mergeItemData(Map<String, ItemData> itemData,
+            ItemAggregate agg) {
         if (itemData.containsKey(agg.name)) {
-            MokhaLootPanel.ItemData existing = itemData.get(agg.name);
-            itemData.put(agg.name, new MokhaLootPanel.ItemData(
+            ItemData existing = itemData.get(agg.name);
+            itemData.put(agg.name, new ItemData(
                     agg.name,
                     existing.quantity + agg.totalQuantity,
                     agg.pricePerItem,
@@ -278,26 +278,26 @@ class PanelDataService {
                     existing.totalHaValue + agg.totalHaValue));
         } else {
             itemData.put(agg.name,
-                    new MokhaLootPanel.ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue,
+                    new ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue,
                             agg.haPricePerItem, agg.totalHaValue));
         }
     }
 
-    private Map<String, MokhaLootPanel.ItemData> sortItemDataMapForDisplay(
-            Map<String, MokhaLootPanel.ItemData> itemData,
+    private Map<String, ItemData> sortItemDataMapForDisplay(
+            Map<String, ItemData> itemData,
             MokhaLootTrackerConfig config) {
-        List<MokhaLootPanel.ItemData> sortedItems = new ArrayList<>(itemData.values());
+        List<ItemData> sortedItems = new ArrayList<>(itemData.values());
 
         if (config.displaySortMode() == MokhaDisplaySortMode.VALUE_DESC) {
             sortedItems.sort(Comparator
-                    .comparingLong((MokhaLootPanel.ItemData item) -> item.totalValue).reversed()
+                    .comparingLong((ItemData item) -> item.totalValue).reversed()
                     .thenComparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
         } else {
             sortedItems.sort(Comparator.comparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
         }
 
-        Map<String, MokhaLootPanel.ItemData> sortedMap = new LinkedHashMap<>();
-        for (MokhaLootPanel.ItemData item : sortedItems) {
+        Map<String, ItemData> sortedMap = new LinkedHashMap<>();
+        for (ItemData item : sortedItems) {
             sortedMap.put(item.name, item);
         }
         return sortedMap;

@@ -115,7 +115,7 @@ class ArenaStateService {
 
     void archiveConsumedSupplies(
             Map<Integer, Integer> totalSuppliesConsumed,
-            Map<String, MokhaLootTrackerPlugin.ItemAggregate> historicalSuppliesUsed,
+            Map<String, ItemAggregate> historicalSuppliesUsed,
             IntFunction<String> getBasePotionNameByItemId,
             IntUnaryOperator getPricePerDoseByItemId) {
         for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
@@ -128,7 +128,7 @@ class ArenaStateService {
                 historicalSuppliesUsed.get(itemName).add(quantity, pricePerItem);
             } else {
                 historicalSuppliesUsed.put(itemName,
-                        new MokhaLootTrackerPlugin.ItemAggregate(itemName, quantity, pricePerItem));
+                        new ItemAggregate(itemName, quantity, pricePerItem));
             }
         }
     }

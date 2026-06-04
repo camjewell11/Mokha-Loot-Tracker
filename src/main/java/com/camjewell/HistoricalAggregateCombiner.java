@@ -7,30 +7,30 @@ final class HistoricalAggregateCombiner {
     private HistoricalAggregateCombiner() {
     }
 
-    static CombinedAggregateResult combine(Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> byWave) {
-        Map<String, MokhaLootTrackerPlugin.ItemAggregate> combined = new HashMap<>();
+    static CombinedAggregateResult combine(Map<Integer, Map<String, ItemAggregate>> byWave) {
+        Map<String, ItemAggregate> combined = new HashMap<>();
         long totalValue = 0;
         long totalHaValue = 0;
 
         if (byWave != null) {
-            Map<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveSnapshot = new HashMap<>(byWave);
-            for (Map.Entry<Integer, Map<String, MokhaLootTrackerPlugin.ItemAggregate>> waveEntry : waveSnapshot
+            Map<Integer, Map<String, ItemAggregate>> waveSnapshot = new HashMap<>(byWave);
+            for (Map.Entry<Integer, Map<String, ItemAggregate>> waveEntry : waveSnapshot
                     .entrySet()) {
-                Map<String, MokhaLootTrackerPlugin.ItemAggregate> waveMap = waveEntry.getValue();
+                Map<String, ItemAggregate> waveMap = waveEntry.getValue();
                 if (waveMap == null) {
                     continue;
                 }
 
-                for (Map.Entry<String, MokhaLootTrackerPlugin.ItemAggregate> itemEntry : new HashMap<>(waveMap)
+                for (Map.Entry<String, ItemAggregate> itemEntry : new HashMap<>(waveMap)
                         .entrySet()) {
-                    MokhaLootTrackerPlugin.ItemAggregate aggregate = itemEntry.getValue();
+                    ItemAggregate aggregate = itemEntry.getValue();
                     if (aggregate == null) {
                         continue;
                     }
 
-                    MokhaLootTrackerPlugin.ItemAggregate existing = combined.get(aggregate.name);
+                    ItemAggregate existing = combined.get(aggregate.name);
                     if (existing == null) {
-                        MokhaLootTrackerPlugin.ItemAggregate copy = new MokhaLootTrackerPlugin.ItemAggregate(
+                        ItemAggregate copy = new ItemAggregate(
                                 aggregate.name,
                                 aggregate.totalQuantity,
                                 aggregate.pricePerItem,
@@ -55,18 +55,18 @@ final class HistoricalAggregateCombiner {
     }
 
     static final class CombinedAggregateResult {
-        private final Map<String, MokhaLootTrackerPlugin.ItemAggregate> combined;
+        private final Map<String, ItemAggregate> combined;
         private final long totalValue;
         private final long totalHaValue;
 
-        CombinedAggregateResult(Map<String, MokhaLootTrackerPlugin.ItemAggregate> combined, long totalValue,
+        CombinedAggregateResult(Map<String, ItemAggregate> combined, long totalValue,
                 long totalHaValue) {
             this.combined = combined;
             this.totalValue = totalValue;
             this.totalHaValue = totalHaValue;
         }
 
-        Map<String, MokhaLootTrackerPlugin.ItemAggregate> getCombined() {
+        Map<String, ItemAggregate> getCombined() {
             return combined;
         }
 

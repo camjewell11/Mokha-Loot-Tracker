@@ -9,13 +9,13 @@ final class LootPanelDisplayUtils {
     private LootPanelDisplayUtils() {
     }
 
-    static List<MokhaLootPanel.ItemData> sortItemDataForDisplay(
-            java.util.Collection<MokhaLootPanel.ItemData> items,
+    static List<ItemData> sortItemDataForDisplay(
+            java.util.Collection<ItemData> items,
             MokhaDisplaySortMode sortMode) {
-        List<MokhaLootPanel.ItemData> sorted = new ArrayList<>(items);
+        List<ItemData> sorted = new ArrayList<>(items);
         if (sortMode == MokhaDisplaySortMode.VALUE_DESC) {
             sorted.sort(Comparator
-                    .comparingLong((MokhaLootPanel.ItemData item) -> item.totalValue).reversed()
+                    .comparingLong((ItemData item) -> item.totalValue).reversed()
                     .thenComparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
         } else {
             sorted.sort(Comparator.comparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
@@ -23,13 +23,13 @@ final class LootPanelDisplayUtils {
         return sorted;
     }
 
-    static List<MokhaLootTrackerPlugin.ItemAggregate> sortAggregatesForDisplay(
-            java.util.Collection<MokhaLootTrackerPlugin.ItemAggregate> items,
+    static List<ItemAggregate> sortAggregatesForDisplay(
+            java.util.Collection<ItemAggregate> items,
             MokhaDisplaySortMode sortMode) {
-        List<MokhaLootTrackerPlugin.ItemAggregate> sorted = new ArrayList<>(items);
+        List<ItemAggregate> sorted = new ArrayList<>(items);
         if (sortMode == MokhaDisplaySortMode.VALUE_DESC) {
             sorted.sort(Comparator
-                    .comparingLong((MokhaLootTrackerPlugin.ItemAggregate item) -> item.totalValue).reversed()
+                    .comparingLong((ItemAggregate item) -> item.totalValue).reversed()
                     .thenComparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
         } else {
             sorted.sort(Comparator.comparing(item -> item.name, String.CASE_INSENSITIVE_ORDER));
@@ -82,7 +82,7 @@ final class LootPanelDisplayUtils {
         return String.format("%s/ea, HA: %s/ea", formatGp(pricePerItem), formatGp(haPricePerItem));
     }
 
-    static boolean isUniqueLootItem(MokhaLootPanel.ItemData item, int ultraValuableThreshold) {
+    static boolean isUniqueLootItem(ItemData item, int ultraValuableThreshold) {
         if (item == null) {
             return false;
         }
