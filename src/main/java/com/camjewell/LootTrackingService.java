@@ -10,14 +10,12 @@ import org.slf4j.Logger;
 
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.Notifier;
 import net.runelite.client.game.ItemManager;
 
 class LootTrackingService {
-    private static final int MOKHA_INTERFACE_GROUP_ID = 919;
-    private static final int MOKHA_INTERFACE_MAIN_CHILD_ID = 2;
-    private static final int MOKHA_INTERFACE_LOOT_CONTAINER_CHILD_ID = 19;
 
     private final Client client;
     private final ItemManager itemManager;
@@ -85,7 +83,7 @@ class LootTrackingService {
             return new LootWindowUpdate(false, 0, Collections.emptyMap());
         }
 
-        Widget mainWidget = client.getWidget(MOKHA_INTERFACE_GROUP_ID, MOKHA_INTERFACE_MAIN_CHILD_ID);
+        Widget mainWidget = client.getWidget(InterfaceID.DomEndLevelUi.FRAME);
         boolean lootWindowVisible = mainWidget != null && !mainWidget.isHidden();
 
         int detectedWave = 0;
@@ -93,8 +91,7 @@ class LootTrackingService {
 
         if (lootWindowVisible && !lootWindowWasVisible) {
             detectedWave = extractWaveNumber(mainWidget);
-            Widget lootContainerWidget = client.getWidget(MOKHA_INTERFACE_GROUP_ID,
-                    MOKHA_INTERFACE_LOOT_CONTAINER_CHILD_ID);
+            Widget lootContainerWidget = client.getWidget(InterfaceID.DomEndLevelUi.LOOT_CONTENTS);
             if (lootContainerWidget != null) {
                 newLootByItemId = parseNewLoot(lootContainerWidget);
             }

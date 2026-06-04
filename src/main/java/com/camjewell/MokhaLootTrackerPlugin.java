@@ -42,6 +42,7 @@ import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.gameval.NpcID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
@@ -89,8 +90,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private static final double UNIQUE_CHANCE_DOM_DELVE_7 = 1.0 / 750.0;
     private static final double UNIQUE_CHANCE_DOM_DELVE_8 = 1.0 / 500.0;
     private static final double UNIQUE_CHANCE_DOM_DELVE_9_PLUS = 1.0 / 250.0;
-    private static final int HIGHSCORES_WIDGET_GROUP_ID = InterfaceID.DomScoreboard.UNIVERSE >>> 16;
-    private static final int HIGHSCORES_LEVELS_CHILD_ID = InterfaceID.DomScoreboard.PERSONAL & 0xFFFF;
     private static final int COLLECTION_LOG_BOSS_SELECTED_WIDGET_ID = InterfaceID.Collection.BOSS_TEXT;
     private static final int COLLECTION_LOG_ITEMS_CONTAINER_WIDGET_ID = InterfaceID.Collection.ITEMS_CONTENTS;
     private static final int DOM_LOOT_VALUE_WIDGET_ID = InterfaceID.DomEndLevelUi.LOOT_VALUE;
@@ -160,7 +159,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private boolean inMokhaArena = false;
     private boolean isDead = false;
     private int currentWaveNumber = 0;
-    private static final int DOOM_BOSS_NPC_ID = 14707;
+    private static final int DOOM_BOSS_NPC_ID = NpcID.DOM_BOSS;
     private boolean bossSeenThisRun = false;
     private boolean bossDefeatedThisWave = false;
     private boolean bossWasEverPresentThisWave = false; // Track if boss appeared this wave (for teleport detection)
@@ -172,10 +171,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private final PerformanceTracker performanceTracker = new PerformanceTracker();
     private PerformanceSnapshot previousRunPerformance = PerformanceSnapshot.empty();
 
-    // Entrance coordinates (for future use)
-    private final int entrance_centerX = 1311;
-    private final int entrance_centerY = 9555;
-    private final int entrance_radius = 25;
+    private static final int ENTRANCE_CENTER_X = 1311;
+    private static final int ENTRANCE_CENTER_Y = 9555;
+    private static final int ENTRANCE_RADIUS = 25;
 
     // Combined item tracking (inventory + equipment)
     private final Map<Integer, Integer> lastCombinedSnapshot = new HashMap<>();
@@ -608,18 +606,16 @@ public class MokhaLootTrackerPlugin extends Plugin {
     public void onWidgetLoaded(WidgetLoaded event) {
         int groupId = event.getGroupId();
 
-        if (groupId == HIGHSCORES_WIDGET_GROUP_ID) {
-            Map<Integer, Long> parsed = parseWaveCompletionsFromWidgetGroup(groupId);
+        if (groupId == InterfaceID.DomScoreboard.UNIVERSE >>> 16) {
+            Map<Integer, Long> parsed = parseWaveCompletionsFromDomScoreboard();
             if (!parsed.isEmpty() && syncHistoricalRunsFromHighscoresData(parsed)) {
-                log.debug("[Mokha] Synced {} highscores wave buckets from widget group {}",
-                        parsed.size(), groupId);
+                log.debug("[Mokha] Synced {} highscores wave buckets from DomScoreboard", parsed.size());
                 updatePanelData();
                 saveHistoricalData();
             }
         }
 
-        int collectionLogGroupId = COLLECTION_LOG_BOSS_SELECTED_WIDGET_ID >>> 16;
-        if (groupId == collectionLogGroupId && syncCollectionLogUniquesFromVisibleWidgets()) {
+        if (groupId == InterfaceID.Collection.BOSS_TEXT >>> 16 && syncCollectionLogUniquesFromVisibleWidgets()) {
             updatePanelData();
             saveHistoricalData();
         }
@@ -778,8 +774,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private void updateLootWindowDisplayedValue() {
-        Widget valueWidget = getWidgetByPackedId(DOM_LOOT_VALUE_WIDGET_ID);
-        Widget lootContainerWidget = getWidgetByPackedId(DOM_LOOT_CONTENTS_WIDGET_ID);
+        Widget valueWidget = client.getWidget(DOM_LOOT_VALUE_WIDGET_ID);
+        Widget lootContainerWidget = client.getWidget(DOM_LOOT_CONTENTS_WIDGET_ID);
         if (valueWidget == null || lootContainerWidget == null) {
             return;
         }
@@ -835,15 +831,15 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private void attemptHighscoresWidgetSyncIfVisible() {
-        Widget root = client.getWidget(HIGHSCORES_WIDGET_GROUP_ID, 0);
-        Widget levels = client.getWidget(HIGHSCORES_WIDGET_GROUP_ID, HIGHSCORES_LEVELS_CHILD_ID);
+        Widget root = client.getWidget(InterfaceID.DomScoreboard.UNIVERSE);
+        Widget levels = client.getWidget(InterfaceID.DomScoreboard.PERSONAL);
         boolean rootVisible = root != null && !root.isHidden();
         boolean levelsVisible = levels != null && !levels.isHidden();
         if (!rootVisible && !levelsVisible) {
             return;
         }
 
-        Map<Integer, Long> parsed = parseWaveCompletionsFromWidgetGroup(HIGHSCORES_WIDGET_GROUP_ID);
+        Map<Integer, Long> parsed = parseWaveCompletionsFromDomScoreboard();
         if (parsed.isEmpty()) {
             return;
         }
@@ -862,8 +858,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private boolean syncCollectionLogUniquesFromVisibleWidgets() {
-        Widget selectedBossWidget = getWidgetByPackedId(COLLECTION_LOG_BOSS_SELECTED_WIDGET_ID);
-        Widget itemsContainerWidget = getWidgetByPackedId(COLLECTION_LOG_ITEMS_CONTAINER_WIDGET_ID);
+        Widget selectedBossWidget = client.getWidget(COLLECTION_LOG_BOSS_SELECTED_WIDGET_ID);
+        Widget itemsContainerWidget = client.getWidget(COLLECTION_LOG_ITEMS_CONTAINER_WIDGET_ID);
 
         if (selectedBossWidget == null || itemsContainerWidget == null) {
             return false;
@@ -925,17 +921,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return parsed;
     }
 
-    private Widget getWidgetByPackedId(int packedId) {
-        int groupId = packedId >>> 16;
-        int childId = packedId & 0xFFFF;
-        return client.getWidget(groupId, childId);
-    }
-
-    private Map<Integer, Long> parseWaveCompletionsFromWidgetGroup(int groupId) {
+    private Map<Integer, Long> parseWaveCompletionsFromDomScoreboard() {
         Map<Integer, Long> parsed = new HashMap<>();
         boolean sawExpectedFormat = false;
 
-        Widget root = findHighscoresWaveRoot(groupId);
+        Widget root = findHighscoresWaveRoot();
         if (root == null) {
             return parsed;
         }
@@ -953,13 +943,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return parsed;
     }
 
-    private Widget findHighscoresWaveRoot(int groupId) {
-        Widget preferred = client.getWidget(groupId, HIGHSCORES_LEVELS_CHILD_ID);
+    private Widget findHighscoresWaveRoot() {
+        Widget preferred = client.getWidget(InterfaceID.DomScoreboard.PERSONAL);
         if (preferred != null && !preferred.isHidden()) {
             return preferred;
         }
 
-        Widget primary = client.getWidget(groupId, 0);
+        Widget primary = client.getWidget(InterfaceID.DomScoreboard.UNIVERSE);
         if (primary != null && !primary.isHidden()) {
             return primary;
         }
@@ -973,8 +963,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (root == null || root.isHidden()) {
                 continue;
             }
-            int rootGroupId = root.getId() >>> 16;
-            if (rootGroupId == groupId) {
+            if (root.getId() == InterfaceID.DomScoreboard.UNIVERSE) {
                 return root;
             }
         }
@@ -2009,7 +1998,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
      */
     private void printAccumulatedLoot() {
         if (lootByWave.isEmpty()) {
-            log.info("[Mokha] ===== NO LOOT COLLECTED =====");
+            log.debug("[Mokha] ===== NO LOOT COLLECTED =====");
             return;
         }
         long totalValue = 0;
@@ -2024,7 +2013,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
         }
 
-        log.info("[Mokha] ===== TOTAL LOOT VALUE: {} gp =====", totalValue);
+        log.debug("[Mokha] ===== TOTAL LOOT VALUE: {} gp =====", totalValue);
     }
 
     /**
@@ -2039,10 +2028,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
      * Check if player is at the arena entrance
      */
     private boolean isAtEntrance(WorldPoint location) {
-        int dx = location.getX() - entrance_centerX;
-        int dy = location.getY() - entrance_centerY;
+        int dx = location.getX() - ENTRANCE_CENTER_X;
+        int dy = location.getY() - ENTRANCE_CENTER_Y;
         int distanceSquared = dx * dx + dy * dy;
-        int radiusSquared = entrance_radius * entrance_radius;
+        int radiusSquared = ENTRANCE_RADIUS * ENTRANCE_RADIUS;
         return distanceSquared <= radiusSquared;
     }
 
