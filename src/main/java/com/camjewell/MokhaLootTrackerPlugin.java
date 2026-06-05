@@ -1969,8 +1969,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 itemId -> getBasePotionName(itemManager.getItemComposition(itemId).getName()),
                 this::getPricePerDose);
 
-        long uniqueClaimsCount = valueCalculationService
-                .calculateHistoricalUniqueClaimCount(historicalClaimedItemsByWave);
+        long uniqueClaimsCount = calculateEffectiveHistoricalUniqueClaimCount();
 
         Map<Integer, Long> effectiveRuns = getEffectiveHistoricalCompletedRunsByWave();
         long totalWaveRolls = DrynessMath.calculateTotalHistoricalWaveRolls(effectiveRuns);

@@ -11,12 +11,16 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import net.runelite.api.Client;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.game.ItemManager;
 
 class HighscoresSyncService {
+    private static final Logger log = LoggerFactory.getLogger(HighscoresSyncService.class);
     private static final int COLLECTION_LOG_EXPECTED_UNIQUE_SLOTS = 4;
     private static final Pattern WAVE_KEYWORD_LINE_PATTERN = Pattern
             .compile("(?i)\\bwave\\s*(\\d+\\+?)\\b\\s*[:\\-]?\\s*([\\d,]+)");
@@ -83,25 +87,27 @@ class HighscoresSyncService {
     }
 
     boolean syncCollectionLogUniquesFromVisibleWidgets() {
-        Widget selectedBossWidget = client.getWidget(InterfaceID.Collection.BOSS_TEXT);
+        Widget headerPanel = client.getWidget(InterfaceID.Collection.HEADER_TEXT);
         Widget itemsContainerWidget = client.getWidget(InterfaceID.Collection.ITEMS_CONTENTS);
 
-        if (selectedBossWidget == null || itemsContainerWidget == null) {
+        if (headerPanel == null || itemsContainerWidget == null) {
             return false;
         }
 
-        if (selectedBossWidget.isHidden() || itemsContainerWidget.isHidden()) {
+        if (headerPanel.isHidden() || itemsContainerWidget.isHidden()) {
             return false;
         }
 
-        String selectedBossText = selectedBossWidget.getText();
-        if (selectedBossText == null
-                || !selectedBossText.toLowerCase(Locale.ROOT).contains("doom of mokhaiotl")) {
+        // Boss name is in the first child of the HEADER_TEXT panel, not the panel itself
+        String bossName = getChildText(headerPanel, 0);
+        if (bossName == null || !bossName.toLowerCase(Locale.ROOT).contains("doom of mokhaiotl")) {
+            log.debug("[Mokha] Collection log sync: boss name not found (child0=[{}])", bossName);
             return false;
         }
 
         Map<String, Long> parsedCounts = parseCollectionLogUniqueCounts(itemsContainerWidget);
         if (parsedCounts.isEmpty()) {
+            log.debug("[Mokha] Collection log sync: parsed counts empty for [{}]", bossName);
             return false;
         }
 
@@ -109,9 +115,21 @@ class HighscoresSyncService {
             return false;
         }
 
+        log.debug("[Mokha] Collection log sync: updating unique counts: {}", parsedCounts);
         collectionLogClaimedUniqueCounts.clear();
         collectionLogClaimedUniqueCounts.putAll(parsedCounts);
         return true;
+    }
+
+    private String getChildText(Widget parent, int childIndex) {
+        Widget[] children = parent.getChildren();
+        if (children == null || children.length <= childIndex) {
+            children = parent.getDynamicChildren();
+        }
+        if (children != null && children.length > childIndex && children[childIndex] != null) {
+            return children[childIndex].getText();
+        }
+        return null;
     }
 
     boolean syncHistoricalRunsFromHighscoresData(Map<Integer, Long> parsed) {
@@ -351,6 +369,9 @@ class HighscoresSyncService {
         Map<String, Long> parsed = new HashMap<>();
         Widget[] children = itemsContainerWidget.getChildren();
         if (children == null || children.length == 0) {
+            children = itemsContainerWidget.getDynamicChildren();
+        }
+        if (children == null || children.length == 0) {
             return parsed;
         }
 
@@ -358,6 +379,11 @@ class HighscoresSyncService {
         for (int slot = 0; slot < slotsToParse; slot++) {
             Widget itemWidget = children[slot];
             if (itemWidget == null || itemWidget.isHidden()) {
+                continue;
+            }
+
+            // Opacity 0 = obtained (fully visible); non-zero = unobtained (greyed out)
+            if (itemWidget.getOpacity() != 0) {
                 continue;
             }
 
@@ -372,7 +398,7 @@ class HighscoresSyncService {
                 continue;
             }
 
-            long quantity = Math.max(0, itemWidget.getItemQuantity());
+            long quantity = Math.max(1, itemWidget.getItemQuantity());
             parsed.put(canonicalUniqueName, quantity);
         }
 
