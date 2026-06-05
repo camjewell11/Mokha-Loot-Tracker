@@ -5,6 +5,7 @@ import net.runelite.api.events.StatChanged;
 
 final class PerformanceTracker {
     private int prayerUsed;
+    private int prayerRegained;
     private int hpLost;
     private int hpRegained;
     private int specialAttackUses;
@@ -16,10 +17,12 @@ final class PerformanceTracker {
     private int lastSpecialAttackEnergy = -1;
     private int suppressConsumableHealTicksRemaining = 0;
     private int suppressConsumableHpLossTicksRemaining = 0;
+    private int suppressConsumablePrayerRegainTicksRemaining = 0;
     private boolean dirty;
 
     void resetForRunStart(int prayerPoints, int hitpoints, boolean currentlyVenomed, int specialAttackEnergy) {
         prayerUsed = 0;
+        prayerRegained = 0;
         hpLost = 0;
         hpRegained = 0;
         specialAttackUses = 0;
@@ -30,12 +33,14 @@ final class PerformanceTracker {
         lastSpecialAttackEnergy = specialAttackEnergy;
         suppressConsumableHealTicksRemaining = 0;
         suppressConsumableHpLossTicksRemaining = 0;
+        suppressConsumablePrayerRegainTicksRemaining = 0;
         wasVenomedLastTick = currentlyVenomed;
         dirty = false;
     }
 
     void reset() {
         prayerUsed = 0;
+        prayerRegained = 0;
         hpLost = 0;
         hpRegained = 0;
         specialAttackUses = 0;
@@ -47,6 +52,7 @@ final class PerformanceTracker {
         lastSpecialAttackEnergy = -1;
         suppressConsumableHealTicksRemaining = 0;
         suppressConsumableHpLossTicksRemaining = 0;
+        suppressConsumablePrayerRegainTicksRemaining = 0;
         dirty = false;
     }
 
@@ -57,12 +63,16 @@ final class PerformanceTracker {
         if (suppressConsumableHpLossTicksRemaining > 0) {
             suppressConsumableHpLossTicksRemaining--;
         }
+        if (suppressConsumablePrayerRegainTicksRemaining > 0) {
+            suppressConsumablePrayerRegainTicksRemaining--;
+        }
     }
 
     void markConsumableHpChangeExpected() {
-        // Keep this short to cover immediate HP changes from eating/drinking.
+        // Keep this short to cover immediate HP/prayer changes from eating/drinking.
         suppressConsumableHealTicksRemaining = 3;
         suppressConsumableHpLossTicksRemaining = 2;
+        suppressConsumablePrayerRegainTicksRemaining = 3;
     }
 
     void onVenomAndSpecialTick(boolean currentlyVenomed, int currentSpecialAttackEnergy) {
@@ -86,14 +96,25 @@ final class PerformanceTracker {
         lastSpecialAttackEnergy = specialAttackEnergy;
         suppressConsumableHealTicksRemaining = 0;
         suppressConsumableHpLossTicksRemaining = 0;
+        suppressConsumablePrayerRegainTicksRemaining = 0;
     }
 
     void onStatChanged(StatChanged event) {
         if (event.getSkill() == Skill.PRAYER) {
             int current = event.getBoostedLevel();
-            if (lastPrayerPoints >= 0 && current < lastPrayerPoints) {
-                prayerUsed += lastPrayerPoints - current;
-                dirty = true;
+            if (lastPrayerPoints >= 0) {
+                if (current < lastPrayerPoints) {
+                    prayerUsed += lastPrayerPoints - current;
+                    dirty = true;
+                } else if (current > lastPrayerPoints) {
+                    if (suppressConsumablePrayerRegainTicksRemaining > 0) {
+                        suppressConsumablePrayerRegainTicksRemaining = 0;
+                        lastPrayerPoints = current;
+                        return;
+                    }
+                    prayerRegained += current - lastPrayerPoints;
+                    dirty = true;
+                }
             }
             lastPrayerPoints = current;
             return;
@@ -135,6 +156,6 @@ final class PerformanceTracker {
     }
 
     PerformanceSnapshot snapshot() {
-        return new PerformanceSnapshot(prayerUsed, hpLost, hpRegained, specialAttackUses, venomApplications);
+        return new PerformanceSnapshot(prayerUsed, prayerRegained, hpLost, hpRegained, specialAttackUses, venomApplications);
     }
 }

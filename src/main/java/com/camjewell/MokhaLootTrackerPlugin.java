@@ -672,6 +672,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                                 PerformanceSnapshot currentPerformance = performanceTracker.snapshot();
                                 panel.updatePerformance(
                                         currentPerformance.getPrayerUsed(),
+                                        currentPerformance.getPrayerRegained(),
                                         currentPerformance.getHpLost(),
                                         currentPerformance.getHpRegained(),
                                         currentPerformance.getSpecialAttackUses(),
@@ -728,6 +729,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         PerformanceSnapshot currentPerformance = performanceTracker.snapshot();
         panel.updatePerformance(
                 currentPerformance.getPrayerUsed(),
+                currentPerformance.getPrayerRegained(),
                 currentPerformance.getHpLost(),
                 currentPerformance.getHpRegained(),
                 currentPerformance.getSpecialAttackUses(),
@@ -1973,8 +1975,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
         Map<Integer, Long> effectiveRuns = getEffectiveHistoricalCompletedRunsByWave();
         long totalWaveRolls = DrynessMath.calculateTotalHistoricalWaveRolls(effectiveRuns);
         ExpectedDropsByItem expectedDropsByItem = DrynessMath.calculateHistoricalExpectedDropsByItem(effectiveRuns);
+        long deepRolls = effectiveRuns.getOrDefault(8, 0L) + effectiveRuns.getOrDefault(9, 0L);
         panel.updateHistoricalDryness(
                 totalWaveRolls,
+                deepRolls,
                 expectedDropsByItem.total(),
                 uniqueClaimsCount,
                 expectedDropsByItem.dom,
@@ -2002,6 +2006,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 previousRunSuppliesData.currentSuppliesTotalValue,
                 previousRunSuppliesData.currentSuppliesData,
                 previousRunPerformance.getPrayerUsed(),
+                previousRunPerformance.getPrayerRegained(),
                 previousRunPerformance.getHpLost(),
                 previousRunPerformance.getHpRegained(),
                 previousRunPerformance.getSpecialAttackUses(),
@@ -2039,6 +2044,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
             PerformanceSnapshot currentPerformance = performanceTracker.snapshot();
             panel.updatePerformance(
                     currentPerformance.getPrayerUsed(),
+                    currentPerformance.getPrayerRegained(),
                     currentPerformance.getHpLost(),
                     currentPerformance.getHpRegained(),
                     currentPerformance.getSpecialAttackUses(),
