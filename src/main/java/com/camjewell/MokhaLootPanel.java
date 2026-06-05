@@ -34,6 +34,7 @@ public class MokhaLootPanel extends PluginPanel {
     private static final Color UNIQUE_GOLD_COLOR = new Color(218, 165, 32);
     private static final Color HP_LOST_COLOR = new Color(200, 60, 60);
     private static final Color PRAYER_USED_COLOR = new Color(80, 210, 190);
+    private static final Color PRAYER_REGAINED_COLOR = new Color(130, 220, 210);
     private static final Color SPECIAL_ATTACKS_COLOR = new Color(80, 170, 255);
     private static final Color VENOM_COLOR = new Color(0, 128, 0);
     private static final Color HP_REGAINED_COLOR = new Color(60, 180, 60);
@@ -81,6 +82,7 @@ public class MokhaLootPanel extends PluginPanel {
     private JPanel previousRunSuppliesSeparator;
     private JPanel previousRunPerformanceSeparator;
     private JLabel previousRunPrayerUsedLabel;
+    private JLabel previousRunPrayerRegainedLabel;
     private JLabel previousRunHpLostLabel;
     private JLabel previousRunHpRegainedLabel;
     private JLabel previousRunSpecialAttacksUsedLabel;
@@ -96,6 +98,7 @@ public class MokhaLootPanel extends PluginPanel {
     private Map<Integer, Long> previousRunTotalsByWave = new TreeMap<>();
     private Map<Integer, Long> previousRunHaTotalsByWave = new TreeMap<>();
     private int previousRunPrayerUsed;
+    private int previousRunPrayerRegained;
     private int previousRunHpLost;
     private int previousRunHpRegained;
     private int previousRunSpecialAttacksUsed;
@@ -151,6 +154,7 @@ public class MokhaLootPanel extends PluginPanel {
     private JPanel performanceSectionPanel;
     private JPanel performanceSeparatorPanel;
     private JLabel performancePrayerUsedLabel;
+    private JLabel performancePrayerRegainedLabel;
     private JLabel performanceHpLostLabel;
     private JLabel performanceHpRegainedLabel;
     private JLabel performanceSpecialAttacksUsedLabel;
@@ -162,6 +166,7 @@ public class MokhaLootPanel extends PluginPanel {
     private JPanel drynessSectionPanel;
     private JPanel drynessSeparatorPanel;
     private JLabel dryAnyUniqueLabel;
+    private JLabel dryDeepRollsLabel;
     private JLabel dryAnyUniqueOddsLabel;
     private JLabel dryClothLabel;
     private JLabel dryEyeLabel;
@@ -695,6 +700,9 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunHpRegainedLabel = createPerformanceMetricValueLabel(HP_REGAINED_COLOR);
         previousRunContainer.add(createStatRow("HP regained:", previousRunHpRegainedLabel));
 
+        previousRunPrayerRegainedLabel = createPerformanceMetricValueLabel(PRAYER_REGAINED_COLOR);
+        previousRunContainer.add(createStatRow("Prayer regained:", previousRunPrayerRegainedLabel));
+
         previousRunCombinedPanel = new JPanel();
         previousRunCombinedPanel.setLayout(new BoxLayout(previousRunCombinedPanel, BoxLayout.Y_AXIS));
         previousRunCombinedPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -1157,6 +1165,9 @@ public class MokhaLootPanel extends PluginPanel {
         performanceHpRegainedLabel = createPerformanceMetricValueLabel(HP_REGAINED_COLOR);
         performanceContainer.add(createStatRow("HP regained:", performanceHpRegainedLabel));
 
+        performancePrayerRegainedLabel = createPerformanceMetricValueLabel(PRAYER_REGAINED_COLOR);
+        performanceContainer.add(createStatRow("Prayer regained:", performancePrayerRegainedLabel));
+
         panel.add(performanceContainer);
 
         collapseButton.addActionListener(e -> {
@@ -1204,6 +1215,11 @@ public class MokhaLootPanel extends PluginPanel {
         dryAnyUniqueLabel.setFont(FontManager.getRunescapeFont());
         dryAnyUniqueLabel.setForeground(Color.WHITE);
         drynessContainer.add(createStatRow("Wave Rolls:", dryAnyUniqueLabel));
+
+        dryDeepRollsLabel = new JLabel("N/A");
+        dryDeepRollsLabel.setFont(FontManager.getRunescapeFont());
+        dryDeepRollsLabel.setForeground(Color.LIGHT_GRAY);
+        drynessContainer.add(createStatRow("Deep Rolls (8+):", dryDeepRollsLabel));
 
         dryAnyUniqueOddsLabel = new JLabel("N/A");
         dryAnyUniqueOddsLabel.setFont(FontManager.getRunescapeFont());
@@ -1272,10 +1288,12 @@ public class MokhaLootPanel extends PluginPanel {
         return panel;
     }
 
-    void updatePerformance(int prayerUsed, int hpLost, int hpRegained, int specialAttacksUsed, int venomApplications) {
+    void updatePerformance(int prayerUsed, int prayerRegained, int hpLost, int hpRegained, int specialAttacksUsed, int venomApplications) {
         SwingUtilities.invokeLater(() -> {
             if (performancePrayerUsedLabel != null)
                 performancePrayerUsedLabel.setText(String.valueOf(prayerUsed));
+            if (performancePrayerRegainedLabel != null)
+                performancePrayerRegainedLabel.setText(String.valueOf(prayerRegained));
             if (performanceHpLostLabel != null)
                 performanceHpLostLabel.setText(String.valueOf(hpLost));
             if (performanceHpRegainedLabel != null)
@@ -1514,6 +1532,7 @@ public class MokhaLootPanel extends PluginPanel {
             long suppliesTotalValue,
             Map<String, ItemData> suppliesItemData,
             int prayerUsed,
+            int prayerRegained,
             int hpLost,
             int hpRegained,
             int specialAttacksUsed,
@@ -1528,6 +1547,7 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunSuppliesTotal = suppliesTotalValue;
         previousRunSuppliesItemData = suppliesItemData != null ? new HashMap<>(suppliesItemData) : new HashMap<>();
         previousRunPrayerUsed = prayerUsed;
+        previousRunPrayerRegained = prayerRegained;
         previousRunHpLost = hpLost;
         previousRunHpRegained = hpRegained;
         previousRunSpecialAttacksUsed = specialAttacksUsed;
@@ -1581,7 +1601,7 @@ public class MokhaLootPanel extends PluginPanel {
                 totalExcludingDomDisplay));
     }
 
-    void updateHistoricalDryness(long waveRollsTracked, double expectedDrops, long dropsReceived,
+    void updateHistoricalDryness(long waveRollsTracked, long deepRolls, double expectedDrops, long dropsReceived,
             double expectedDom, double expectedTreads, double expectedEye, double expectedCloth,
             long receivedDom, long receivedTreads, long receivedEye, long receivedCloth) {
         if (dryAnyUniqueLabel == null) {
@@ -1591,6 +1611,9 @@ public class MokhaLootPanel extends PluginPanel {
         double drynessValue = dropsReceived - expectedDrops;
 
         dryAnyUniqueLabel.setText(String.valueOf(waveRollsTracked));
+        if (dryDeepRollsLabel != null) {
+            dryDeepRollsLabel.setText(String.valueOf(deepRolls));
+        }
         dryAnyUniqueOddsLabel.setText(String.format("%.2f", expectedDrops));
         dryClothLabel.setText(String.valueOf(dropsReceived));
         dryEyeLabel.setText(String.format("%.2f", drynessValue));
@@ -1627,6 +1650,9 @@ public class MokhaLootPanel extends PluginPanel {
     private void setDrynessUnavailable() {
         if (dryAnyUniqueLabel != null) {
             dryAnyUniqueLabel.setText("0");
+        }
+        if (dryDeepRollsLabel != null) {
+            dryDeepRollsLabel.setText("0");
         }
         if (dryAnyUniqueOddsLabel != null) {
             dryAnyUniqueOddsLabel.setText("0");
@@ -2296,6 +2322,7 @@ public class MokhaLootPanel extends PluginPanel {
 
     private void updatePreviousRunPerformanceLabels() {
         previousRunPrayerUsedLabel.setText(String.valueOf(previousRunPrayerUsed));
+        previousRunPrayerRegainedLabel.setText(String.valueOf(previousRunPrayerRegained));
         previousRunHpLostLabel.setText(String.valueOf(previousRunHpLost));
         previousRunHpRegainedLabel.setText(String.valueOf(previousRunHpRegained));
         previousRunSpecialAttacksUsedLabel.setText(String.valueOf(previousRunSpecialAttacksUsed));
@@ -2313,6 +2340,8 @@ public class MokhaLootPanel extends PluginPanel {
                 createPerformanceMetricValueLabelWithValue(VENOM_COLOR, previousRunVenomApplications)));
         targetPanel.add(createStatRow("HP regained:",
                 createPerformanceMetricValueLabelWithValue(HP_REGAINED_COLOR, previousRunHpRegained)));
+        targetPanel.add(createStatRow("Prayer regained:",
+                createPerformanceMetricValueLabelWithValue(PRAYER_REGAINED_COLOR, previousRunPrayerRegained)));
     }
 
     private JLabel createPerformanceMetricValueLabelWithValue(Color color, int value) {
