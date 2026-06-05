@@ -57,6 +57,11 @@ public interface MokhaLootTrackerConfig extends Config {
 		return true;
 	}
 
+	@ConfigItem(keyName = "blowpipeCheckReminder", name = "Weapon Charge Reminder", description = "Show an overlay at arena entry and after each run prompting you to check your blowpipe or powered staff. Provides accurate charge tracking without false positives from outside-arena use.", position = 20)
+	default boolean blowpipeCheckReminder() {
+		return false;
+	}
+
 	// Internal persistence properties (not exposed in settings UI)
 	// These use direct ConfigManager access, not @ConfigItem
 

@@ -32,6 +32,7 @@ import net.runelite.api.NPC;
 import net.runelite.api.Skill;
 import net.runelite.api.VarPlayer;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
@@ -53,6 +54,7 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 
 @PluginDescriptor(name = "Mokha Loot Tracker", description = "Tracks loot obtained from Mokhaiotl encounters", enabledByDefault = true, tags = {
@@ -109,8 +111,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
     @Inject
     private Notifier notifier;
 
+    @Inject
+    private OverlayManager overlayManager;
+
     private NavigationButton navButton;
     private MokhaLootPanel panel;
+    private BlowpipeCheckOverlay blowpipeCheckOverlay;
     private HistoricalDataManager historicalDataManager;
     private SupplyTrackingService supplyTrackingService;
     private LootTrackingService lootTrackingService;
@@ -136,6 +142,15 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private boolean lastDescendClickJustHappened = false; // Track if Descend was just clicked
     private long lastArenaExitTime = 0; // Track when player last exited arena to detect stale snapshot usage
     private int ticksOutsideArenaBounds = 0; // Failsafe: detect stale in-arena state
+
+    // Blowpipe check overlay state machine
+    private enum BlowpipeCheckState { INACTIVE, AWAITING_INITIAL, TRACKING, AWAITING_FINAL }
+    private BlowpipeCheckState blowpipeCheckState = BlowpipeCheckState.INACTIVE;
+    private final Map<Integer, Integer> blowpipeInitialDartSnapshot = new HashMap<>();
+    // When the player checks a blowpipe or staff but the config value didn't change (so no
+    // ConfigChanged fires), we detect the chat message and use this flag to trigger the read
+    // on the next tick — after tictac7x has had a chance to update the config.
+    private boolean pendingWeaponCheckRead = false;
 
     // Performance tracking (current + previous run snapshot)
     private final PerformanceTracker performanceTracker = new PerformanceTracker();
@@ -210,6 +225,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 .build();
 
         clientToolbar.addNavigation(navButton);
+        blowpipeCheckOverlay = new BlowpipeCheckOverlay();
+        overlayManager.add(blowpipeCheckOverlay);
         lastCombinedSnapshot.clear();
 
         // Initialize historical data manager
@@ -236,6 +253,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
     @Override
     protected void shutDown() throws Exception {
         clientToolbar.removeNavigation(navButton);
+        overlayManager.remove(blowpipeCheckOverlay);
+        resetBlowpipeCheckState();
         lastCombinedSnapshot.clear();
 
         // Save historical data before shutdown
@@ -282,9 +301,20 @@ public class MokhaLootTrackerPlugin extends Plugin {
                         client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT));
 
                 // Initialize supply snapshots for consumption tracking
+                if (blowpipeCheckState == BlowpipeCheckState.AWAITING_FINAL) {
+                    resetBlowpipeCheckState(); // Cancel leftover AWAITING_FINAL from previous run
+                }
                 int arenaEntryAmmo = supplyTrackingService.initializeForArenaEntry();
                 log.debug("[Mokha] Arena entry complete. Initial snapshot captured: {} items, Blowpipe ammo: {}",
                         lastCombinedSnapshot.size(), arenaEntryAmmo);
+                if (blowpipeCheckState == BlowpipeCheckState.TRACKING) {
+                    // Player already checked weapon at entrance; re-sync live snapshot since
+                    // initializeForArenaEntry rebuilt lastWeaponAmmoSnapshot from config data
+                    supplyTrackingService.setBlowpipeOverlayActive(true);
+                } else if (blowpipeCheckState == BlowpipeCheckState.INACTIVE) {
+                    startBlowpipeCheckIfNeeded();
+                }
+                // AWAITING_INITIAL: overlay already shown at entrance, player checks inside arena
             }
         }
 
@@ -320,6 +350,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // Save historical data immediately after claiming
                 saveHistoricalData();
 
+                // Transition blowpipe overlay to final-check state if dart tracking was active
+                handleBlowpipeOnRunEnd();
+
                 // Clear all tracking state
                 applyArenaState(arenaStateService.createArenaExitState());
                 clearCurrentRunTrackingCollections();
@@ -339,6 +372,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     @Subscribe
     public void onGameTick(GameTick event) {
+        if (pendingWeaponCheckRead) {
+            pendingWeaponCheckRead = false;
+            handleBlowpipeConfigChanged();
+        }
+
         ensureHistoricalDataLoadedForCurrentPlayer();
         if (highscoresSyncService.attemptHighscoresWidgetSync()) {
             updatePanelData();
@@ -357,6 +395,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
         WorldPoint location = null;
         if (client.getLocalPlayer() != null) {
             location = client.getLocalPlayer().getWorldLocation();
+        }
+
+        // Start weapon check overlay when player is at the entrance staging area
+        if (!inMokhaArena && blowpipeCheckState == BlowpipeCheckState.INACTIVE
+                && location != null && isAtEntrance(location)) {
+            startBlowpipeCheckIfNeeded();
         }
 
         boolean performanceTrackingActive = isPerformanceTrackingActive(location);
@@ -478,6 +522,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // unclaimed forever)
                 moveCurrentRunUnclaimedToHistorical();
 
+                handleBlowpipeOnRunEnd();
                 applyArenaState(arenaStateService.createArenaExitState());
                 clearCurrentRunTrackingCollections();
 
@@ -571,7 +616,29 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     @Subscribe
+    public void onChatMessage(ChatMessage event) {
+        if (blowpipeCheckState != BlowpipeCheckState.AWAITING_INITIAL
+                && blowpipeCheckState != BlowpipeCheckState.AWAITING_FINAL) {
+            return;
+        }
+        // Detect when the player "Checks" a blowpipe or powered staff. tictac7x-charges may not
+        // fire ConfigChanged if the stored values are identical to the last check, so we use the
+        // in-game check message as a fallback trigger. The actual config read is deferred one tick
+        // so tictac7x has time to update the config value first.
+        String msg = event.getMessage();
+        if (msg.contains("blowpipe") && (msg.contains("darts") || msg.contains("scales") || msg.contains("empty"))) {
+            pendingWeaponCheckRead = true;
+            log.debug("[Mokha] Blowpipe check message detected, scheduling config read next tick");
+        }
+    }
+
+    @Subscribe
     public void onConfigChanged(ConfigChanged event) {
+        if (event.getGroup().equals("tictac7x-charges") && isTrackedWeaponConfigKey(event.getKey())) {
+            handleBlowpipeConfigChanged();
+            return;
+        }
+
         // When ignore settings are toggled, update panel immediately
         if (event.getGroup().equals("mokhaloot")) {
             switch (event.getKey()) {
@@ -880,6 +947,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         capturePreviousRunSnapshot(false);
         moveCurrentRunUnclaimedToHistorical();
 
+        handleBlowpipeOnRunEnd();
         // Clear arena state
         applyArenaState(arenaStateService.createArenaExitState());
         clearCurrentRunTrackingCollections();
@@ -1629,6 +1697,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         capturePreviousRunSnapshot(false);
         moveCurrentRunUnclaimedToHistorical();
 
+        handleBlowpipeOnRunEnd();
         applyArenaState(arenaStateService.createArenaExitState());
         clearCurrentRunTrackingCollections();
 
@@ -1692,6 +1761,133 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Save persisted data
         saveHistoricalData();
+    }
+
+    // ---- Blowpipe check overlay ----
+
+    private void resetBlowpipeCheckState() {
+        blowpipeCheckState = BlowpipeCheckState.INACTIVE;
+        blowpipeInitialDartSnapshot.clear();
+        pendingWeaponCheckRead = false;
+        if (supplyTrackingService != null) {
+            supplyTrackingService.setBlowpipeOverlayActive(false);
+        }
+        if (blowpipeCheckOverlay != null) {
+            blowpipeCheckOverlay.hide();
+        }
+    }
+
+    private void startBlowpipeCheckIfNeeded() {
+        if (blowpipeCheckState != BlowpipeCheckState.INACTIVE) {
+            return;
+        }
+        if (!config.blowpipeCheckReminder()) {
+            log.debug("[Mokha] Blowpipe check reminder disabled");
+            return;
+        }
+        if (!supplyTrackingService.hasTrackedWeaponPresent()) {
+            log.debug("[Mokha] No charge-tracked weapon detected");
+            return;
+        }
+        log.debug("[Mokha] Charge-tracked weapon detected — starting check overlay");
+        blowpipeCheckState = BlowpipeCheckState.AWAITING_INITIAL;
+        blowpipeInitialDartSnapshot.clear();
+        supplyTrackingService.setBlowpipeOverlayActive(true);
+        blowpipeCheckOverlay.showInitialPrompt();
+        client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+                "<col=FFAA00>[Mokha] Weapon with trackable charges detected — check it to begin charge tracking.</col>", null);
+    }
+
+    private void handleBlowpipeOnRunEnd() {
+        if (blowpipeCheckState == BlowpipeCheckState.TRACKING && !blowpipeInitialDartSnapshot.isEmpty()) {
+            blowpipeCheckState = BlowpipeCheckState.AWAITING_FINAL;
+            blowpipeCheckOverlay.showFinalPrompt();
+        } else {
+            resetBlowpipeCheckState();
+        }
+    }
+
+    private void handleBlowpipeConfigChanged() {
+        switch (blowpipeCheckState) {
+            case AWAITING_INITIAL:
+                blowpipeInitialDartSnapshot.clear();
+                blowpipeInitialDartSnapshot.putAll(supplyTrackingService.readCurrentWeaponAmmo());
+                log.debug("[Mokha] Weapon charge initial snapshot: {}", blowpipeInitialDartSnapshot);
+                if (!blowpipeInitialDartSnapshot.isEmpty()) {
+                    blowpipeCheckState = BlowpipeCheckState.TRACKING;
+                    blowpipeCheckOverlay.hide();
+                    int totalCharges = blowpipeInitialDartSnapshot.values().stream().mapToInt(Integer::intValue).sum();
+                    log.debug("[Mokha] Weapon charge snapshot captured: {}", blowpipeInitialDartSnapshot);
+                    client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+                            "<col=00CC66>[Mokha] Weapon charge tracking active — " + totalCharges + " charges at start of run.</col>", null);
+                }
+                break;
+            case AWAITING_FINAL:
+                Map<Integer, Integer> finalDarts = supplyTrackingService.readCurrentWeaponAmmo();
+                log.debug("[Mokha] Weapon charge final snapshot: {}", finalDarts);
+                int used = 0;
+                for (Map.Entry<Integer, Integer> e : blowpipeInitialDartSnapshot.entrySet()) {
+                    int consumed = Math.max(0, e.getValue() - finalDarts.getOrDefault(e.getKey(), 0));
+                    used += consumed;
+                    if (consumed > 0) {
+                        previousRunSuppliesConsumed.merge(e.getKey(), consumed, Integer::sum);
+                    }
+                }
+                applyBlowpipeDartConsumptionToHistorical(blowpipeInitialDartSnapshot, finalDarts);
+                log.debug("[Mokha] historicalSuppliesUsed after charge write: {} entries: {}", historicalSuppliesUsed.size(), historicalSuppliesUsed.keySet());
+                resetBlowpipeCheckState();
+                saveHistoricalData();
+                SwingUtilities.invokeLater(this::updatePanelData);
+                client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+                        "<col=00CC66>[Mokha] Weapon charges recorded: " + used + " used this run.</col>", null);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private static boolean isTrackedWeaponConfigKey(String key) {
+        switch (key) {
+            // Blowpipe storage keys (JSON array format)
+            case "toxic_blowpipe_storage":
+            case "camphor_blowpipe_storage":
+            case "ironwood_blowpipe_storage":
+            case "rosewood_blowpipe_storage":
+            case "blazing_blowpipe_storage":
+            // Powered staff charge keys (plain integer format)
+            case "trident_of_the_seas_charges":
+            case "trident_of_the_swamp_charges":
+            case "sanguinesti_staff_charges":
+            case "tumekens_shadow_charges":
+            case "eye_of_ayak_charges":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void applyBlowpipeDartConsumptionToHistorical(
+            Map<Integer, Integer> initial, Map<Integer, Integer> finalCounts) {
+        for (Map.Entry<Integer, Integer> entry : initial.entrySet()) {
+            int itemId = entry.getKey();
+            int initialQty = entry.getValue();
+            int finalQty = finalCounts.getOrDefault(itemId, 0);
+            if (finalQty >= initialQty) {
+                continue;
+            }
+            int consumed = initialQty - finalQty;
+            String baseName = getBasePotionName(itemManager.getItemComposition(itemId).getName());
+            // Staff charge item IDs are the weapon itself — per-charge GE price is meaningless
+            int priceEach = SupplyTrackingService.isStaffChargeItemId(itemId) ? 0 : getPricePerDose(itemId);
+            ItemAggregate existing = historicalSuppliesUsed.get(baseName);
+            if (existing != null) {
+                existing.add(consumed, priceEach);
+            } else {
+                historicalSuppliesUsed.put(baseName, new ItemAggregate(baseName, consumed, priceEach));
+            }
+            historicalSupplyCost += (long) priceEach * consumed;
+            log.debug("[Mokha] Weapon charges applied to historical: {} x{} @ {} gp", baseName, consumed, priceEach);
+        }
     }
 
     /**
