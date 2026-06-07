@@ -22,12 +22,12 @@ public interface MokhaLootTrackerConfig extends Config {
 		return false;
 	}
 
-	@ConfigItem(keyName = "mokhaClothValue", name = "Mokhaiotl Cloth Value", description = "Manual override for Mokhaiotl Cloth value. Leave blank to use automatic calculation.", position = 17)
+	@ConfigItem(keyName = "mokhaClothValue", name = "Mokhaiotl Cloth Value", description = "Manual override for Mokhaiotl Cloth value. Leave blank to use automatic calculation.", position = 19)
 	default String mokhaClothValue() {
 		return "";
 	}
 
-	@ConfigItem(keyName = "lootAlertLines", name = "Loot alerts", description = "One per line: item name, quantity (e.g. steel cannonball, 300)", position = 18)
+	@ConfigItem(keyName = "lootAlertLines", name = "Loot alerts", description = "One per line: item name, quantity (e.g. steel cannonball, 300)", position = 20)
 	default String lootAlertLines() {
 		return "Dom, 1\nAvernic treads, 1\nEye of ayak (uncharged), 1\nMokhaiotl cloth, 1";
 	}
@@ -37,7 +37,7 @@ public interface MokhaLootTrackerConfig extends Config {
 		return MokhaDisplaySortMode.VALUE_DESC;
 	}
 
-	@ConfigItem(keyName = "enableHistoricalEdit", name = "Enable Historical Edit Mode", description = "Allow clicking historical entries in the panel to remove them and recalculate totals", position = 16)
+	@ConfigItem(keyName = "enableHistoricalEdit", name = "Enable Historical Edit Mode", description = "Allow clicking historical entries in the panel to remove them and recalculate totals", position = 18)
 	default boolean enableHistoricalEdit() {
 		return false;
 	}
@@ -52,12 +52,12 @@ public interface MokhaLootTrackerConfig extends Config {
 		return false;
 	}
 
-	@ConfigItem(keyName = "showDrynessPanel", name = "Show Dryness Panel", description = "Show the Dryness section in the panel", position = 19)
+	@ConfigItem(keyName = "showDrynessPanel", name = "Show Dryness Panel", description = "Show the Dryness section in the panel", position = 16)
 	default boolean showDrynessPanel() {
 		return true;
 	}
 
-	@ConfigItem(keyName = "blowpipeCheckReminder", name = "Weapon Charge Reminder", description = "Show an overlay at arena entry and after each run prompting you to check your blowpipe or powered staff. Provides accurate charge tracking without false positives from outside-arena use.", position = 20)
+	@ConfigItem(keyName = "blowpipeCheckReminder", name = "Charged Weapon Tracking (Beta)", description = "Show an overlay at arena entry and after each run prompting you to check your charged weapons (blowpipes, powered staves, crystal equipment, serpentine helm, venator bow, Eye of Ayak). Tracks charges consumed per run and calculates supply cost from charge recipes. Work in progress.", position = 17)
 	default boolean blowpipeCheckReminder() {
 		return false;
 	}

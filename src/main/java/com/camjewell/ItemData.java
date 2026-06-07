@@ -7,6 +7,8 @@ public class ItemData {
     public long totalValue;
     public int haPricePerItem;
     public long totalHaValue;
+    /** Optional hover tooltip override. Null = use the default price-per-item tooltip. */
+    public String tooltipText;
 
     public ItemData(String name, int quantity, int pricePerItem, long totalValue) {
         this(name, quantity, pricePerItem, totalValue, 0, 0);

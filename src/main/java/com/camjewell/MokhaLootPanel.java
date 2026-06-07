@@ -1260,8 +1260,6 @@ public class MokhaLootPanel extends PluginPanel {
         dryExpectedClothLabel.setForeground(Color.WHITE);
         drynessContainer.add(createStatRow("Cloth Expected/Received:", dryExpectedClothLabel));
 
-        drynessContainer.add(createInternalSeparator());
-
         drySyncWarningLabel = new JLabel(
                 "Sync highscores and collection log to initialize dryness.");
         drySyncWarningLabel.setFont(FontManager.getRunescapeSmallFont());
@@ -2044,7 +2042,7 @@ public class MokhaLootPanel extends PluginPanel {
             itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
             itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
             itemRow.setBorder(new EmptyBorder(2, 5, 2, 0));
-            itemRow.setToolTipText("Price: " + pricePerItemText);
+            itemRow.setToolTipText(item.tooltipText != null ? item.tooltipText : "Price: " + pricePerItemText);
 
             // Left side: item name and quantity
             JLabel itemLabel = new JLabel("- " + item.name + " x" + item.quantity);

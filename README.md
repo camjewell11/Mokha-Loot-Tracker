@@ -1,6 +1,8 @@
 # Mokha Loot Tracker
 
-A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during Doom of Mokhaiotl encounters in Old School RuneScape. Features detailed persistent statistics, customizable loot alerts, automatic Mokhaiotl Cloth valuation, and a modern interactive UI for maximizing your Mokhaiotl profits.
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue?logo=paypal)](https://paypal.me/camjewell)
+
+A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during Doom of Mokhaiotl encounters in Old School RuneScape. Features detailed persistent statistics, customizable loot alerts, automatic Mokhaiotl Cloth valuation, charged weapon cost tracking, and a modern interactive UI for maximizing your Mokhaiotl profits.
 
 <img width="1918" height="1032" alt="image" src="https://github.com/user-attachments/assets/d59aadda-bba9-45bf-839a-4d8df18add25" />
 
@@ -33,6 +35,7 @@ A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during D
 - **Dryness Tracking**: Shows expected vs. actual unique drops based on your historical wave completions, with cumulative probability calculations.
 - **Highscores & Collection Log Sync**: Automatically syncs wave completion counts from the Dom Scoreboard and unique item counts from the Collection Log.
 - **Blowpipe Live Ammo Tracking**: Tracks blowpipe ammo consumption using server-pushed varps — no longer requires manually opening the blowpipe interface to register usage.
+- **Charged Weapon Tracking (Beta)**: Tracks charges consumed by powered staves, crystal equipment, blowpipes, and other charged weapons. Calculates per-charge supply cost using each weapon's charge recipe and displays a full ingredient breakdown on hover. See [Charged Weapon Tracking](#charged-weapon-tracking-beta) for details.
 
 ## How It Works
 
@@ -108,6 +111,52 @@ Configure custom notifications to alert you when specific loot items meet or exc
 
 When triggered, alerts display a chat message and play a notification sound. Alerts check against the total visible loot in the current wave window.
 
+## Charged Weapon Tracking (Beta)
+
+> **Beta feature** — Enable via *Charged Weapon Tracking (Beta)* in plugin settings. Accuracy depends on checking your weapons before and after every run. Results may be approximate for the Eye of Ayak (see note below).
+
+### How it works
+
+When this feature is enabled, an overlay appears at the arena entrance prompting you to check each detected charged weapon. Right-click your weapon and choose **Check** — this records the current charge count. After the run ends, the overlay reappears so you can check again. The plugin calculates the difference between your starting and ending charge counts, then uses each weapon's known charge recipe to work out exactly what it cost to run those charges.
+
+The result appears in the **Supplies Used (All Time)** panel as a line item such as:
+
+> `Trident of the Swamp Charge ×10   4,910 gp`
+
+Hovering over the entry shows the full ingredient breakdown (e.g. *10× Death rune, 10× Chaos rune, 50× Fire rune, 10× Zulrah's scale*).
+
+### Supported weapons and charge costs
+
+| Weapon | Cost per charge |
+| --- | --- |
+| Toxic Blowpipe | Exact dart + scale consumption tracked directly |
+| Blazing Blowpipe | Exact dart + scale consumption tracked directly |
+| Camphor Blowpipe | Exact dart + scale consumption tracked directly |
+| Ironwood Blowpipe | Exact dart + scale consumption tracked directly |
+| Rosewood Blowpipe | Exact dart + scale consumption tracked directly |
+| Venator Bow | 1 ancient essence |
+| Trident of the Seas | 1 death rune + 1 chaos rune + 5 fire runes |
+| Trident of the Swamp | 1 death rune + 1 chaos rune + 5 fire runes + 1 Zulrah's scale |
+| Sanguinesti Staff | 3 blood runes |
+| Tumeken's Shadow | 2 soul runes + 5 chaos runes |
+| Eye of Ayak | 1 demon tear *(see note)* |
+| Scythe of Vitur | 2 blood runes + 1 vial of blood per 100 charges |
+| Blade of Saeldor | 1 crystal shard per 100 charges *(untradeable — quantity only)* |
+| Bow of Faerdhinen | 1 crystal shard per 100 charges *(untradeable — quantity only)* |
+| Crystal Bow | 1 crystal shard per 100 charges *(untradeable — quantity only)* |
+| Crystal Halberd | 1 crystal shard per 100 charges *(untradeable — quantity only)* |
+| Serpentine Helm | 1 Zulrah's scale |
+
+Crystal shard weapons (Blade of Saeldor, Bow of Faerdhinen, Crystal Bow, Crystal Halberd) are recharged with untradeable crystal shards — the shard count is tracked and shown in the tooltip, but contributes 0 gp to your supply cost.
+
+**Eye of Ayak note**: the Eye can be recharged with either 2 death runes + 1 chaos rune *or* 1 demon tear. The plugin defaults to demon tear since it cannot detect which method you used. If you recharge with runes, the displayed cost will not match your actual spend.
+
+### Tips for accurate tracking
+
+- Check every detected weapon before crossing into the arena, then again immediately after leaving. Skipping a check cancels tracking for that run.
+- The overlay lists each weapon with a checkbox — only when all are ticked does the overlay dismiss and tracking begin/end.
+- Charges consumed between games (e.g. from other content) will be counted if you do not check directly at the arena entrance. For best accuracy, check only at the arena.
+
 ## Configuration Options
 
 Accessible via RuneLite Configuration panel → Mokha Loot Tracker:
@@ -120,6 +169,7 @@ Accessible via RuneLite Configuration panel → Mokha Loot Tracker:
 - **Loot Alerts**: Configure custom notifications for specific loot items. Format: `Item Name, Minimum Quantity` (one per line). Triggers chat message and sound when threshold is met.
 - **Display Sort Mode**: Choose how displayed loot/supplies are ordered (`By Value` or `Alphabetical`). Default is `By Value`.
 - **Enable Historical Edit Mode**: Enables click-to-remove for historical entries in the side panel with confirmation and immediate recalculation.
+- **Charged Weapon Tracking (Beta)**: Enables the charged weapon checklist overlay and per-charge cost tracking. See [Charged Weapon Tracking](#charged-weapon-tracking-beta) for full details.
 
 ## Data Storage & Persistence
 
@@ -184,6 +234,17 @@ Please include:
 This plugin is open source and available under standard RuneLite plugin licensing.
 
 ## Changelog
+
+### v8.1
+
+- **Charged Weapon Tracking (Beta)**: New opt-in feature that tracks charge consumption for all major charged weapons usable at Doom of Mokhaiotl. An overlay prompts you to check your weapons before and after each run; the plugin records the charge delta and calculates supply cost using each weapon's known charge recipe. Results appear in the historical supplies panel with a hover tooltip showing the full ingredient breakdown.
+  - Blowpipe variants (Toxic, Blazing, Camphor, Ironwood, Rosewood): exact darts and scales tracked per run.
+  - Powered staves (Trident of the Seas, Trident of the Swamp, Sanguinesti Staff, Tumeken's Shadow, Eye of Ayak): cost calculated per charge from rune/reagent recipes.
+  - Scythe of Vitur: blood runes and vials of blood calculated per charge.
+  - Crystal equipment (Blade of Saeldor, Bow of Faerdhinen, Crystal Bow, Crystal Halberd): crystal shard usage tracked; no GP cost since shards are untradeable.
+  - Venator Bow: ancient essence tracked per shot.
+  - Serpentine Helm: Zulrah's scales tracked per charge.
+- **PayPal Donate button** added to the README.
 
 ### v8.0
 

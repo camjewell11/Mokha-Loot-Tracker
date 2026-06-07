@@ -199,8 +199,9 @@ class PanelDataService {
         }
 
         for (ItemAggregate agg : historicalSuppliesUsed.values()) {
-            data.historicalSuppliesData.put(agg.name,
-                    new ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue));
+            ItemData itemData = new ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue);
+            itemData.tooltipText = agg.tooltipText;
+            data.historicalSuppliesData.put(agg.name, itemData);
             data.historicalSuppliesTotalValue += agg.totalValue;
         }
 
