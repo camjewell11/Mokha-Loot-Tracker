@@ -140,6 +140,8 @@ public class MokhaLootPanel extends PluginPanel {
     private JPanel suppliesCurrentRunContainer; // Container for all supplies content
     private boolean suppliesCurrentRunCollapsed = false; // Track collapse state
     private JLabel suppliesCurrentRunHeaderLabel; // Collapsed view total label
+    private JButton startChargeTrackingButton;
+    private JPanel startChargeTrackingButtonWrapper;
 
     // Supplies Used (All Time)
     private JLabel suppliesTotalValueLabel;
@@ -184,6 +186,7 @@ public class MokhaLootPanel extends PluginPanel {
     private final Runnable onClearSuppliesHistoricalData;
     private final Runnable onExportHistoricalData;
     private final Runnable onImportHistoricalData;
+    private final Runnable onStartChargeTracking;
     private java.util.function.BiConsumer<Integer, String> onRemoveClaimedHistoricalItem;
     private java.util.function.BiConsumer<Integer, String> onRemoveUnclaimedHistoricalItem;
     private java.util.function.Consumer<String> onRemoveClaimedHistoricalItemAllWaves;
@@ -196,23 +199,23 @@ public class MokhaLootPanel extends PluginPanel {
     private Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave;
 
     public MokhaLootPanel(MokhaLootTrackerConfig config) {
-        this(config, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        this(config, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData) {
-        this(config, onClearData, null, null, null, null, null, null, null, null, null, null, null, null);
+        this(config, onClearData, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
             Runnable onRecalculateTotals) {
         this(config, onClearData, onRecalculateTotals, null, null, null, null, null, null, null,
-                null, null, null, null);
+                null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
             Runnable onRecalculateTotals, java.util.function.BooleanSupplier isInRun) {
         this(config, onClearData, onRecalculateTotals, isInRun, null, null, null, null, null, null,
-                null, null, null, null);
+                null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
@@ -225,7 +228,8 @@ public class MokhaLootPanel extends PluginPanel {
             java.util.function.Consumer<String> onRemoveUnclaimedHistoricalItemAllWaves,
             java.util.function.Consumer<String> onRemoveHistoricalSupplyItem,
             Runnable onExportHistoricalData,
-            Runnable onImportHistoricalData) {
+            Runnable onImportHistoricalData,
+            Runnable onStartChargeTracking) {
         this.config = config;
         this.onClearData = onClearData;
         this.onRecalculateTotals = onRecalculateTotals;
@@ -241,6 +245,7 @@ public class MokhaLootPanel extends PluginPanel {
         this.onRemoveHistoricalSupplyItem = onRemoveHistoricalSupplyItem;
         this.displayHaValueOnHover = config.displayHaValueOnHover();
         this.onImportHistoricalData = onImportHistoricalData;
+        this.onStartChargeTracking = onStartChargeTracking;
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -1030,6 +1035,27 @@ public class MokhaLootPanel extends PluginPanel {
         suppliesCurrentRunPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         suppliesCurrentRunContainer.add(suppliesCurrentRunPanel);
 
+        startChargeTrackingButton = new JButton("Start Charge Tracking");
+        startChargeTrackingButton.setFont(FontManager.getRunescapeSmallFont());
+        startChargeTrackingButton.setForeground(Color.WHITE);
+        startChargeTrackingButton.setBackground(new Color(60, 60, 60));
+        startChargeTrackingButton.setFocusPainted(false);
+        startChargeTrackingButton.setVisible(config.blowpipeCheckReminder());
+        startChargeTrackingButton.addActionListener(e -> {
+            if (onStartChargeTracking != null) {
+                onStartChargeTracking.run();
+            }
+        });
+
+        // Wrap in a BorderLayout panel so BoxLayout gives it the full row width.
+        startChargeTrackingButtonWrapper = new JPanel(new BorderLayout());
+        startChargeTrackingButtonWrapper.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        startChargeTrackingButtonWrapper.setMaximumSize(new Dimension(Integer.MAX_VALUE, 22));
+        startChargeTrackingButtonWrapper.setBorder(new EmptyBorder(4, 0, 0, 0));
+        startChargeTrackingButtonWrapper.add(startChargeTrackingButton, BorderLayout.CENTER);
+        startChargeTrackingButtonWrapper.setVisible(config.blowpipeCheckReminder());
+        suppliesCurrentRunContainer.add(startChargeTrackingButtonWrapper);
+
         panel.add(suppliesCurrentRunContainer);
 
         // Collapse/expand logic
@@ -1301,6 +1327,12 @@ public class MokhaLootPanel extends PluginPanel {
             if (performanceVenomApplicationsLabel != null)
                 performanceVenomApplicationsLabel.setText(String.valueOf(venomApplications));
         });
+    }
+
+    public void setChargeTrackingButtonVisible(boolean visible) {
+        if (startChargeTrackingButtonWrapper != null) {
+            startChargeTrackingButtonWrapper.setVisible(visible);
+        }
     }
 
     void setPerformanceSectionVisible(boolean visible) {
@@ -1823,11 +1855,16 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     private void refreshSummaryHaTooltips() {
-        totalClaimedLabel.setToolTipText(formatGeHaTotalText(summaryTotalClaimedGe, claimedSectionHaTotal));
-        totalUnclaimedLabel.setToolTipText(formatGeHaTotalText(summaryTotalUnclaimedGe, unclaimedSectionHaTotal));
+        // Fall back to GE values when HA data is absent (historical items collected before
+        // HA tracking was added have totalHaValue=0; showing HA:0 or HA:-cost is misleading).
+        long claimedHa = claimedSectionHaTotal > 0 ? claimedSectionHaTotal : summaryTotalClaimedGe;
+        long unclaimedHa = unclaimedSectionHaTotal > 0 ? unclaimedSectionHaTotal : summaryTotalUnclaimedGe;
+
+        totalClaimedLabel.setToolTipText(formatGeHaTotalText(summaryTotalClaimedGe, claimedHa));
+        totalUnclaimedLabel.setToolTipText(formatGeHaTotalText(summaryTotalUnclaimedGe, unclaimedHa));
 
         long geProfitLoss = summaryTotalClaimedGe - summarySupplyCostGe;
-        long haProfitLoss = claimedSectionHaTotal - summarySupplyCostGe;
+        long haProfitLoss = claimedHa - summarySupplyCostGe;
         profitLossLabel.setToolTipText(formatGeHaTotalText(geProfitLoss, haProfitLoss));
     }
 

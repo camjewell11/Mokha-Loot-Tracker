@@ -145,7 +145,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private int ticksOutsideArenaBounds = 0; // Failsafe: detect stale in-arena state
 
     // Weapon checklist overlay state machine
-    private enum WeaponChecklistState { INACTIVE, AWAITING_INITIAL, TRACKING, AWAITING_FINAL }
+    private enum WeaponChecklistState { INACTIVE, AWAITING_INITIAL, TRACKING, PENDING_FINAL, AWAITING_FINAL }
     private WeaponChecklistState weaponChecklistState = WeaponChecklistState.INACTIVE;
     private boolean wasAtEntrance = false;
     // After AWAITING_FINAL completes, counts down before re-arming the AWAITING_INITIAL rising edge.
@@ -220,7 +220,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 this::removeHistoricalUnclaimedItemAllWaves,
                 this::removeHistoricalSupplyItem,
                 this::exportHistoricalData,
-                this::importHistoricalData);
+                this::importHistoricalData,
+                this::onStartChargeTrackingClicked);
 
         final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/48icon.png");
 
@@ -308,8 +309,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                         client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT));
 
                 // Initialize supply snapshots for consumption tracking
-                if (weaponChecklistState == WeaponChecklistState.AWAITING_FINAL) {
-                    resetWeaponChecklistState(); // Cancel leftover AWAITING_FINAL from previous run
+                if (weaponChecklistState == WeaponChecklistState.AWAITING_FINAL
+                        || weaponChecklistState == WeaponChecklistState.PENDING_FINAL) {
+                    resetWeaponChecklistState(); // Cancel leftover final-check state from previous run
                 }
                 int arenaEntryAmmo = supplyTrackingService.initializeForArenaEntry();
                 log.debug("[Mokha] Arena entry complete. Initial snapshot captured: {} items, Weapon ammo: {}",
@@ -318,10 +320,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     // Player already checked weapons at entrance; re-sync live snapshot since
                     // initializeForArenaEntry rebuilt lastWeaponAmmoSnapshot from config data
                     supplyTrackingService.setWeaponChecklistActive(true);
-                } else if (weaponChecklistState == WeaponChecklistState.INACTIVE) {
-                    startWeaponCheckIfNeeded();
                 }
-                // AWAITING_INITIAL: overlay already shown at entrance, player checks inside arena
+                // AWAITING_INITIAL: overlay already shown, player checks inside arena
             }
         }
 
@@ -414,8 +414,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         boolean justArrivedAtEntrance = atEntrance && !wasAtEntrance;
         wasAtEntrance = atEntrance;
 
-        if (weaponChecklistState == WeaponChecklistState.INACTIVE && justArrivedAtEntrance) {
-            startWeaponCheckIfNeeded();
+        if (weaponChecklistState == WeaponChecklistState.PENDING_FINAL && justArrivedAtEntrance) {
+            transitionToAwaitingFinal();
         }
 
         // After AWAITING_FINAL completes, re-arm the rising edge after a short grace period so
@@ -432,6 +432,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
         //   not persist into a future session. Re-entering the radius triggers a fresh snapshot.
         // AWAITING_FINAL: reset and notify — charges for the run are lost. This only fires if the
         //   player actually teleports away, since normal exits land at the entrance.
+        // PENDING_FINAL: NOT cancelled here. Death/exit detection fires mid-tick while the player's
+        //   WorldLocation is still inside the arena, so the first nearArena check after PENDING_FINAL
+        //   is set would wrongly cancel it. PENDING_FINAL is cleared only by: arriving at the
+        //   entrance (→ AWAITING_FINAL), jumping back in (handled in the jump-over block), or
+        //   plugin shutdown.
         if (location != null) {
             boolean nearArena = inMokhaArena || isAtEntrance(location);
             if (!nearArena) {
@@ -734,6 +739,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
                         if (panel != null) {
                             panel.setDrynessSectionVisible(showDryness);
                         }
+                    });
+                    break;
+                case "blowpipeCheckReminder":
+                    boolean trackingEnabled = "true".equalsIgnoreCase(event.getNewValue());
+                    boolean showButton = trackingEnabled && weaponChecklistState == WeaponChecklistState.INACTIVE;
+                    SwingUtilities.invokeLater(() -> {
+                        if (panel != null) panel.setChargeTrackingButtonVisible(showButton);
                     });
                     break;
                 default:
@@ -1838,6 +1850,11 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (weaponChecklistOverlay != null) {
             weaponChecklistOverlay.hide();
         }
+        SwingUtilities.invokeLater(() -> { if (panel != null) panel.setChargeTrackingButtonVisible(config.blowpipeCheckReminder()); });
+    }
+
+    private void onStartChargeTrackingClicked() {
+        clientThread.invoke(this::startWeaponCheckIfNeeded);
     }
 
     private void startWeaponCheckIfNeeded() {
@@ -1862,19 +1879,27 @@ public class MokhaLootTrackerPlugin extends Plugin {
         weaponChecklistOverlay.showInitial(detectedWeapons, checkedWeapons);
         client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
                 "<col=FFAA00>[Mokha Loot Tracker] Weapon(s) with trackable charges detected — check each to begin charge tracking.</col>", null);
+        SwingUtilities.invokeLater(() -> { if (panel != null) panel.setChargeTrackingButtonVisible(false); });
     }
 
     private void handleWeaponCheckOnRunEnd() {
         if (weaponChecklistState == WeaponChecklistState.TRACKING && !weaponInitialSnapshot.isEmpty()) {
-            weaponChecklistState = WeaponChecklistState.AWAITING_FINAL;
-            checkedWeapons.clear();
-            weaponFinalSnapshot.clear();
-            weaponChecklistOverlay.showFinal(detectedWeapons, checkedWeapons);
-            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-                    "<col=FFAA00>[Mokha Loot Tracker] Check weapons to record charges used this run.</col>", null);
+            // Don't show the overlay yet — the player is still inside the arena or mid-transition.
+            // PENDING_FINAL holds the snapshot silently until the player arrives at the entrance,
+            // then onGameTick transitions to AWAITING_FINAL and shows the overlay.
+            weaponChecklistState = WeaponChecklistState.PENDING_FINAL;
         } else {
             resetWeaponChecklistState();
         }
+    }
+
+    private void transitionToAwaitingFinal() {
+        weaponChecklistState = WeaponChecklistState.AWAITING_FINAL;
+        checkedWeapons.clear();
+        weaponFinalSnapshot.clear();
+        weaponChecklistOverlay.showFinal(detectedWeapons, checkedWeapons);
+        client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+                "<col=FFAA00>[Mokha Loot Tracker] Check weapons to record charges used this run.</col>", null);
     }
 
     private void handleWeaponChecked(TrackedWeapon weapon) {

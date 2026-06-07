@@ -6,6 +6,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 
@@ -30,6 +32,7 @@ class SupplyTrackingService {
     private static final int DIZANAS_QUIVER_TEMP_AMMO_AMOUNT = 4141;
 
     private static final String WEAPON_CHARGES_CONFIG_GROUP = "tictac7x-charges";
+    private static final Pattern DOSE_PATTERN = Pattern.compile("\\((\\d+)\\)$");
 
     private static final int[] RUNE_POUCH_ITEM_IDS = new int[] {
         0,
@@ -394,17 +397,75 @@ class SupplyTrackingService {
         }
 
         if (!lastCombinedSnapshot.isEmpty()) {
-            boolean hasConsumption = false;
+            // Collect raw per-item decreases and increases.
+            Map<Integer, Integer> decreases = new HashMap<>();
+            Map<Integer, Integer> increases = new HashMap<>();
 
             for (Map.Entry<Integer, Integer> entry : lastCombinedSnapshot.entrySet()) {
                 int itemId = entry.getKey();
-                int previousQty = entry.getValue();
-                int currentQty = currentCombined.getOrDefault(itemId, 0);
+                int prev = entry.getValue();
+                int curr = currentCombined.getOrDefault(itemId, 0);
+                if (curr < prev) decreases.put(itemId, prev - curr);
+            }
+            for (Map.Entry<Integer, Integer> entry : currentCombined.entrySet()) {
+                int itemId = entry.getKey();
+                int curr = entry.getValue();
+                int prev = lastCombinedSnapshot.getOrDefault(itemId, 0);
+                if (curr > prev) increases.put(itemId, curr - prev);
+            }
 
-                if (currentQty < previousQty) {
-                    int consumedQty = previousQty - currentQty;
-                    itemManager.getItemComposition(itemId).getName();
-                    totalSuppliesConsumed.put(itemId, totalSuppliesConsumed.getOrDefault(itemId, 0) + consumedQty);
+            // For dose-based items (e.g. "Prayer potion(3)"), compute net dose change
+            // per base name across all dose variants. This prevents potion combining —
+            // e.g. two 3-dose → one 4-dose + one 2-dose — from being counted as consumption
+            // since the total dose count is unchanged.
+            //
+            // Net doses consumed = doses that disappeared − doses that appeared (same base name).
+            // Only positive net values (actual losses) are recorded.
+            Map<String, Integer> doseNetLoss = new HashMap<>();       // baseName → net doses consumed
+            Map<String, Integer> doseRepresentativeId = new HashMap<>(); // baseName → item ID to record under
+            Set<Integer> handledAsDosse = new HashSet<>();
+
+            for (Map.Entry<Integer, Integer> entry : decreases.entrySet()) {
+                int itemId = entry.getKey();
+                String name = itemManager.getItemComposition(itemId).getName();
+                Matcher m = DOSE_PATTERN.matcher(name);
+                if (!m.find()) continue;
+                int dose = Integer.parseInt(m.group(1));
+                String baseName = name.substring(0, m.start()).trim();
+                doseNetLoss.merge(baseName, dose * entry.getValue(), Integer::sum);
+                doseRepresentativeId.putIfAbsent(baseName, itemId);
+                handledAsDosse.add(itemId);
+            }
+
+            // Subtract doses that appeared in the same base potion (they were not consumed).
+            for (Map.Entry<Integer, Integer> entry : increases.entrySet()) {
+                int itemId = entry.getKey();
+                String name = itemManager.getItemComposition(itemId).getName();
+                Matcher m = DOSE_PATTERN.matcher(name);
+                if (!m.find()) continue;
+                int dose = Integer.parseInt(m.group(1));
+                String baseName = name.substring(0, m.start()).trim();
+                if (doseNetLoss.containsKey(baseName)) {
+                    doseNetLoss.merge(baseName, -dose * entry.getValue(), Integer::sum);
+                }
+            }
+
+            boolean hasConsumption = false;
+
+            // Record net dose losses for dose-based items.
+            for (Map.Entry<String, Integer> entry : doseNetLoss.entrySet()) {
+                int netDoses = entry.getValue();
+                if (netDoses > 0) {
+                    int repId = doseRepresentativeId.get(entry.getKey());
+                    totalSuppliesConsumed.merge(repId, netDoses, Integer::sum);
+                    hasConsumption = true;
+                }
+            }
+
+            // Record raw decreases for non-dose items (runes, arrows, food, etc.).
+            for (Map.Entry<Integer, Integer> entry : decreases.entrySet()) {
+                if (!handledAsDosse.contains(entry.getKey())) {
+                    totalSuppliesConsumed.merge(entry.getKey(), entry.getValue(), Integer::sum);
                     hasConsumption = true;
                 }
             }
