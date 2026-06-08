@@ -115,10 +115,9 @@ final class LootPanelCombinedSectionRenderer {
 
     private static boolean isUltraValuable(ItemAggregate aggregate,
             boolean usePricePerItemForUniqueColor) {
-        if ("Dom".equalsIgnoreCase(aggregate.name)) {
+        if (LootPanelDisplayUtils.UNIQUE_ITEM_NAMES.stream().anyMatch(n -> n.equalsIgnoreCase(aggregate.name))) {
             return true;
         }
-
         long value = usePricePerItemForUniqueColor ? aggregate.pricePerItem : aggregate.totalValue;
         return value > 20_000_000;
     }

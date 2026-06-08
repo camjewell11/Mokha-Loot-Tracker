@@ -143,7 +143,7 @@ class ValueCalculationService {
 
         for (Map<String, ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
             for (ItemAggregate item : waveItems.values()) {
-                if (item.pricePerItem > ULTRA_VALUABLE_THRESHOLD || "Dom".equalsIgnoreCase(item.name)) {
+                if (LootPanelDisplayUtils.UNIQUE_ITEM_NAMES.stream().anyMatch(n -> n.equalsIgnoreCase(item.name))) {
                     uniqueCount += item.totalQuantity;
                 }
             }

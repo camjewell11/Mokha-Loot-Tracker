@@ -414,6 +414,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
         boolean justArrivedAtEntrance = atEntrance && !wasAtEntrance;
         wasAtEntrance = atEntrance;
 
+        if (weaponChecklistState == WeaponChecklistState.PENDING_FINAL) {
+            log.debug("[Mokha] PENDING_FINAL tick: location={} atEntrance={} justArrived={} wasAt={}",
+                    location, atEntrance, justArrivedAtEntrance, wasAtEntrance);
+        }
         if (weaponChecklistState == WeaponChecklistState.PENDING_FINAL && justArrivedAtEntrance) {
             transitionToAwaitingFinal();
         }

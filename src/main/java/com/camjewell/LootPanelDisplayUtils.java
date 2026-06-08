@@ -4,8 +4,12 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 final class LootPanelDisplayUtils {
+    static final Set<String> UNIQUE_ITEM_NAMES = Set.of(
+            "Dom", "Avernic treads", "Eye of ayak (uncharged)", "Mokhaiotl cloth");
+
     private LootPanelDisplayUtils() {
     }
 
@@ -82,12 +86,12 @@ final class LootPanelDisplayUtils {
         return String.format("%s/ea, HA: %s/ea", formatGp(pricePerItem), formatGp(haPricePerItem));
     }
 
-    static boolean isUniqueLootItem(ItemData item, int ultraValuableThreshold) {
+    static boolean isUniqueLootItem(ItemData item) {
         if (item == null) {
             return false;
         }
 
-        return item.pricePerItem > ultraValuableThreshold || "Dom".equalsIgnoreCase(item.name);
+        return UNIQUE_ITEM_NAMES.stream().anyMatch(n -> n.equalsIgnoreCase(item.name));
     }
 
     private static String colorToHex(Color color) {

@@ -30,7 +30,6 @@ import net.runelite.client.ui.PluginPanel;
 
 public class MokhaLootPanel extends PluginPanel {
     private static final int ACTION_BUTTON_HEIGHT = 30;
-    private static final int ULTRA_VALUABLE_THRESHOLD = 20_000_000;
     private static final Color UNIQUE_GOLD_COLOR = new Color(218, 165, 32);
     private static final Color HP_LOST_COLOR = new Color(200, 60, 60);
     private static final Color PRAYER_USED_COLOR = new Color(80, 210, 190);
@@ -2442,7 +2441,7 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     private boolean isUniqueLootItem(ItemData item) {
-        return LootPanelDisplayUtils.isUniqueLootItem(item, ULTRA_VALUABLE_THRESHOLD);
+        return LootPanelDisplayUtils.isUniqueLootItem(item);
     }
 
     private void addHistoricalRemovalInteraction(JPanel itemRow, String itemName, String scope, Runnable onConfirm) {
@@ -2568,9 +2567,15 @@ public class MokhaLootPanel extends PluginPanel {
     // Add setters for these maps
     public void setHistoricalClaimedItemsByWave(Map<Integer, Map<String, ItemAggregate>> map) {
         this.historicalClaimedItemsByWave = map;
+        if (claimedSectionState == 2) {
+            SwingUtilities.invokeLater(this::populateClaimedCombinedPanel);
+        }
     }
 
     public void setHistoricalUnclaimedItemsByWave(Map<Integer, Map<String, ItemAggregate>> map) {
         this.historicalUnclaimedItemsByWave = map;
+        if (unclaimedSectionState == 2) {
+            SwingUtilities.invokeLater(this::populateUnclaimedCombinedPanel);
+        }
     }
 }
