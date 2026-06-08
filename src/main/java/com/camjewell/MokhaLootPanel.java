@@ -163,11 +163,16 @@ public class MokhaLootPanel extends PluginPanel {
 
     // Dryness section
     private JPanel drynessContainer;
-    private boolean drynessCollapsed = false;
+    private JPanel drynessWaveCompletionsPanel;
+    private JLabel[] drynessWaveCompletionLabels = new JLabel[9];
+    private JLabel dryDeepRollsLabel;
+    private JPanel dryDeepRollsRow;
+    private JButton drynessCollapseButton;
+    // 0 = collapsed, 1 = expanded (dryness stats + deep rolls), 2 = expanded with wave breakdown
+    private int drynessSectionState = 0;
     private JPanel drynessSectionPanel;
     private JPanel drynessSeparatorPanel;
     private JLabel dryAnyUniqueLabel;
-    private JLabel dryDeepRollsLabel;
     private JLabel dryAnyUniqueOddsLabel;
     private JLabel dryClothLabel;
     private JLabel dryEyeLabel;
@@ -1212,14 +1217,14 @@ public class MokhaLootPanel extends PluginPanel {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-        JButton collapseButton = new JButton(getArrowOrFallback("▾", "↓"));
-        collapseButton.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
-        collapseButton.setForeground(Color.WHITE);
-        collapseButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        collapseButton.setBorderPainted(false);
-        collapseButton.setFocusPainted(false);
-        collapseButton.setPreferredSize(new Dimension(18, 18));
-        collapseButton.setMaximumSize(new Dimension(18, 18));
+        drynessCollapseButton = new JButton(getArrowOrFallback("▾", "↓"));
+        drynessCollapseButton.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
+        drynessCollapseButton.setForeground(Color.WHITE);
+        drynessCollapseButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        drynessCollapseButton.setBorderPainted(false);
+        drynessCollapseButton.setFocusPainted(false);
+        drynessCollapseButton.setPreferredSize(new Dimension(18, 18));
+        drynessCollapseButton.setMaximumSize(new Dimension(18, 18));
 
         JLabel title = new JLabel("Dryness");
         title.setFont(FontManager.getRunescapeBoldFont());
@@ -1229,7 +1234,7 @@ public class MokhaLootPanel extends PluginPanel {
         titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
         titleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
         titleRow.add(title, BorderLayout.WEST);
-        titleRow.add(collapseButton, BorderLayout.EAST);
+        titleRow.add(drynessCollapseButton, BorderLayout.EAST);
         panel.add(titleRow);
 
         drynessContainer = new JPanel();
@@ -1244,7 +1249,24 @@ public class MokhaLootPanel extends PluginPanel {
         dryDeepRollsLabel = new JLabel("N/A");
         dryDeepRollsLabel.setFont(FontManager.getRunescapeFont());
         dryDeepRollsLabel.setForeground(Color.LIGHT_GRAY);
-        drynessContainer.add(createStatRow("Deep Rolls (8+):", dryDeepRollsLabel));
+        dryDeepRollsRow = createStatRow("Deep Rolls (8+):", dryDeepRollsLabel);
+        drynessContainer.add(dryDeepRollsRow);
+
+        drynessWaveCompletionsPanel = new JPanel();
+        drynessWaveCompletionsPanel.setLayout(new BoxLayout(drynessWaveCompletionsPanel, BoxLayout.Y_AXIS));
+        drynessWaveCompletionsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        drynessWaveCompletionsPanel.setVisible(false);
+        for (int i = 0; i < 8; i++) {
+            drynessWaveCompletionLabels[i] = new JLabel("0");
+            drynessWaveCompletionLabels[i].setFont(FontManager.getRunescapeFont());
+            drynessWaveCompletionLabels[i].setForeground(Color.WHITE);
+            drynessWaveCompletionsPanel.add(createStatRow("Wave " + (i + 1) + ":", drynessWaveCompletionLabels[i]));
+        }
+        drynessWaveCompletionLabels[8] = new JLabel("0");
+        drynessWaveCompletionLabels[8].setFont(FontManager.getRunescapeFont());
+        drynessWaveCompletionLabels[8].setForeground(Color.WHITE);
+        drynessWaveCompletionsPanel.add(createStatRow("Wave 9+:", drynessWaveCompletionLabels[8]));
+        drynessContainer.add(drynessWaveCompletionsPanel);
 
         dryAnyUniqueOddsLabel = new JLabel("N/A");
         dryAnyUniqueOddsLabel.setFont(FontManager.getRunescapeFont());
@@ -1299,16 +1321,37 @@ public class MokhaLootPanel extends PluginPanel {
 
         panel.add(drynessContainer);
 
-        collapseButton.addActionListener(e -> {
-            drynessCollapsed = !drynessCollapsed;
-            drynessContainer.setVisible(!drynessCollapsed);
-            collapseButton.setText(getArrowOrFallback(drynessCollapsed ? "▸" : "▾",
-                    drynessCollapsed ? "→" : "↓"));
+        updateDrynessSectionView();
+
+        drynessCollapseButton.addActionListener(e -> {
+            drynessSectionState = (drynessSectionState + 1) % 3;
+            updateDrynessSectionView();
             panel.revalidate();
             panel.repaint();
         });
 
         return panel;
+    }
+
+    private void updateDrynessSectionView() {
+        switch (drynessSectionState) {
+            case 0: // collapsed
+                drynessContainer.setVisible(false);
+                drynessCollapseButton.setText(getArrowOrFallback("▸", "→"));
+                break;
+            case 1: // expanded — dryness stats with deep rolls
+                drynessContainer.setVisible(true);
+                dryDeepRollsRow.setVisible(true);
+                drynessWaveCompletionsPanel.setVisible(false);
+                drynessCollapseButton.setText(getArrowOrFallback("▾", "↓"));
+                break;
+            default: // expanded — dryness stats with wave breakdown
+                drynessContainer.setVisible(true);
+                dryDeepRollsRow.setVisible(false);
+                drynessWaveCompletionsPanel.setVisible(true);
+                drynessCollapseButton.setText(getArrowOrFallback("◂", "←"));
+                break;
+        }
     }
 
     void updatePerformance(int prayerUsed, int prayerRegained, int hpLost, int hpRegained, int specialAttacksUsed, int venomApplications) {
@@ -1632,7 +1675,8 @@ public class MokhaLootPanel extends PluginPanel {
 
     void updateHistoricalDryness(long waveRollsTracked, long deepRolls, double expectedDrops, long dropsReceived,
             double expectedDom, double expectedTreads, double expectedEye, double expectedCloth,
-            long receivedDom, long receivedTreads, long receivedEye, long receivedCloth) {
+            long receivedDom, long receivedTreads, long receivedEye, long receivedCloth,
+            java.util.Map<Integer, Long> completedRunsByWave) {
         if (dryAnyUniqueLabel == null) {
             return;
         }
@@ -1673,6 +1717,19 @@ public class MokhaLootPanel extends PluginPanel {
                     && receivedCloth == 0;
             boolean expectedExactlyZero = Math.abs(expectedDrops) < 1e-9;
             drySyncWarningLabel.setVisible(expectedExactlyZero && noWavesLogged && noItemsLogged);
+        }
+
+        if (drynessWaveCompletionLabels != null && completedRunsByWave != null) {
+            for (int i = 0; i < 8; i++) {
+                if (drynessWaveCompletionLabels[i] != null) {
+                    drynessWaveCompletionLabels[i].setText(
+                            String.valueOf(completedRunsByWave.getOrDefault(i + 1, 0L)));
+                }
+            }
+            if (drynessWaveCompletionLabels[8] != null) {
+                long wave9Plus = completedRunsByWave.getOrDefault(9, 0L);
+                drynessWaveCompletionLabels[8].setText(String.valueOf(wave9Plus));
+            }
         }
     }
 
@@ -2081,7 +2138,16 @@ public class MokhaLootPanel extends PluginPanel {
             itemRow.setToolTipText(item.tooltipText != null ? item.tooltipText : "Price: " + pricePerItemText);
 
             // Left side: item name and quantity
-            JLabel itemLabel = new JLabel("- " + item.name + " x" + item.quantity);
+            String quantityText;
+            if (item.maxDosesForDisplay > 0) {
+                double potions = (double) item.quantity / item.maxDosesForDisplay;
+                quantityText = (potions == Math.floor(potions))
+                        ? String.valueOf((long) potions)
+                        : String.format("%.2f", potions);
+            } else {
+                quantityText = String.valueOf(item.quantity);
+            }
+            JLabel itemLabel = new JLabel("- " + item.name + " x" + quantityText);
             Color itemColor = highlightCurrentRunUniques && isUniqueLootItem(item)
                     ? UNIQUE_GOLD_COLOR
                     : ColorScheme.LIGHT_GRAY_COLOR;
@@ -2093,7 +2159,6 @@ public class MokhaLootPanel extends PluginPanel {
             JLabel itemValueLabel = new JLabel(formatGp(item.totalValue));
             itemValueLabel.setForeground(itemColor);
             itemValueLabel.setFont(FontManager.getRunescapeSmallFont());
-            itemValueLabel.setToolTipText(formatGeHaTotalText(item.totalValue, resolveItemTotalHaValue(item)));
             itemRow.add(itemValueLabel, BorderLayout.EAST);
 
             if (isHistorical && config.enableHistoricalEdit() && onRemoveHistoricalSupplyItem != null) {
@@ -2528,7 +2593,7 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     private void customizeScrollBar() {
-        // Get the scrollbar from PluginPanel's scroll pane
+        getScrollPane().setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
         JScrollBar verticalScrollBar = getScrollPane().getVerticalScrollBar();
 
         // Set modern styling

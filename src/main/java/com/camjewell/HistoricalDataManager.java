@@ -5,10 +5,13 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -149,6 +152,39 @@ public class HistoricalDataManager {
 
     public String getActivePlayerKey() {
         return activePlayerKey;
+    }
+
+    /** Copies the current data file to historical-data.backup.json in the same directory. */
+    public void backupDataFile() {
+        if (!dataFile.exists()) {
+            return;
+        }
+        File backupFile = new File(dataFile.getParentFile(), "historical-data.backup.json");
+        try {
+            Files.copy(dataFile.toPath(), backupFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            log.info("Backed up historical data to {}", backupFile.getAbsolutePath());
+        } catch (IOException e) {
+            log.error("Failed to back up historical data file", e);
+        }
+    }
+
+    /**
+     * For each historical supply entry with maxDosesForDisplay == 0, calls getMaxDoseByBaseName
+     * to determine the correct dose count and sets it on the aggregate.
+     * Returns true if any entry was changed.
+     */
+    public boolean migrateSuppliesMaxDose(Function<String, Integer> getMaxDoseByBaseName) {
+        boolean changed = false;
+        for (ItemAggregate agg : historicalSuppliesUsed.values()) {
+            if (agg.maxDosesForDisplay == 0) {
+                int maxDose = getMaxDoseByBaseName.apply(agg.name);
+                if (maxDose > 0) {
+                    agg.maxDosesForDisplay = maxDose;
+                    changed = true;
+                }
+            }
+        }
+        return changed;
     }
 
     // Getters

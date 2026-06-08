@@ -1084,6 +1084,53 @@ public class MokhaLootTrackerPlugin extends Plugin {
         return DOSE_PATTERN.matcher(itemName).replaceAll("").trim();
     }
 
+    private int getMaxDoseForItem(int itemId) {
+        String itemName = itemManager.getItemComposition(itemId).getName();
+        Matcher m = DOSE_PATTERN.matcher(itemName);
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
+    }
+
+    private final Map<String, Integer> maxDoseByBaseNameCache = new HashMap<>();
+
+    private int getMaxDoseByBaseName(String baseName) {
+        Integer cached = maxDoseByBaseNameCache.get(baseName);
+        if (cached != null) {
+            return cached;
+        }
+        java.util.List<net.runelite.http.api.item.ItemPrice> results = itemManager.search(baseName);
+        int maxDose = 0;
+        if (results != null) {
+            for (net.runelite.http.api.item.ItemPrice r : results) {
+                if (!baseName.equalsIgnoreCase(getBasePotionName(r.getName()))) {
+                    continue;
+                }
+                Matcher m = DOSE_PATTERN.matcher(r.getName());
+                if (m.find()) {
+                    int dose = Integer.parseInt(m.group(1));
+                    if (dose > maxDose) {
+                        maxDose = dose;
+                    }
+                }
+            }
+        }
+        // Only cache a positive result — a zero result means prices may not be loaded yet.
+        if (maxDose > 0) {
+            maxDoseByBaseNameCache.put(baseName, maxDose);
+        }
+        return maxDose;
+    }
+
+    private void applyMissingMaxDoses() {
+        for (ItemAggregate agg : historicalSuppliesUsed.values()) {
+            if (agg.maxDosesForDisplay == 0) {
+                int maxDose = getMaxDoseByBaseName(agg.name);
+                if (maxDose > 0) {
+                    agg.maxDosesForDisplay = maxDose;
+                }
+            }
+        }
+    }
+
     /**
      * Calculate the price per individual dose for a potion, or return full price
      * for non-potion items.
@@ -1809,7 +1856,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 filteredSupplies,
                 historicalSuppliesUsed,
                 itemId -> getBasePotionName(itemManager.getItemComposition(itemId).getName()),
-                this::getPricePerDose);
+                this::getPricePerDose,
+                this::getMaxDoseForItem);
     }
 
     /**
@@ -2086,7 +2134,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 totalSuppliesConsumed,
                 historicalSuppliesUsed,
                 itemId -> getBasePotionName(itemManager.getItemComposition(itemId).getName()),
-                this::getPricePerDose);
+                this::getPricePerDose,
+                this::getMaxDoseForItem);
 
         panel.updateSuppliesCurrentRun(suppliesData.currentSuppliesTotalValue, suppliesData.currentSuppliesData);
         panel.updateSuppliesTotal(suppliesData.historicalSuppliesTotalValue, suppliesData.historicalSuppliesData);
@@ -2101,6 +2150,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         }
 
         panel.setDisplayHaValueOnHover(config.displayHaValueOnHover());
+
+        applyMissingMaxDoses();
 
         // Keep summary supply cost synchronized with historical supplies totals.
         recalculateHistoricalSupplyCost();
@@ -2123,7 +2174,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 config,
                 valueCalculationService,
                 itemId -> getBasePotionName(itemManager.getItemComposition(itemId).getName()),
-                this::getPricePerDose);
+                this::getPricePerDose,
+                this::getMaxDoseForItem);
         PanelDataService.RunPanelData previousRunData = panelDataService.buildRunPanelData(
                 previousRunLootByWave,
                 config,
@@ -2132,7 +2184,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 previousRunSuppliesConsumed,
                 new HashMap<>(),
                 itemId -> getBasePotionName(itemManager.getItemComposition(itemId).getName()),
-                this::getPricePerDose);
+                this::getPricePerDose,
+                this::getMaxDoseForItem);
         // Weapon charges are committed after capturePreviousRunSnapshot, so inject them manually.
         for (ItemAggregate agg : previousRunWeaponChargesData.values()) {
             ItemData itemData = new ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue);
@@ -2159,7 +2212,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 calculateHistoricalReceivedCountForUnique(DOM_NAME),
                 calculateHistoricalReceivedCountForUnique(AVERNIC_TREADS_NAME),
                 calculateHistoricalReceivedCountForUnique(EYE_OF_AYAK_NAME),
-                calculateHistoricalReceivedCountForUnique(MOKHA_CLOTH_NAME));
+                calculateHistoricalReceivedCountForUnique(MOKHA_CLOTH_NAME),
+                effectiveRuns);
 
         // Update Profit/Loss section
         panel.updateProfitLoss(historicalTotalClaimed, historicalSupplyCost, panelData.totalUnclaimed,

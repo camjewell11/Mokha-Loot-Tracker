@@ -117,18 +117,25 @@ class ArenaStateService {
             Map<Integer, Integer> totalSuppliesConsumed,
             Map<String, ItemAggregate> historicalSuppliesUsed,
             IntFunction<String> getBasePotionNameByItemId,
-            IntUnaryOperator getPricePerDoseByItemId) {
+            IntUnaryOperator getPricePerDoseByItemId,
+            IntUnaryOperator getMaxDoseByItemId) {
         for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
             int itemId = entry.getKey();
             int quantity = entry.getValue();
             String itemName = getBasePotionNameByItemId.apply(itemId);
             int pricePerItem = getPricePerDoseByItemId.applyAsInt(itemId);
+            int maxDose = getMaxDoseByItemId.applyAsInt(itemId);
 
             if (historicalSuppliesUsed.containsKey(itemName)) {
-                historicalSuppliesUsed.get(itemName).add(quantity, pricePerItem);
+                ItemAggregate existing = historicalSuppliesUsed.get(itemName);
+                existing.add(quantity, pricePerItem);
+                if (maxDose > existing.maxDosesForDisplay) {
+                    existing.maxDosesForDisplay = maxDose;
+                }
             } else {
-                historicalSuppliesUsed.put(itemName,
-                        new ItemAggregate(itemName, quantity, pricePerItem));
+                ItemAggregate agg = new ItemAggregate(itemName, quantity, pricePerItem);
+                agg.maxDosesForDisplay = maxDose;
+                historicalSuppliesUsed.put(itemName, agg);
             }
         }
     }

@@ -58,7 +58,8 @@ class PanelDataService {
             MokhaLootTrackerConfig config,
             ValueCalculationService valueCalculationService,
             IntFunction<String> getBasePotionNameByItemId,
-            IntUnaryOperator getPricePerDoseByItemId) {
+            IntUnaryOperator getPricePerDoseByItemId,
+            IntUnaryOperator getMaxDoseByItemId) {
         PanelData data = new PanelData();
 
         data.currentRunValue = valueCalculationService.calculateCurrentRunLootValue(lootByWave, config);
@@ -100,7 +101,8 @@ class PanelDataService {
                 totalSuppliesConsumed,
                 historicalSuppliesUsed,
                 getBasePotionNameByItemId,
-                getPricePerDoseByItemId);
+                getPricePerDoseByItemId,
+                getMaxDoseByItemId);
         data.currentSuppliesTotalValue = suppliesData.currentSuppliesTotalValue;
         data.historicalSuppliesTotalValue = suppliesData.historicalSuppliesTotalValue;
         data.currentSuppliesData = suppliesData.currentSuppliesData;
@@ -174,7 +176,8 @@ class PanelDataService {
             Map<Integer, Integer> totalSuppliesConsumed,
             Map<String, ItemAggregate> historicalSuppliesUsed,
             IntFunction<String> getBasePotionNameByItemId,
-            IntUnaryOperator getPricePerDoseByItemId) {
+            IntUnaryOperator getPricePerDoseByItemId,
+            IntUnaryOperator getMaxDoseByItemId) {
         SuppliesPanelData data = new SuppliesPanelData();
 
         for (Map.Entry<Integer, Integer> entry : totalSuppliesConsumed.entrySet()) {
@@ -182,25 +185,31 @@ class PanelDataService {
             int quantity = entry.getValue();
             String baseName = getBasePotionNameByItemId.apply(itemId);
             int pricePerItem = getPricePerDoseByItemId.applyAsInt(itemId);
+            int maxDose = getMaxDoseByItemId.applyAsInt(itemId);
+            String displayName = maxDose > 0 ? baseName + " (" + maxDose + ")" : baseName;
             long totalValue = (long) pricePerItem * quantity;
             data.currentSuppliesTotalValue += totalValue;
 
             if (data.currentSuppliesData.containsKey(baseName)) {
                 ItemData existing = data.currentSuppliesData.get(baseName);
-                data.currentSuppliesData.put(baseName, new ItemData(
-                        baseName,
-                        existing.quantity + quantity,
-                        pricePerItem,
-                        existing.totalValue + totalValue));
+                ItemData merged = new ItemData(displayName, existing.quantity + quantity, pricePerItem,
+                        existing.totalValue + totalValue);
+                merged.maxDosesForDisplay = maxDose;
+                data.currentSuppliesData.put(baseName, merged);
             } else {
-                data.currentSuppliesData.put(baseName,
-                        new ItemData(baseName, quantity, pricePerItem, totalValue));
+                ItemData itemData = new ItemData(displayName, quantity, pricePerItem, totalValue);
+                itemData.maxDosesForDisplay = maxDose;
+                data.currentSuppliesData.put(baseName, itemData);
             }
         }
 
         for (ItemAggregate agg : historicalSuppliesUsed.values()) {
-            ItemData itemData = new ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue);
+            String displayName = agg.maxDosesForDisplay > 0
+                    ? agg.name + " (" + agg.maxDosesForDisplay + ")"
+                    : agg.name;
+            ItemData itemData = new ItemData(displayName, agg.totalQuantity, agg.pricePerItem, agg.totalValue);
             itemData.tooltipText = agg.tooltipText;
+            itemData.maxDosesForDisplay = agg.maxDosesForDisplay;
             data.historicalSuppliesData.put(agg.name, itemData);
             data.historicalSuppliesTotalValue += agg.totalValue;
         }

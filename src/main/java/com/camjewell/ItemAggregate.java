@@ -9,6 +9,8 @@ public class ItemAggregate {
     long totalHaValue;
     /** Optional hover tooltip override (e.g. charge ingredient breakdown). Null = use default. */
     String tooltipText;
+    /** For dose-based consumables: max doses per full item (e.g. 4 for Prayer potion). 0 = not dose-based. */
+    int maxDosesForDisplay;
 
     ItemAggregate(String name, int quantity, int pricePerItem) {
         this(name, quantity, pricePerItem, 0);
