@@ -167,6 +167,7 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel[] drynessWaveCompletionLabels = new JLabel[9];
     private JLabel dryDeepRollsLabel;
     private JPanel dryDeepRollsRow;
+    private JLabel drynessAvgDepthLabel;
     private JButton drynessCollapseButton;
     // 0 = collapsed, 1 = expanded (dryness stats + deep rolls), 2 = expanded with wave breakdown
     private int drynessSectionState = 0;
@@ -1256,6 +1257,16 @@ public class MokhaLootPanel extends PluginPanel {
         drynessWaveCompletionsPanel.setLayout(new BoxLayout(drynessWaveCompletionsPanel, BoxLayout.Y_AXIS));
         drynessWaveCompletionsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         drynessWaveCompletionsPanel.setVisible(false);
+
+        drynessAvgDepthLabel = new JLabel("N/A");
+        drynessAvgDepthLabel.setFont(FontManager.getRunescapeFont());
+        drynessAvgDepthLabel.setForeground(Color.WHITE);
+        drynessAvgDepthLabel.setToolTipText("Wave 9+ counted as 9 (lower bound)");
+        JPanel avgDepthRow = createStatRow("Avg Wave Depth:", drynessAvgDepthLabel);
+        avgDepthRow.setToolTipText("Wave 9+ counted as 9 (lower bound)");
+        drynessWaveCompletionsPanel.add(avgDepthRow);
+        drynessWaveCompletionsPanel.add(createInternalSeparator());
+
         for (int i = 0; i < 8; i++) {
             drynessWaveCompletionLabels[i] = new JLabel("0");
             drynessWaveCompletionLabels[i].setFont(FontManager.getRunescapeFont());
@@ -1720,15 +1731,28 @@ public class MokhaLootPanel extends PluginPanel {
         }
 
         if (drynessWaveCompletionLabels != null && completedRunsByWave != null) {
+            long wave1Count = completedRunsByWave.getOrDefault(1, 0L);
+            long totalWaveCompletions = 0;
             for (int i = 0; i < 8; i++) {
+                long count = completedRunsByWave.getOrDefault(i + 1, 0L);
                 if (drynessWaveCompletionLabels[i] != null) {
-                    drynessWaveCompletionLabels[i].setText(
-                            String.valueOf(completedRunsByWave.getOrDefault(i + 1, 0L)));
+                    drynessWaveCompletionLabels[i].setText(String.valueOf(count));
                 }
+                totalWaveCompletions += count;
             }
+            long wave9Plus = completedRunsByWave.getOrDefault(9, 0L);
             if (drynessWaveCompletionLabels[8] != null) {
-                long wave9Plus = completedRunsByWave.getOrDefault(9, 0L);
                 drynessWaveCompletionLabels[8].setText(String.valueOf(wave9Plus));
+            }
+            totalWaveCompletions += wave9Plus;
+
+            if (drynessAvgDepthLabel != null) {
+                if (wave1Count > 0) {
+                    double avg = (double) totalWaveCompletions / wave1Count;
+                    drynessAvgDepthLabel.setText(String.format("%.2f", avg));
+                } else {
+                    drynessAvgDepthLabel.setText("N/A");
+                }
             }
         }
     }
@@ -1739,6 +1763,9 @@ public class MokhaLootPanel extends PluginPanel {
         }
         if (dryDeepRollsLabel != null) {
             dryDeepRollsLabel.setText("0");
+        }
+        if (drynessAvgDepthLabel != null) {
+            drynessAvgDepthLabel.setText("N/A");
         }
         if (dryAnyUniqueOddsLabel != null) {
             dryAnyUniqueOddsLabel.setText("0");
