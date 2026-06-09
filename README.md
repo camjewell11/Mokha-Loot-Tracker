@@ -235,6 +235,14 @@ This plugin is open source and available under standard RuneLite plugin licensin
 
 ## Changelog
 
+### v8.2
+
+- **Prayer Regained**: Performance section now tracks prayer points regained per run (e.g. from Saradomin brews, prayer potions taken outside combat). Uses the same consumable suppression window as HP regained so potion/drink events are excluded — only natural or in-combat recovery counts. Displayed in both the current-run and previous-run performance panels.
+- **Deep Rolls (8+) in Dryness**: Dryness section now shows a "Deep Rolls (8+):" count — the sum of wave 8 and wave 9+ completions from your highscore data. Gives a quick read on how many high-value rolls you've had.
+- **Average Wave Depth**: Dryness section shows your average wave depth across all tracked completions, giving a better sense of run quality over time.
+- **Unique Value Tracking Fix**: Unique items are no longer hard-capped at 20 million GP for value display purposes; the 20M exclusion toggle now only affects whether they are included in totals, not what value is shown.
+- **Death History Ordering**: Death entries in the historical data are now ordered more intuitively.
+
 ### v8.1
 
 - **Charged Weapon Tracking (Beta)**: New opt-in feature that tracks charge consumption for all major charged weapons usable at Doom of Mokhaiotl. An overlay prompts you to check your weapons before and after each run; the plugin records the charge delta and calculates supply cost using each weapon's known charge recipe. Results appear in the historical supplies panel with a hover tooltip showing the full ingredient breakdown.
