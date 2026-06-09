@@ -35,11 +35,11 @@ class SupplyTrackingService {
     private static final Pattern DOSE_PATTERN = Pattern.compile("\\((\\d+)\\)$");
 
     private static final int[] RUNE_POUCH_ITEM_IDS = new int[] {
-        0,
-        556, 555, 557, 554, 558, 562, 560, 565, 564,
-        561, 563, 559, 566, 9075,
-        4695, 4698, 4696, 4699, 4694, 4697,
-        21880, 28929, 30843
+            0,
+            556, 555, 557, 554, 558, 562, 560, 565, 564,
+            561, 563, 559, 566, 9075,
+            4695, 4698, 4696, 4699, 4694, 4697,
+            21880, 28929, 30843
     };
 
     private static final class BlowpipeStorageEntry {
@@ -127,7 +127,8 @@ class SupplyTrackingService {
         weaponChecklistActive = active;
         if (active) {
             // initializeForArenaEntry() ran before this flag was set, so it populated
-            // lastWeaponAmmoSnapshot with readWeaponAmmo() which includes stale config data.
+            // lastWeaponAmmoSnapshot with readWeaponAmmo() which includes stale config
+            // data.
             // Rebuild with live-only data so the first onGameTick has a clean baseline.
             lastWeaponAmmoSnapshot.clear();
             lastWeaponAmmoSnapshot.putAll(readLiveWeaponAmmo());
@@ -136,10 +137,6 @@ class SupplyTrackingService {
         }
     }
 
-    /** Reads current charges for all tracked weapons (used for initial/final snapshots). */
-    Map<Integer, Integer> readAllTrackedCharges() {
-        return readWeaponAmmo();
-    }
 
     /**
      * Reads the current charge state for a single weapon from tictac7x config.
@@ -151,22 +148,26 @@ class SupplyTrackingService {
             tryReadBlowpipeJson(map, weapon);
         } else {
             int canonicalId = weapon.itemIds[0];
-            if (canonicalId <= 0) return map;
+            if (canonicalId <= 0)
+                return map;
             String value = configManager.getConfiguration(WEAPON_CHARGES_CONFIG_GROUP, weapon.tictacConfigKey);
-            if (value == null || value.isEmpty()) return map;
+            if (value == null || value.isEmpty())
+                return map;
             try {
                 int charges = Integer.parseInt(value.trim());
                 if (charges > 0) {
                     map.put(canonicalId, charges);
                 }
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
         }
         return map;
     }
 
     /**
      * Scans player inventory and equipment for any TrackedWeapon item IDs.
-     * Returns the ordered list of weapons found (preserving TrackedWeapon declaration order).
+     * Returns the ordered list of weapons found (preserving TrackedWeapon
+     * declaration order).
      */
     List<TrackedWeapon> detectWeaponsOnPlayer() {
         Set<Integer> playerItemIds = new HashSet<>();
@@ -233,7 +234,8 @@ class SupplyTrackingService {
     }
 
     private Map<Integer, Integer> buildCombinedSnapshot() {
-        // When checklist is active, use live-only ammo so config-based weapon data is excluded.
+        // When checklist is active, use live-only ammo so config-based weapon data is
+        // excluded.
         Map<Integer, Integer> weaponAmmo = weaponChecklistActive
                 ? readLiveWeaponAmmo()
                 : readWeaponAmmo();
@@ -247,7 +249,7 @@ class SupplyTrackingService {
         if (inventory != null) {
             for (Item item : inventory.getItems()) {
                 if (item != null && item.getId() > 0) {
-                    combined.merge(item.getId(), item.getQuantity(), Integer::sum);
+                    combined.merge(item.getId(), item.getQuantity(), (a, b) -> a + b);
                 }
             }
         }
@@ -256,23 +258,24 @@ class SupplyTrackingService {
         if (equipment != null) {
             for (Item item : equipment.getItems()) {
                 if (item != null && item.getId() > 0) {
-                    combined.merge(item.getId(), item.getQuantity(), Integer::sum);
+                    combined.merge(item.getId(), item.getQuantity(), (a, b) -> a + b);
                 }
             }
         }
 
         for (Map.Entry<Integer, Integer> entry : readRunePouch().entrySet()) {
-            combined.merge(entry.getKey(), entry.getValue(), Integer::sum);
+            combined.merge(entry.getKey(), entry.getValue(), (a, b) -> a + b);
         }
 
         for (Map.Entry<Integer, Integer> entry : weaponAmmo.entrySet()) {
-            combined.merge(entry.getKey(), entry.getValue(), Integer::sum);
+            combined.merge(entry.getKey(), entry.getValue(), (a, b) -> a + b);
         }
 
         return combined;
     }
 
-    // Always accurate — updated by the server every tick without player interaction.
+    // Always accurate — updated by the server every tick without player
+    // interaction.
     private Map<Integer, Integer> readLiveWeaponAmmo() {
         Map<Integer, Integer> map = new HashMap<>();
 
@@ -285,7 +288,7 @@ class SupplyTrackingService {
         int quiverAmmoId = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO);
         int quiverAmmoCount = client.getVarpValue(DIZANAS_QUIVER_TEMP_AMMO_AMOUNT);
         if (quiverAmmoId > 0 && quiverAmmoCount > 0) {
-            map.merge(quiverAmmoId, quiverAmmoCount, Integer::sum);
+            map.merge(quiverAmmoId, quiverAmmoCount, (a, b) -> a + b);
         }
 
         return map;
@@ -305,23 +308,28 @@ class SupplyTrackingService {
         int equippedWeaponId = client.getVarpValue(BUFF_BAR_WEAPON);
         TrackedWeapon preferredBlowpipe = null;
         for (TrackedWeapon w : TrackedWeapon.values()) {
-            if (w.configFormat != TrackedWeapon.ConfigFormat.BLOWPIPE_JSON) continue;
+            if (w.configFormat != TrackedWeapon.ConfigFormat.BLOWPIPE_JSON)
+                continue;
             for (int id : w.itemIds) {
                 if (id == equippedWeaponId) {
                     preferredBlowpipe = w;
                     break;
                 }
             }
-            if (preferredBlowpipe != null) break;
+            if (preferredBlowpipe != null)
+                break;
         }
 
         // Try equipped blowpipe first, then all others in declaration order
         boolean found = preferredBlowpipe != null && tryReadBlowpipeJson(map, preferredBlowpipe);
         if (!found) {
             for (TrackedWeapon w : TrackedWeapon.values()) {
-                if (w.configFormat != TrackedWeapon.ConfigFormat.BLOWPIPE_JSON) continue;
-                if (w == preferredBlowpipe) continue;
-                if (tryReadBlowpipeJson(map, w)) break;
+                if (w.configFormat != TrackedWeapon.ConfigFormat.BLOWPIPE_JSON)
+                    continue;
+                if (w == preferredBlowpipe)
+                    continue;
+                if (tryReadBlowpipeJson(map, w))
+                    break;
             }
         }
 
@@ -331,7 +339,8 @@ class SupplyTrackingService {
 
     private boolean tryReadBlowpipeJson(Map<Integer, Integer> map, TrackedWeapon weapon) {
         String serialized = configManager.getConfiguration(WEAPON_CHARGES_CONFIG_GROUP, weapon.tictacConfigKey);
-        if (serialized == null || serialized.isEmpty()) return false;
+        if (serialized == null || serialized.isEmpty())
+            return false;
         log.debug("[Mokha] {} storage raw config: {}", weapon.displayName, serialized);
         try {
             BlowpipeStorageEntry[] entries = gson.fromJson(serialized, BlowpipeStorageEntry[].class);
@@ -339,7 +348,7 @@ class SupplyTrackingService {
             if (entries != null) {
                 for (BlowpipeStorageEntry entry : entries) {
                     if (entry != null && entry.itemId > 0 && entry.quantity > 0) {
-                        map.merge(entry.itemId, entry.quantity, Integer::sum);
+                        map.merge(entry.itemId, entry.quantity, (a, b) -> a + b);
                         hadEntries = true;
                     }
                 }
@@ -352,17 +361,21 @@ class SupplyTrackingService {
 
     private void readIntegerFormatCharges(Map<Integer, Integer> map) {
         for (TrackedWeapon weapon : TrackedWeapon.values()) {
-            if (weapon.configFormat != TrackedWeapon.ConfigFormat.INTEGER) continue;
+            if (weapon.configFormat != TrackedWeapon.ConfigFormat.INTEGER)
+                continue;
             int canonicalId = weapon.itemIds[0];
-            if (canonicalId <= 0) continue;
+            if (canonicalId <= 0)
+                continue;
             String value = configManager.getConfiguration(WEAPON_CHARGES_CONFIG_GROUP, weapon.tictacConfigKey);
-            if (value == null || value.isEmpty()) continue;
+            if (value == null || value.isEmpty())
+                continue;
             try {
                 int charges = Integer.parseInt(value.trim());
                 if (charges > 0) {
-                    map.merge(canonicalId, charges, Integer::sum);
+                    map.merge(canonicalId, charges, (a, b) -> a + b);
                 }
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
         }
     }
 
@@ -378,10 +391,12 @@ class SupplyTrackingService {
         for (int i = 0; i < runeVarbits.length; i++) {
             int runeVar = client.getVarbitValue(runeVarbits[i]);
             int amt = client.getVarbitValue(amtVarbits[i]);
-            if (runeVar <= 0 || amt <= 0 || runeVar >= RUNE_POUCH_ITEM_IDS.length) continue;
+            if (runeVar <= 0 || amt <= 0 || runeVar >= RUNE_POUCH_ITEM_IDS.length)
+                continue;
             int itemId = RUNE_POUCH_ITEM_IDS[runeVar];
-            if (itemId <= 0) continue;
-            map.merge(itemId, amt, Integer::sum);
+            if (itemId <= 0)
+                continue;
+            map.merge(itemId, amt, (a, b) -> a + b);
         }
         return map;
     }
@@ -405,13 +420,15 @@ class SupplyTrackingService {
                 int itemId = entry.getKey();
                 int prev = entry.getValue();
                 int curr = currentCombined.getOrDefault(itemId, 0);
-                if (curr < prev) decreases.put(itemId, prev - curr);
+                if (curr < prev)
+                    decreases.put(itemId, prev - curr);
             }
             for (Map.Entry<Integer, Integer> entry : currentCombined.entrySet()) {
                 int itemId = entry.getKey();
                 int curr = entry.getValue();
                 int prev = lastCombinedSnapshot.getOrDefault(itemId, 0);
-                if (curr > prev) increases.put(itemId, curr - prev);
+                if (curr > prev)
+                    increases.put(itemId, curr - prev);
             }
 
             // For dose-based items (e.g. "Prayer potion(3)"), compute net dose change
@@ -419,34 +436,38 @@ class SupplyTrackingService {
             // e.g. two 3-dose → one 4-dose + one 2-dose — from being counted as consumption
             // since the total dose count is unchanged.
             //
-            // Net doses consumed = doses that disappeared − doses that appeared (same base name).
+            // Net doses consumed = doses that disappeared − doses that appeared (same base
+            // name).
             // Only positive net values (actual losses) are recorded.
-            Map<String, Integer> doseNetLoss = new HashMap<>();       // baseName → net doses consumed
+            Map<String, Integer> doseNetLoss = new HashMap<>(); // baseName → net doses consumed
             Map<String, Integer> doseRepresentativeId = new HashMap<>(); // baseName → item ID to record under
-            Set<Integer> handledAsDosse = new HashSet<>();
+            Set<Integer> handledAsDose = new HashSet<>();
 
             for (Map.Entry<Integer, Integer> entry : decreases.entrySet()) {
                 int itemId = entry.getKey();
                 String name = itemManager.getItemComposition(itemId).getName();
                 Matcher m = DOSE_PATTERN.matcher(name);
-                if (!m.find()) continue;
+                if (!m.find())
+                    continue;
                 int dose = Integer.parseInt(m.group(1));
                 String baseName = name.substring(0, m.start()).trim();
-                doseNetLoss.merge(baseName, dose * entry.getValue(), Integer::sum);
+                doseNetLoss.merge(baseName, dose * entry.getValue(), (a, b) -> a + b);
                 doseRepresentativeId.putIfAbsent(baseName, itemId);
-                handledAsDosse.add(itemId);
+                handledAsDose.add(itemId);
             }
 
-            // Subtract doses that appeared in the same base potion (they were not consumed).
+            // Subtract doses that appeared in the same base potion (they were not
+            // consumed).
             for (Map.Entry<Integer, Integer> entry : increases.entrySet()) {
                 int itemId = entry.getKey();
                 String name = itemManager.getItemComposition(itemId).getName();
                 Matcher m = DOSE_PATTERN.matcher(name);
-                if (!m.find()) continue;
+                if (!m.find())
+                    continue;
                 int dose = Integer.parseInt(m.group(1));
                 String baseName = name.substring(0, m.start()).trim();
                 if (doseNetLoss.containsKey(baseName)) {
-                    doseNetLoss.merge(baseName, -dose * entry.getValue(), Integer::sum);
+                    doseNetLoss.merge(baseName, -dose * entry.getValue(), (a, b) -> a + b);
                 }
             }
 
@@ -457,15 +478,15 @@ class SupplyTrackingService {
                 int netDoses = entry.getValue();
                 if (netDoses > 0) {
                     int repId = doseRepresentativeId.get(entry.getKey());
-                    totalSuppliesConsumed.merge(repId, netDoses, Integer::sum);
+                    totalSuppliesConsumed.merge(repId, netDoses, (a, b) -> a + b);
                     hasConsumption = true;
                 }
             }
 
             // Record raw decreases for non-dose items (runes, arrows, food, etc.).
             for (Map.Entry<Integer, Integer> entry : decreases.entrySet()) {
-                if (!handledAsDosse.contains(entry.getKey())) {
-                    totalSuppliesConsumed.merge(entry.getKey(), entry.getValue(), Integer::sum);
+                if (!handledAsDose.contains(entry.getKey())) {
+                    totalSuppliesConsumed.merge(entry.getKey(), entry.getValue(), (a, b) -> a + b);
                     hasConsumption = true;
                 }
             }

@@ -137,18 +137,4 @@ class ValueCalculationService {
         }
     }
 
-    long calculateHistoricalUniqueClaimCount(
-            Map<Integer, Map<String, ItemAggregate>> historicalClaimedItemsByWave) {
-        long uniqueCount = 0;
-
-        for (Map<String, ItemAggregate> waveItems : historicalClaimedItemsByWave.values()) {
-            for (ItemAggregate item : waveItems.values()) {
-                if (LootPanelDisplayUtils.UNIQUE_ITEM_NAMES.stream().anyMatch(n -> n.equalsIgnoreCase(item.name))) {
-                    uniqueCount += item.totalQuantity;
-                }
-            }
-        }
-
-        return uniqueCount;
-    }
 }

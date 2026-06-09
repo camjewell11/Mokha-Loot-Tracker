@@ -262,7 +262,7 @@ class HighscoresSyncService {
             Integer wave = parseWaveToken(keywordMatcher.group(1));
             Long count = parseCountToken(keywordMatcher.group(2));
             if (wave != null && count != null) {
-                parsed.merge(normalizeWaveKey(wave), count, Math::max);
+                parsed.merge(normalizeWaveKey(wave), count, (a, b) -> Math.max(a, b));
                 return true;
             }
         }
@@ -272,7 +272,7 @@ class HighscoresSyncService {
             Integer wave = parseWaveToken(compactMatcher.group(1));
             Long count = parseCountToken(compactMatcher.group(2));
             if (wave != null && count != null && wave >= 1 && wave <= 99) {
-                parsed.merge(normalizeWaveKey(wave), count, Math::max);
+                parsed.merge(normalizeWaveKey(wave), count, (a, b) -> Math.max(a, b));
                 return true;
             }
         }
@@ -282,7 +282,7 @@ class HighscoresSyncService {
             Integer wave = parseWaveToken(levelMatcher.group(1));
             Long count = parseCountToken(levelMatcher.group(2));
             if (wave != null && count != null) {
-                parsed.merge(normalizeWaveKey(wave), count, Math::max);
+                parsed.merge(normalizeWaveKey(wave), count, (a, b) -> Math.max(a, b));
                 return true;
             }
         }
@@ -314,7 +314,7 @@ class HighscoresSyncService {
                 Long count = parseCountToken(countOnlyMatcher.group(1));
                 if (count != null) {
                     int wave = pendingWaves.removeFirst();
-                    parsed.merge(normalizeWaveKey(wave), count, Math::max);
+                    parsed.merge(normalizeWaveKey(wave), count, (a, b) -> Math.max(a, b));
                 }
             }
         }
@@ -417,7 +417,7 @@ class HighscoresSyncService {
             return 9;
         }
         try {
-            return Integer.parseInt(cleaned);
+            return Integer.valueOf(cleaned);
         } catch (NumberFormatException ex) {
             return null;
         }

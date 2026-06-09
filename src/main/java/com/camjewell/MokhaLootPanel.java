@@ -67,7 +67,7 @@ public class MokhaLootPanel extends PluginPanel {
     private Map<Integer, Map<String, ItemData>> currentRunItemsByWave = new TreeMap<>();
     private Map<Integer, Long> currentRunTotalsByWave = new TreeMap<>();
     private Map<Integer, Long> currentRunHaTotalsByWave = new TreeMap<>();
-    private Map<Integer, Boolean> currentRunWaveCollapsed = new HashMap<>();
+    private final Map<Integer, Boolean> currentRunWaveCollapsed = new HashMap<>();
     private boolean currentRunShowByWave = false;
 
     // Previous Run section
@@ -102,17 +102,17 @@ public class MokhaLootPanel extends PluginPanel {
     private int previousRunHpRegained;
     private int previousRunSpecialAttacksUsed;
     private int previousRunVenomApplications;
-    private Map<Integer, Boolean> previousRunWaveCollapsed = new HashMap<>();
+    private final Map<Integer, Boolean> previousRunWaveCollapsed = new HashMap<>();
     // 0 = expanded, 1 = collapsed, 2 = combined
     private int previousRunSectionState = 1; // Start collapsed
     private boolean hasPreviousRunData;
 
     // Claimed Loot by Wave - now stores panels for dynamic item lists
     private JPanel claimedWavesContainer; // Container for all waves
-    private JPanel[] claimedWavePanels = new JPanel[9]; // Wave 1-8 and 9+
-    private JLabel[] claimedWaveValueLabels = new JLabel[9];
-    private JPanel[] claimedWaveItemPanels = new JPanel[9];
-    private boolean[] claimedWaveCollapsed = new boolean[9];
+    private final JPanel[] claimedWavePanels = new JPanel[9]; // Wave 1-8 and 9+
+    private final JLabel[] claimedWaveValueLabels = new JLabel[9];
+    private final JPanel[] claimedWaveItemPanels = new JPanel[9];
+    private final boolean[] claimedWaveCollapsed = new boolean[9];
     // 0 = expanded, 1 = collapsed, 2 = combined
     private int claimedSectionState = 1; // Start collapsed
     private JLabel claimedSectionTotalLabel; // Total value label for collapsed view
@@ -122,10 +122,10 @@ public class MokhaLootPanel extends PluginPanel {
 
     // Unclaimed Loot by Wave - now stores panels for dynamic item lists
     private JPanel unclaimedWavesContainer; // Container for all waves
-    private JPanel[] unclaimedWavePanels = new JPanel[9]; // Wave 1-8 and 9+
-    private JLabel[] unclaimedWaveValueLabels = new JLabel[9];
-    private JPanel[] unclaimedWaveItemPanels = new JPanel[9];
-    private boolean[] unclaimedWaveCollapsed = new boolean[9];
+    private final JPanel[] unclaimedWavePanels = new JPanel[9]; // Wave 1-8 and 9+
+    private final JLabel[] unclaimedWaveValueLabels = new JLabel[9];
+    private final JPanel[] unclaimedWaveItemPanels = new JPanel[9];
+    private final boolean[] unclaimedWaveCollapsed = new boolean[9];
     // 0 = expanded, 1 = collapsed, 2 = combined
     private int unclaimedSectionState = 1; // Start collapsed
     private JLabel unclaimedSectionTotalLabel; // Total value label for collapsed view
@@ -164,7 +164,7 @@ public class MokhaLootPanel extends PluginPanel {
     // Dryness section
     private JPanel drynessContainer;
     private JPanel drynessWaveCompletionsPanel;
-    private JLabel[] drynessWaveCompletionLabels = new JLabel[9];
+    private final JLabel[] drynessWaveCompletionLabels = new JLabel[9];
     private JLabel dryDeepRollsLabel;
     private JPanel dryDeepRollsRow;
     private JLabel drynessAvgDepthLabel;
@@ -1278,6 +1278,7 @@ public class MokhaLootPanel extends PluginPanel {
         drynessWaveCompletionLabels[8].setForeground(Color.WHITE);
         drynessWaveCompletionsPanel.add(createStatRow("Wave 9+:", drynessWaveCompletionLabels[8]));
         drynessContainer.add(drynessWaveCompletionsPanel);
+        drynessContainer.add(createInternalSeparator());
 
         dryAnyUniqueOddsLabel = new JLabel("N/A");
         dryAnyUniqueOddsLabel.setFont(FontManager.getRunescapeFont());
@@ -2567,10 +2568,6 @@ public class MokhaLootPanel extends PluginPanel {
         return LootPanelDisplayUtils.sortItemDataForDisplay(items, config.displaySortMode());
     }
 
-    private List<ItemAggregate> sortAggregatesForDisplay(
-            java.util.Collection<ItemAggregate> items) {
-        return LootPanelDisplayUtils.sortAggregatesForDisplay(items, config.displaySortMode());
-    }
 
     private String formatGp(long value) {
         return LootPanelDisplayUtils.formatGp(value);

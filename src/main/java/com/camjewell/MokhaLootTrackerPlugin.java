@@ -31,7 +31,7 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.NPC;
 import net.runelite.api.Skill;
-import net.runelite.api.VarPlayer;
+import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
@@ -145,16 +145,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private int ticksOutsideArenaBounds = 0; // Failsafe: detect stale in-arena state
 
     // Weapon checklist overlay state machine
-    private enum WeaponChecklistState { INACTIVE, AWAITING_INITIAL, TRACKING, PENDING_FINAL, AWAITING_FINAL }
+    private enum WeaponChecklistState {
+        INACTIVE, AWAITING_INITIAL, TRACKING, PENDING_FINAL, AWAITING_FINAL
+    }
+
     private WeaponChecklistState weaponChecklistState = WeaponChecklistState.INACTIVE;
     private boolean wasAtEntrance = false;
-    // After AWAITING_FINAL completes, counts down before re-arming the AWAITING_INITIAL rising edge.
+    // After AWAITING_FINAL completes, counts down before re-arming the
+    // AWAITING_INITIAL rising edge.
     private int rearmInitialCheckCountdown = 0;
     private final List<TrackedWeapon> detectedWeapons = new ArrayList<>();
     private final Set<TrackedWeapon> checkedWeapons = new LinkedHashSet<>();
     private final Map<Integer, Integer> weaponInitialSnapshot = new HashMap<>();
     private final Map<Integer, Integer> weaponFinalSnapshot = new HashMap<>();
-    // Weapons whose chat message was detected but whose tictac7x config read is deferred
+    // Weapons whose chat message was detected but whose tictac7x config read is
+    // deferred
     // one tick to allow the plugin time to update the config value first.
     private final Set<TrackedWeapon> pendingWeaponChecks = new LinkedHashSet<>();
 
@@ -203,6 +208,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private boolean hasWarnedAboutZeroClothValue = false; // Track if we've already warned player
 
     @Provides
+    @SuppressWarnings("unused")
     MokhaLootTrackerConfig provideConfig(ConfigManager configManager) {
         return configManager.getConfig(MokhaLootTrackerConfig.class);
     }
@@ -306,7 +312,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                         client.getBoostedSkillLevel(Skill.PRAYER),
                         client.getBoostedSkillLevel(Skill.HITPOINTS),
                         isCurrentlyVenomed(),
-                        client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT));
+                        client.getVarpValue(VarPlayerID.SA_ENERGY));
 
                 // Initialize supply snapshots for consumption tracking
                 if (weaponChecklistState == WeaponChecklistState.AWAITING_FINAL
@@ -357,7 +363,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // Save historical data immediately after claiming
                 saveHistoricalData();
 
-                // Transition weapon checklist to final-check state if charge tracking was active
+                // Transition weapon checklist to final-check state if charge tracking was
+                // active
                 handleWeaponCheckOnRunEnd();
 
                 // Clear all tracking state
@@ -407,9 +414,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
             location = client.getLocalPlayer().getWorldLocation();
         }
 
-        // AWAITING_INITIAL fires only on the rising edge of entering the entrance radius —
-        // not continuously. This prevents the INITIAL overlay from immediately re-appearing
-        // on the same tick that AWAITING_FINAL completes (both events happen at the entrance).
+        // AWAITING_INITIAL fires only on the rising edge of entering the entrance
+        // radius —
+        // not continuously. This prevents the INITIAL overlay from immediately
+        // re-appearing
+        // on the same tick that AWAITING_FINAL completes (both events happen at the
+        // entrance).
         boolean atEntrance = !inMokhaArena && location != null && isAtEntrance(location);
         boolean justArrivedAtEntrance = atEntrance && !wasAtEntrance;
         wasAtEntrance = atEntrance;
@@ -422,8 +432,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
             transitionToAwaitingFinal();
         }
 
-        // After AWAITING_FINAL completes, re-arm the rising edge after a short grace period so
-        // the player can pre-check for a consecutive run without having to walk away first.
+        // After AWAITING_FINAL completes, re-arm the rising edge after a short grace
+        // period so
+        // the player can pre-check for a consecutive run without having to walk away
+        // first.
         if (rearmInitialCheckCountdown > 0) {
             rearmInitialCheckCountdown--;
             if (rearmInitialCheckCountdown == 0) {
@@ -431,23 +443,32 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
         }
 
-        // Reset overlay state when player leaves the entrance area without completing the check.
-        // AWAITING_INITIAL / TRACKING (pre-entry): reset silently — stale initial snapshot must
-        //   not persist into a future session. Re-entering the radius triggers a fresh snapshot.
-        // AWAITING_FINAL: reset and notify — charges for the run are lost. This only fires if the
-        //   player actually teleports away, since normal exits land at the entrance.
-        // PENDING_FINAL: NOT cancelled here. Death/exit detection fires mid-tick while the player's
-        //   WorldLocation is still inside the arena, so the first nearArena check after PENDING_FINAL
-        //   is set would wrongly cancel it. PENDING_FINAL is cleared only by: arriving at the
-        //   entrance (→ AWAITING_FINAL), jumping back in (handled in the jump-over block), or
-        //   plugin shutdown.
+        // Reset overlay state when player leaves the entrance area without completing
+        // the check.
+        // AWAITING_INITIAL / TRACKING (pre-entry): reset silently — stale initial
+        // snapshot must
+        // not persist into a future session. Re-entering the radius triggers a fresh
+        // snapshot.
+        // AWAITING_FINAL: reset and notify — charges for the run are lost. This only
+        // fires if the
+        // player actually teleports away, since normal exits land at the entrance.
+        // PENDING_FINAL: NOT cancelled here. Death/exit detection fires mid-tick while
+        // the player's
+        // WorldLocation is still inside the arena, so the first nearArena check after
+        // PENDING_FINAL
+        // is set would wrongly cancel it. PENDING_FINAL is cleared only by: arriving at
+        // the
+        // entrance (→ AWAITING_FINAL), jumping back in (handled in the jump-over
+        // block), or
+        // plugin shutdown.
         if (location != null) {
             boolean nearArena = inMokhaArena || isAtEntrance(location);
             if (!nearArena) {
                 if (weaponChecklistState == WeaponChecklistState.AWAITING_FINAL) {
                     resetWeaponChecklistState();
                     client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-                            "<col=FF6600>[Mokha Loot Tracker] Weapon charges not recorded — left the area before completing check.</col>", null);
+                            "<col=FF6600>[Mokha Loot Tracker] Weapon charges not recorded — left the area before completing check.</col>",
+                            null);
                 } else if (weaponChecklistState == WeaponChecklistState.AWAITING_INITIAL
                         || (weaponChecklistState == WeaponChecklistState.TRACKING && !inMokhaArena)) {
                     resetWeaponChecklistState();
@@ -465,7 +486,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (performanceTrackingActive) {
             performanceTracker.onVenomAndSpecialTick(
                     isCurrentlyVenomed(),
-                    client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT));
+                    client.getVarpValue(VarPlayerID.SA_ENERGY));
         } else if (inMokhaArena && !isDead) {
             // Keep baselines in sync while paused at entrance so those deltas are not
             // counted when entering combat bounds.
@@ -473,7 +494,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     client.getBoostedSkillLevel(Skill.PRAYER),
                     client.getBoostedSkillLevel(Skill.HITPOINTS),
                     isCurrentlyVenomed(),
-                    client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT));
+                    client.getVarpValue(VarPlayerID.SA_ENERGY));
         }
 
         // Failsafe arena boundary check to avoid stale in-arena state causing supply
@@ -627,7 +648,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
         }
 
-        if (groupId == InterfaceID.Collection.BOSS_TEXT >>> 16 && highscoresSyncService.attemptCollectionLogUniqueSync()) {
+        if (groupId == InterfaceID.Collection.BOSS_TEXT >>> 16
+                && highscoresSyncService.attemptCollectionLogUniqueSync()) {
             updatePanelData();
             saveHistoricalData();
         }
@@ -673,9 +695,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 && weaponChecklistState != WeaponChecklistState.AWAITING_FINAL) {
             return;
         }
-        // tictac7x-charges may not fire ConfigChanged if the stored value is unchanged since the
-        // last check, so we use the in-game "check" chat message as a fallback. The actual config
-        // read is deferred one tick so tictac7x has time to update the config value first.
+        // tictac7x-charges may not fire ConfigChanged if the stored value is unchanged
+        // since the
+        // last check, so we use the in-game "check" chat message as a fallback. The
+        // actual config
+        // read is deferred one tick so tictac7x has time to update the config value
+        // first.
         String msg = event.getMessage().toLowerCase(Locale.ROOT);
         for (TrackedWeapon weapon : detectedWeapons) {
             if (!checkedWeapons.contains(weapon) && msg.contains(weapon.chatKeyword)) {
@@ -749,7 +774,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     boolean trackingEnabled = "true".equalsIgnoreCase(event.getNewValue());
                     boolean showButton = trackingEnabled && weaponChecklistState == WeaponChecklistState.INACTIVE;
                     SwingUtilities.invokeLater(() -> {
-                        if (panel != null) panel.setChargeTrackingButtonVisible(showButton);
+                        if (panel != null)
+                            panel.setChargeTrackingButtonVisible(showButton);
                     });
                     break;
                 default:
@@ -778,7 +804,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                         client.getBoostedSkillLevel(Skill.PRAYER),
                         client.getBoostedSkillLevel(Skill.HITPOINTS),
                         isCurrentlyVenomed(),
-                        client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT));
+                        client.getVarpValue(VarPlayerID.SA_ENERGY));
             }
             return;
         }
@@ -800,7 +826,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private boolean isCurrentlyVenomed() {
-        return client.getVarpValue(VarPlayer.POISON) >= 1_000_000;
+        return client.getVarpValue(VarPlayerID.POISON) >= 1_000_000;
     }
 
     private void checkForLootWindow() {
@@ -867,7 +893,6 @@ public class MokhaLootTrackerPlugin extends Plugin {
             valueWidget.setText(adjustedText);
         }
     }
-
 
     private int normalizeWaveKey(int wave) {
         if (wave < 1) {
@@ -1113,7 +1138,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 }
             }
         }
-        // Only cache a positive result — a zero result means prices may not be loaded yet.
+        // Only cache a positive result — a zero result means prices may not be loaded
+        // yet.
         if (maxDose > 0) {
             maxDoseByBaseNameCache.put(baseName, maxDose);
         }
@@ -1845,7 +1871,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     private void archiveCurrentRunSuppliesToHistorical() {
         // Exclude INTEGER-format weapon IDs — their charge cost is handled separately
-        // by applyIntegerWeaponChargeToHistorical() and must not be archived as raw market-price entries.
+        // by applyIntegerWeaponChargeToHistorical() and must not be archived as raw
+        // market-price entries.
         Map<Integer, Integer> filteredSupplies = new HashMap<>();
         for (Map.Entry<Integer, Integer> e : totalSuppliesConsumed.entrySet()) {
             if (!TrackedWeapon.isConfigChargeItemId(e.getKey())) {
@@ -1902,7 +1929,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (weaponChecklistOverlay != null) {
             weaponChecklistOverlay.hide();
         }
-        SwingUtilities.invokeLater(() -> { if (panel != null) panel.setChargeTrackingButtonVisible(config.blowpipeCheckReminder()); });
+        SwingUtilities.invokeLater(() -> {
+            if (panel != null)
+                panel.setChargeTrackingButtonVisible(config.blowpipeCheckReminder());
+        });
     }
 
     private void onStartChargeTrackingClicked() {
@@ -1930,14 +1960,20 @@ public class MokhaLootTrackerPlugin extends Plugin {
         supplyTrackingService.setWeaponChecklistActive(true);
         weaponChecklistOverlay.showInitial(detectedWeapons, checkedWeapons);
         client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-                "<col=FFAA00>[Mokha Loot Tracker] Weapon(s) with trackable charges detected — check each to begin charge tracking.</col>", null);
-        SwingUtilities.invokeLater(() -> { if (panel != null) panel.setChargeTrackingButtonVisible(false); });
+                "<col=FFAA00>[Mokha Loot Tracker] Weapon(s) with trackable charges detected — check each to begin charge tracking.</col>",
+                null);
+        SwingUtilities.invokeLater(() -> {
+            if (panel != null)
+                panel.setChargeTrackingButtonVisible(false);
+        });
     }
 
     private void handleWeaponCheckOnRunEnd() {
         if (weaponChecklistState == WeaponChecklistState.TRACKING && !weaponInitialSnapshot.isEmpty()) {
-            // Don't show the overlay yet — the player is still inside the arena or mid-transition.
-            // PENDING_FINAL holds the snapshot silently until the player arrives at the entrance,
+            // Don't show the overlay yet — the player is still inside the arena or
+            // mid-transition.
+            // PENDING_FINAL holds the snapshot silently until the player arrives at the
+            // entrance,
             // then onGameTick transitions to AWAITING_FINAL and shows the overlay.
             weaponChecklistState = WeaponChecklistState.PENDING_FINAL;
         } else {
@@ -1970,7 +2006,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     weaponChecklistOverlay.hide();
                     int totalCharges = weaponInitialSnapshot.values().stream().mapToInt(Integer::intValue).sum();
                     client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-                            "<col=00CC66>[Mokha Loot Tracker] Weapon charge tracking active — " + totalCharges + " total charges at start.</col>", null);
+                            "<col=00CC66>[Mokha Loot Tracker] Weapon charge tracking active — " + totalCharges
+                                    + " total charges at start.</col>",
+                            null);
                 }
                 break;
             }
@@ -1988,7 +2026,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                         if (consumed > 0 && !TrackedWeapon.isConfigChargeItemId(e.getKey())) {
                             // Only blowpipe dart/scale items go into the previous-run supply map.
                             // INTEGER weapon charge IDs are handled via recipe in historicalSuppliesUsed.
-                            previousRunSuppliesConsumed.merge(e.getKey(), consumed, Integer::sum);
+                            previousRunSuppliesConsumed.merge(e.getKey(), consumed, (a, b) -> a + b);
                         }
                     }
                     applyBlowpipeDartConsumptionToHistorical(weaponInitialSnapshot, weaponFinalSnapshot);
@@ -1998,7 +2036,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     saveHistoricalData();
                     updatePanelData();
                     client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-                            "<col=00CC66>[Mokha Loot Tracker] Weapon charges recorded: " + used + " used this run.</col>", null);
+                            "<col=00CC66>[Mokha Loot Tracker] Weapon charges recorded: " + used
+                                    + " used this run.</col>",
+                            null);
                 }
                 break;
             }
@@ -2032,7 +2072,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     historicalSuppliesUsed.put(baseName, new ItemAggregate(baseName, consumed, priceEach));
                 }
                 historicalSupplyCost += (long) priceEach * consumed;
-                log.debug("[Mokha] Blowpipe supply applied to historical: {} x{} @ {} gp", baseName, consumed, priceEach);
+                log.debug("[Mokha] Blowpipe supply applied to historical: {} x{} @ {} gp", baseName, consumed,
+                        priceEach);
             }
         }
     }
@@ -2046,7 +2087,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         long totalCost = computeChargeCost(weapon.chargeRecipe, chargesConsumed);
         String tooltip = buildChargeTooltip(weapon.chargeRecipe, chargesConsumed);
 
-        // Remove any stale entry written by old plugin versions that stored the raw item name
+        // Remove any stale entry written by old plugin versions that stored the raw
+        // item name
         // (e.g., "Crystal halberd") instead of the " Charge"-suffixed key.
         String rawItemName = getBasePotionName(itemManager.getItemComposition(canonicalItemId).getName());
         historicalSuppliesUsed.remove(rawItemName);
@@ -2056,7 +2098,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
             existing.totalQuantity += chargesConsumed;
             existing.totalValue += totalCost;
             existing.pricePerItem = existing.totalQuantity > 0
-                    ? (int) (existing.totalValue / existing.totalQuantity) : 0;
+                    ? (int) (existing.totalValue / existing.totalQuantity)
+                    : 0;
             existing.tooltipText = tooltip;
         } else {
             historicalSuppliesUsed.put(entryName, new ItemAggregate(entryName, chargesConsumed, totalCost, tooltip));
@@ -2071,17 +2114,20 @@ public class MokhaLootTrackerPlugin extends Plugin {
             prevRun.pricePerItem = prevRun.totalQuantity > 0 ? (int) (prevRun.totalValue / prevRun.totalQuantity) : 0;
             prevRun.tooltipText = tooltip;
         } else {
-            previousRunWeaponChargesData.put(entryName, new ItemAggregate(entryName, chargesConsumed, totalCost, tooltip));
+            previousRunWeaponChargesData.put(entryName,
+                    new ItemAggregate(entryName, chargesConsumed, totalCost, tooltip));
         }
 
         log.debug("[Mokha] {} x{} charge(s) → {} gp", weapon.displayName, chargesConsumed, totalCost);
     }
 
     private long computeChargeCost(TrackedWeapon.ChargeIngredient[] recipe, int charges) {
-        if (recipe == null || recipe.length == 0) return 0;
+        if (recipe == null || recipe.length == 0)
+            return 0;
         long totalCost = 0;
         for (TrackedWeapon.ChargeIngredient ing : recipe) {
-            if (ing.priceless) continue;
+            if (ing.priceless)
+                continue;
             double qty = ing.totalQuantity(charges);
             int price = itemManager.getItemPrice(ing.itemId);
             totalCost += Math.round(qty * price);
@@ -2090,17 +2136,20 @@ public class MokhaLootTrackerPlugin extends Plugin {
     }
 
     private String buildChargeTooltip(TrackedWeapon.ChargeIngredient[] recipe, int charges) {
-        if (recipe == null || recipe.length == 0) return null;
+        if (recipe == null || recipe.length == 0)
+            return null;
         StringBuilder sb = new StringBuilder();
         for (TrackedWeapon.ChargeIngredient ing : recipe) {
-            if (sb.length() > 0) sb.append(", ");
+            if (sb.length() > 0)
+                sb.append(", ");
             double qty = ing.totalQuantity(charges);
             String qtyStr = (qty == Math.floor(qty))
                     ? String.valueOf((long) qty)
                     : String.format("%.2f", qty);
             String itemName = itemManager.getItemComposition(ing.itemId).getName();
             sb.append(qtyStr).append("× ").append(itemName);
-            if (ing.priceless) sb.append(" (untradeable)");
+            if (ing.priceless)
+                sb.append(" (untradeable)");
         }
         return sb.toString();
     }
@@ -2186,7 +2235,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 itemId -> getBasePotionName(itemManager.getItemComposition(itemId).getName()),
                 this::getPricePerDose,
                 this::getMaxDoseForItem);
-        // Weapon charges are committed after capturePreviousRunSnapshot, so inject them manually.
+        // Weapon charges are committed after capturePreviousRunSnapshot, so inject them
+        // manually.
         for (ItemAggregate agg : previousRunWeaponChargesData.values()) {
             ItemData itemData = new ItemData(agg.name, agg.totalQuantity, agg.pricePerItem, agg.totalValue);
             itemData.tooltipText = agg.tooltipText;
@@ -2242,10 +2292,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
         panel.updateCurrentRunUniqueChance(
                 currentWaveNumber,
                 DrynessMath.calculateCumulativeUniqueChancePercent(currentWaveNumber),
-                DrynessMath.calculateCumulativeUniqueChancePercent(2, currentWaveNumber, DrynessMath::getClothUniqueChanceForDelve),
-                DrynessMath.calculateCumulativeUniqueChancePercent(3, currentWaveNumber, DrynessMath::getStandardUniqueChanceForDelve),
-                DrynessMath.calculateCumulativeUniqueChancePercent(4, currentWaveNumber, DrynessMath::getStandardUniqueChanceForDelve),
-                DrynessMath.calculateCumulativeUniqueChancePercent(6, currentWaveNumber, DrynessMath::getDomUniqueChanceForDelve));
+                DrynessMath.calculateCumulativeUniqueChancePercent(2, currentWaveNumber,
+                        DrynessMath::getClothUniqueChanceForDelve),
+                DrynessMath.calculateCumulativeUniqueChancePercent(3, currentWaveNumber,
+                        DrynessMath::getStandardUniqueChanceForDelve),
+                DrynessMath.calculateCumulativeUniqueChancePercent(4, currentWaveNumber,
+                        DrynessMath::getStandardUniqueChanceForDelve),
+                DrynessMath.calculateCumulativeUniqueChancePercent(6, currentWaveNumber,
+                        DrynessMath::getDomUniqueChanceForDelve));
 
         for (int wave = 1; wave <= 10; wave++) {
             panel.updateClaimedWave(
