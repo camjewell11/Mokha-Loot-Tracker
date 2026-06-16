@@ -1,15 +1,9 @@
 package com.camjewell;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,16 +16,23 @@ import net.runelite.client.game.ItemManager;
 class HighscoresSyncService {
     private static final Logger log = LoggerFactory.getLogger(HighscoresSyncService.class);
     private static final int COLLECTION_LOG_EXPECTED_UNIQUE_SLOTS = 4;
-    private static final Pattern WAVE_KEYWORD_LINE_PATTERN = Pattern
-            .compile("(?i)\\bwave\\s*(\\d+\\+?)\\b\\s*[:\\-]?\\s*([\\d,]+)");
-    private static final Pattern WAVE_COMPACT_LINE_PATTERN = Pattern
-            .compile("^(\\d+\\+?)\\s*[:\\-]?\\s*([\\d,]+)$");
-    private static final Pattern LEVEL_COMPLETION_LINE_PATTERN = Pattern
-            .compile("(?i)\\blevel\\s*(\\d+\\+?)\\b\\s+([\\d,]+)(?:\\s+[a-z])?");
-    private static final Pattern LEVEL_ONLY_LINE_PATTERN = Pattern
-            .compile("(?i)^level\\s*(\\d+\\+?)$");
-    private static final Pattern COUNT_ONLY_LINE_PATTERN = Pattern
-            .compile("^([\\d,]+)(?:\\s+[a-z])?$");
+
+    // Personal level value widgets, in wave order. The scoreboard exposes separate
+    // G_* (global leader) and P_* (personal) widgets in the same interface tree.
+    // Reading P_* directly avoids the Math.max contamination that plagued the old
+    // recursive text-scan, which was picking up the global leader's higher counts.
+    // Level 8+ (the boss encounter) is normalised to wave key 9.
+    private static final int[][] PERSONAL_LEVEL_VALUE_WIDGETS = {
+        {1, InterfaceID.DomScoreboard.P_TOTAL_LEVEL_1_VAL},
+        {2, InterfaceID.DomScoreboard.P_TOTAL_LEVEL_2_VAL},
+        {3, InterfaceID.DomScoreboard.P_TOTAL_LEVEL_3_VAL},
+        {4, InterfaceID.DomScoreboard.P_TOTAL_LEVEL_4_VAL},
+        {5, InterfaceID.DomScoreboard.P_TOTAL_LEVEL_5_VAL},
+        {6, InterfaceID.DomScoreboard.P_TOTAL_LEVEL_6_VAL},
+        {7, InterfaceID.DomScoreboard.P_TOTAL_LEVEL_7_VAL},
+        {8, InterfaceID.DomScoreboard.P_TOTAL_LEVEL_8_VAL},
+        {9, InterfaceID.DomScoreboard.P_TOTAL_LEVEL_8__VAL},
+    };
 
     private final Client client;
     private final ItemManager itemManager;
@@ -144,225 +145,38 @@ class HighscoresSyncService {
                 || !localCompletedRunsSinceLastSyncByWave.isEmpty()
                 || !highscoresBaselineSynced;
 
-        if (!changed) {
-            return false;
-        }
-
+        // Always apply the parsed widget data as the source of truth regardless of
+        // the changed flag — this guarantees that opening the highscores page always
+        // clears any stale local increments and snaps the display to the real counts.
         historicalCompletedRunsByWave.clear();
         historicalCompletedRunsByWave.putAll(normalized);
         localCompletedRunsSinceLastSyncByWave.clear();
         highscoresBaselineSynced = true;
-        return true;
+        return changed;
     }
 
     Map<Integer, Long> parseWaveCompletionsFromDomScoreboard() {
+        // Read personal completion counts directly from the named P_TOTAL_LEVEL_N_VAL
+        // widgets. This avoids mixing personal data with global-leader data that the old
+        // recursive text-scan produced (both G_* and P_* live in the same widget tree and
+        // the old Math.max merge picked the higher of the two for each wave).
         Map<Integer, Long> parsed = new HashMap<>();
-
-        Widget root = findHighscoresWaveRoot();
-        if (root == null) {
-            return parsed;
+        for (int[] pair : PERSONAL_LEVEL_VALUE_WIDGETS) {
+            int wave = pair[0];
+            Widget widget = client.getWidget(pair[1]);
+            if (widget == null) {
+                continue;
+            }
+            String text = widget.getText();
+            if (text == null || text.isEmpty()) {
+                continue;
+            }
+            Long count = parseCountToken(text);
+            if (count != null) {
+                parsed.put(wave, count);
+            }
         }
-
-        boolean sawExpectedFormat = collectWaveCompletionsFromWidget(root, parsed);
-        parseWaveCompletionsFromStructuredTokens(root, parsed);
-
-        if (!sawExpectedFormat || parsed.isEmpty()) {
-            return new HashMap<>();
-        }
-
         return parsed;
-    }
-
-    private Widget findHighscoresWaveRoot() {
-        Widget preferred = client.getWidget(InterfaceID.DomScoreboard.PERSONAL);
-        if (preferred != null && !preferred.isHidden()) {
-            return preferred;
-        }
-
-        Widget primary = client.getWidget(InterfaceID.DomScoreboard.UNIVERSE);
-        if (primary != null && !primary.isHidden()) {
-            return primary;
-        }
-
-        Widget[] roots = client.getWidgetRoots();
-        if (roots == null) {
-            return null;
-        }
-
-        for (Widget root : roots) {
-            if (root == null || root.isHidden()) {
-                continue;
-            }
-            if (root.getId() == InterfaceID.DomScoreboard.UNIVERSE) {
-                return root;
-            }
-        }
-
-        return null;
-    }
-
-    private boolean collectWaveCompletionsFromWidget(Widget widget, Map<Integer, Long> parsed) {
-        boolean sawExpectedFormat = false;
-        if (widget == null || widget.isHidden()) {
-            return false;
-        }
-
-        String text = widget.getText();
-        if (text != null && !text.isEmpty()) {
-            String stripped = text.replaceAll("<[^>]*>", " ").trim();
-            if (!stripped.isEmpty()) {
-                String[] lines = stripped.split("\\r?\\n|<br>|<br/>");
-                for (String rawLine : lines) {
-                    String line = rawLine == null ? "" : rawLine.replace(' ', ' ').trim();
-                    if (line.isEmpty()) {
-                        continue;
-                    }
-                    String lowered = line.toLowerCase(Locale.ROOT);
-                    if (lowered.contains("personal completions") || lowered.contains("level")) {
-                        sawExpectedFormat = true;
-                    }
-                    if (parseWaveCompletionLine(line, parsed)) {
-                        sawExpectedFormat = true;
-                    }
-                }
-            }
-        }
-
-        Widget[] children = widget.getChildren();
-        if (children != null) {
-            for (Widget child : children) {
-                sawExpectedFormat |= collectWaveCompletionsFromWidget(child, parsed);
-            }
-        }
-        Widget[] dynamicChildren = widget.getDynamicChildren();
-        if (dynamicChildren != null) {
-            for (Widget child : dynamicChildren) {
-                sawExpectedFormat |= collectWaveCompletionsFromWidget(child, parsed);
-            }
-        }
-        Widget[] staticChildren = widget.getStaticChildren();
-        if (staticChildren != null) {
-            for (Widget child : staticChildren) {
-                sawExpectedFormat |= collectWaveCompletionsFromWidget(child, parsed);
-            }
-        }
-        Widget[] nestedChildren = widget.getNestedChildren();
-        if (nestedChildren != null) {
-            for (Widget child : nestedChildren) {
-                sawExpectedFormat |= collectWaveCompletionsFromWidget(child, parsed);
-            }
-        }
-
-        return sawExpectedFormat;
-    }
-
-    private boolean parseWaveCompletionLine(String line, Map<Integer, Long> parsed) {
-        Matcher keywordMatcher = WAVE_KEYWORD_LINE_PATTERN.matcher(line);
-        if (keywordMatcher.find()) {
-            Integer wave = parseWaveToken(keywordMatcher.group(1));
-            Long count = parseCountToken(keywordMatcher.group(2));
-            if (wave != null && count != null) {
-                parsed.merge(normalizeWaveKey(wave), count, (a, b) -> Math.max(a, b));
-                return true;
-            }
-        }
-
-        Matcher compactMatcher = WAVE_COMPACT_LINE_PATTERN.matcher(line);
-        if (compactMatcher.find()) {
-            Integer wave = parseWaveToken(compactMatcher.group(1));
-            Long count = parseCountToken(compactMatcher.group(2));
-            if (wave != null && count != null && wave >= 1 && wave <= 99) {
-                parsed.merge(normalizeWaveKey(wave), count, (a, b) -> Math.max(a, b));
-                return true;
-            }
-        }
-
-        Matcher levelMatcher = LEVEL_COMPLETION_LINE_PATTERN.matcher(line);
-        if (levelMatcher.find()) {
-            Integer wave = parseWaveToken(levelMatcher.group(1));
-            Long count = parseCountToken(levelMatcher.group(2));
-            if (wave != null && count != null) {
-                parsed.merge(normalizeWaveKey(wave), count, (a, b) -> Math.max(a, b));
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private void parseWaveCompletionsFromStructuredTokens(Widget root, Map<Integer, Long> parsed) {
-        List<String> tokens = new ArrayList<>();
-        collectWidgetTextTokens(root, tokens);
-
-        Deque<Integer> pendingWaves = new ArrayDeque<>();
-        for (String token : tokens) {
-            Matcher levelOnlyMatcher = LEVEL_ONLY_LINE_PATTERN.matcher(token);
-            if (levelOnlyMatcher.find()) {
-                Integer wave = parseWaveToken(levelOnlyMatcher.group(1));
-                if (wave != null) {
-                    pendingWaves.addLast(wave);
-                }
-                continue;
-            }
-
-            if (pendingWaves.isEmpty()) {
-                continue;
-            }
-
-            Matcher countOnlyMatcher = COUNT_ONLY_LINE_PATTERN.matcher(token);
-            if (countOnlyMatcher.find()) {
-                Long count = parseCountToken(countOnlyMatcher.group(1));
-                if (count != null) {
-                    int wave = pendingWaves.removeFirst();
-                    parsed.merge(normalizeWaveKey(wave), count, (a, b) -> Math.max(a, b));
-                }
-            }
-        }
-    }
-
-    private void collectWidgetTextTokens(Widget widget, List<String> tokens) {
-        if (widget == null || widget.isHidden()) {
-            return;
-        }
-
-        String text = widget.getText();
-        if (text != null && !text.isEmpty()) {
-            String stripped = text.replaceAll("<[^>]*>", " ").replace(' ', ' ').trim();
-            if (!stripped.isEmpty()) {
-                String[] lines = stripped.split("\\r?\\n|<br>|<br/>");
-                for (String rawLine : lines) {
-                    String line = rawLine == null ? "" : rawLine.trim();
-                    if (!line.isEmpty()) {
-                        tokens.add(line);
-                    }
-                }
-            }
-        }
-
-        Widget[] children = widget.getChildren();
-        if (children != null) {
-            for (Widget child : children) {
-                collectWidgetTextTokens(child, tokens);
-            }
-        }
-        Widget[] dynamicChildren = widget.getDynamicChildren();
-        if (dynamicChildren != null) {
-            for (Widget child : dynamicChildren) {
-                collectWidgetTextTokens(child, tokens);
-            }
-        }
-        Widget[] staticChildren = widget.getStaticChildren();
-        if (staticChildren != null) {
-            for (Widget child : staticChildren) {
-                collectWidgetTextTokens(child, tokens);
-            }
-        }
-        Widget[] nestedChildren = widget.getNestedChildren();
-        if (nestedChildren != null) {
-            for (Widget child : nestedChildren) {
-                collectWidgetTextTokens(child, tokens);
-            }
-        }
     }
 
     private Map<String, Long> parseCollectionLogUniqueCounts(Widget itemsContainerWidget) {
@@ -403,24 +217,6 @@ class HighscoresSyncService {
         }
 
         return parsed;
-    }
-
-    private Integer parseWaveToken(String token) {
-        if (token == null) {
-            return null;
-        }
-        String cleaned = token.trim();
-        if (cleaned.isEmpty()) {
-            return null;
-        }
-        if (cleaned.endsWith("+")) {
-            return 9;
-        }
-        try {
-            return Integer.valueOf(cleaned);
-        } catch (NumberFormatException ex) {
-            return null;
-        }
     }
 
     private Long parseCountToken(String token) {

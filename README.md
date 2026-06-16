@@ -242,6 +242,10 @@ This plugin is open source and available under standard RuneLite plugin licensin
 - **Average Wave Depth**: Dryness section shows your average wave depth across all tracked completions, giving a better sense of run quality over time.
 - **Unique Value Tracking Fix**: Unique items are no longer hard-capped at 20 million GP for value display purposes; the 20M exclusion toggle now only affects whether they are included in totals, not what value is shown.
 - **Death History Ordering**: Death entries in the historical data are now ordered more intuitively.
+- **Dryness Wave Count Fix**: Wave completion counts in the dryness breakdown now correctly increment each wave 1–N by 1 per run, instead of only wave 1 getting all the increments. Fixes inflated wave 1 totals when using local (between-sync) tracking.
+- **Dom Scoreboard Sync Fix**: Opening the Dom Scoreboard now correctly reads your *personal* completion counts instead of the global leader's counts. The old text-scan approach used a max-merge across all widgets in the interface tree, causing your historical wave data to be overwritten with the top-ranked player's numbers.
+- **UI State Persistence**: Expanded/collapsed/summary state for all panel sections (Supplies, Previous Run, Claimed, Unclaimed, Dryness) is now saved to config and restored automatically on login.
+- **Start Charge Tracking Button**: The "Start Charge Tracking" prompt button is now visible even when the Supplies (Current Run) section is collapsed.
 
 ### v8.1
 

@@ -227,7 +227,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 this::removeHistoricalSupplyItem,
                 this::exportHistoricalData,
                 this::importHistoricalData,
-                this::onStartChargeTrackingClicked);
+                this::onStartChargeTrackingClicked,
+                configManager);
 
         final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/48icon.png");
 
@@ -1064,19 +1065,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
             return;
         }
 
-        for (Map.Entry<Integer, List<LootItem>> entry : lootByWave.entrySet()) {
-            if (entry.getValue() == null || entry.getValue().isEmpty()) {
-                continue;
-            }
+        // Use currentWaveNumber to determine the deepest wave reached this run.
+        // The loot window may not fire for every wave (it persists across descends),
+        // so iterating lootByWave keys would miss intermediate waves. currentWaveNumber
+        // is incremented explicitly on each Descend click and is reliable at run end.
+        int maxWave = normalizeWaveKey(currentWaveNumber);
+        if (maxWave < 1) {
+            return;
+        }
 
-            int waveKey = normalizeWaveKey(entry.getKey());
-            if (waveKey < 1) {
-                continue;
-            }
-
+        // Increment all waves 1..maxWave by 1 to match the highscores' cumulative
+        // semantics: wave-N completion count = number of runs that reached at least N.
+        for (int w = 1; w <= maxWave; w++) {
             localCompletedRunsSinceLastSyncByWave.put(
-                    waveKey,
-                    localCompletedRunsSinceLastSyncByWave.getOrDefault(waveKey, 0L) + 1L);
+                    w,
+                    localCompletedRunsSinceLastSyncByWave.getOrDefault(w, 0L) + 1L);
         }
     }
 

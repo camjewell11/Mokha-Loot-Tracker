@@ -24,12 +24,14 @@ import javax.swing.JSeparator;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 
+import net.runelite.client.config.ConfigManager;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 
 public class MokhaLootPanel extends PluginPanel {
     private static final int ACTION_BUTTON_HEIGHT = 30;
+    private static final String CONFIG_GROUP = "mokhaloot";
     private static final Color UNIQUE_GOLD_COLOR = new Color(218, 165, 32);
     private static final Color HP_LOST_COLOR = new Color(200, 60, 60);
     private static final Color PRAYER_USED_COLOR = new Color(80, 210, 190);
@@ -39,6 +41,7 @@ public class MokhaLootPanel extends PluginPanel {
     private static final Color HP_REGAINED_COLOR = new Color(60, 180, 60);
 
     private final MokhaLootTrackerConfig config;
+    private final ConfigManager configManager;
     private final java.util.function.BooleanSupplier isInRun;
     private boolean displayHaValueOnHover;
 
@@ -204,23 +207,23 @@ public class MokhaLootPanel extends PluginPanel {
     private Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave;
 
     public MokhaLootPanel(MokhaLootTrackerConfig config) {
-        this(config, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        this(config, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData) {
-        this(config, onClearData, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        this(config, onClearData, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
             Runnable onRecalculateTotals) {
         this(config, onClearData, onRecalculateTotals, null, null, null, null, null, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
             Runnable onRecalculateTotals, java.util.function.BooleanSupplier isInRun) {
         this(config, onClearData, onRecalculateTotals, isInRun, null, null, null, null, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
     }
 
     public MokhaLootPanel(MokhaLootTrackerConfig config, Runnable onClearData,
@@ -234,8 +237,10 @@ public class MokhaLootPanel extends PluginPanel {
             java.util.function.Consumer<String> onRemoveHistoricalSupplyItem,
             Runnable onExportHistoricalData,
             Runnable onImportHistoricalData,
-            Runnable onStartChargeTracking) {
+            Runnable onStartChargeTracking,
+            ConfigManager configManager) {
         this.config = config;
+        this.configManager = configManager;
         this.onClearData = onClearData;
         this.onRecalculateTotals = onRecalculateTotals;
         this.isInRun = isInRun;
@@ -251,6 +256,24 @@ public class MokhaLootPanel extends PluginPanel {
         this.displayHaValueOnHover = config.displayHaValueOnHover();
         this.onImportHistoricalData = onImportHistoricalData;
         this.onStartChargeTracking = onStartChargeTracking;
+
+        // Restore persisted UI section states so the panel rebuilds with the right layout.
+        if (configManager != null) {
+            Boolean b;
+            Integer i;
+            b = configManager.getConfiguration(CONFIG_GROUP, "ui.suppliesCurrentRunCollapsed", Boolean.class);
+            if (b != null) suppliesCurrentRunCollapsed = b;
+            b = configManager.getConfiguration(CONFIG_GROUP, "ui.suppliesTotalCollapsed", Boolean.class);
+            if (b != null) suppliesTotalCollapsed = b;
+            i = configManager.getConfiguration(CONFIG_GROUP, "ui.previousRunSectionState", Integer.class);
+            if (i != null) previousRunSectionState = Math.max(0, Math.min(2, i));
+            i = configManager.getConfiguration(CONFIG_GROUP, "ui.claimedSectionState", Integer.class);
+            if (i != null) claimedSectionState = Math.max(0, Math.min(2, i));
+            i = configManager.getConfiguration(CONFIG_GROUP, "ui.unclaimedSectionState", Integer.class);
+            if (i != null) unclaimedSectionState = Math.max(0, Math.min(2, i));
+            i = configManager.getConfiguration(CONFIG_GROUP, "ui.drynessSectionState", Integer.class);
+            if (i != null) drynessSectionState = Math.max(0, Math.min(2, i));
+        }
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -723,6 +746,7 @@ public class MokhaLootPanel extends PluginPanel {
 
         previousRunCollapseButton.addActionListener(e -> {
             previousRunSectionState = (previousRunSectionState + 1) % 3;
+            if (configManager != null) configManager.setConfiguration(CONFIG_GROUP, "ui.previousRunSectionState", previousRunSectionState);
             renderPreviousRunSection();
             panel.revalidate();
             panel.repaint();
@@ -800,6 +824,7 @@ public class MokhaLootPanel extends PluginPanel {
         // Collapse/expand/combined logic
         collapseButton.addActionListener(e -> {
             claimedSectionState = (claimedSectionState + 1) % 3;
+            if (configManager != null) configManager.setConfiguration(CONFIG_GROUP, "ui.claimedSectionState", claimedSectionState);
             updateClaimedSectionView();
             panel.revalidate();
             panel.repaint();
@@ -875,6 +900,7 @@ public class MokhaLootPanel extends PluginPanel {
         // Collapse/expand/combined logic
         collapseButton.addActionListener(e -> {
             unclaimedSectionState = (unclaimedSectionState + 1) % 3;
+            if (configManager != null) configManager.setConfiguration(CONFIG_GROUP, "ui.unclaimedSectionState", unclaimedSectionState);
             updateUnclaimedSectionView();
             panel.revalidate();
             panel.repaint();
@@ -1059,9 +1085,15 @@ public class MokhaLootPanel extends PluginPanel {
         startChargeTrackingButtonWrapper.setBorder(new EmptyBorder(4, 0, 0, 0));
         startChargeTrackingButtonWrapper.add(startChargeTrackingButton, BorderLayout.CENTER);
         startChargeTrackingButtonWrapper.setVisible(config.blowpipeCheckReminder());
-        suppliesCurrentRunContainer.add(startChargeTrackingButtonWrapper);
 
         panel.add(suppliesCurrentRunContainer);
+        panel.add(startChargeTrackingButtonWrapper);
+
+        // Apply persisted collapse state (the default is expanded; if user had collapsed it, restore that)
+        suppliesCurrentRunContainer.setVisible(!suppliesCurrentRunCollapsed);
+        suppliesCurrentRunHeaderLabel.setVisible(suppliesCurrentRunCollapsed);
+        collapseButton.setText(getArrowOrFallback(suppliesCurrentRunCollapsed ? "▸" : "▾",
+                suppliesCurrentRunCollapsed ? "→" : "↓"));
 
         // Collapse/expand logic
         collapseButton.addActionListener(e -> {
@@ -1070,6 +1102,7 @@ public class MokhaLootPanel extends PluginPanel {
             suppliesCurrentRunHeaderLabel.setVisible(suppliesCurrentRunCollapsed); // Show when collapsed
             collapseButton.setText(getArrowOrFallback(suppliesCurrentRunCollapsed ? "▸" : "▾",
                     suppliesCurrentRunCollapsed ? "→" : "↓"));
+            if (configManager != null) configManager.setConfiguration(CONFIG_GROUP, "ui.suppliesCurrentRunCollapsed", suppliesCurrentRunCollapsed);
             panel.revalidate();
             panel.repaint();
         });
@@ -1144,6 +1177,7 @@ public class MokhaLootPanel extends PluginPanel {
             suppliesTotalHeaderLabel.setVisible(suppliesTotalCollapsed); // Show when collapsed
             collapseButton.setText(
                     getArrowOrFallback(suppliesTotalCollapsed ? "▸" : "▾", suppliesTotalCollapsed ? "→" : "↓"));
+            if (configManager != null) configManager.setConfiguration(CONFIG_GROUP, "ui.suppliesTotalCollapsed", suppliesTotalCollapsed);
             panel.revalidate();
             panel.repaint();
         });
@@ -1337,6 +1371,7 @@ public class MokhaLootPanel extends PluginPanel {
 
         drynessCollapseButton.addActionListener(e -> {
             drynessSectionState = (drynessSectionState + 1) % 3;
+            if (configManager != null) configManager.setConfiguration(CONFIG_GROUP, "ui.drynessSectionState", drynessSectionState);
             updateDrynessSectionView();
             panel.revalidate();
             panel.repaint();
@@ -2002,6 +2037,7 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunHaTotalsByWave.clear();
         previousRunWaveCollapsed.clear();
         previousRunSectionState = 1;
+        if (configManager != null) configManager.setConfiguration(CONFIG_GROUP, "ui.previousRunSectionState", 1);
         hasPreviousRunData = false;
         if (previousRunCombinedPanel != null) {
             previousRunCombinedPanel.removeAll();
