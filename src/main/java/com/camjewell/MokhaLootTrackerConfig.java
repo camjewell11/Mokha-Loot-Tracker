@@ -47,17 +47,22 @@ public interface MokhaLootTrackerConfig extends Config {
 		return false;
 	}
 
-	@ConfigItem(keyName = "showPerformancePanel", name = "Show Performance Panel", description = "Show the Performance section in the panel (tracks prayer used, HP lost/regained, special attacks used, and times venomed during a run)", position = 15)
+	@ConfigItem(keyName = "showUnclaimedSection", name = "Show Unclaimed Section", description = "Show the unclaimed loot section in the panel, including the Total Unclaimed and Claim/Unclaim Ratio rows in the summary", position = 15)
+	default boolean showUnclaimedSection() {
+		return true;
+	}
+
+	@ConfigItem(keyName = "showPerformancePanel", name = "Show Performance Panel", description = "Show the Performance section in the panel (tracks prayer used, HP lost/regained, special attacks used, and times venomed during a run)", position = 16)
 	default boolean showPerformancePanel() {
 		return false;
 	}
 
-	@ConfigItem(keyName = "showDrynessPanel", name = "Show Dryness Panel", description = "Show the Dryness section in the panel", position = 16)
+	@ConfigItem(keyName = "showDrynessPanel", name = "Show Dryness Panel", description = "Show the Dryness section in the panel", position = 17)
 	default boolean showDrynessPanel() {
 		return true;
 	}
 
-	@ConfigItem(keyName = "blowpipeCheckReminder", name = "Charged Weapon Tracking (Beta)", description = "Show an overlay at arena entry and after each run prompting you to check your charged weapons (blowpipes, powered staves, crystal equipment, serpentine helm, venator bow, Eye of Ayak). Tracks charges consumed per run and calculates supply cost from charge recipes. Work in progress.", position = 17)
+	@ConfigItem(keyName = "blowpipeCheckReminder", name = "Charged Weapon Tracking (Beta)", description = "Show an overlay at arena entry and after each run prompting you to check your charged weapons (blowpipes, powered staves, crystal equipment, serpentine helm, venator bow, Eye of Ayak). Tracks charges consumed per run and calculates supply cost from charge recipes. Work in progress.", position = 18)
 	default boolean blowpipeCheckReminder() {
 		return false;
 	}

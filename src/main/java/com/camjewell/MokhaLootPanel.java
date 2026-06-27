@@ -47,7 +47,11 @@ public class MokhaLootPanel extends PluginPanel {
     private JLabel supplyCostLabel;
     private JLabel profitLossLabel;
     private JLabel totalUnclaimedLabel;
+    private JPanel totalUnclaimedRow;
     private JLabel claimUnclaimRatioLabel;
+    private JPanel claimUnclaimRatioRow;
+    private JPanel unclaimedOuterSection;
+    private JPanel unclaimedSeparatorPanel;
     private JLabel claimedCountLabel;
     private JLabel deathCountLabel;
     private JLabel uniqueClaimsCountLabel;
@@ -425,8 +429,13 @@ public class MokhaLootPanel extends PluginPanel {
         statsPanel.add(createClaimedLootSection());
         statsPanel.add(createSeparator(5));
         // Unclaimed Loot by Wave Section
-        statsPanel.add(createUnclaimedLootSection());
-        statsPanel.add(createSeparator(5));
+        unclaimedOuterSection = createUnclaimedLootSection();
+        unclaimedSeparatorPanel = createSeparator(5);
+        boolean showUnclaimedInitial = config.showUnclaimedSection();
+        unclaimedOuterSection.setVisible(showUnclaimedInitial);
+        unclaimedSeparatorPanel.setVisible(showUnclaimedInitial);
+        statsPanel.add(unclaimedOuterSection);
+        statsPanel.add(unclaimedSeparatorPanel);
 
         // Supplies Used (All Time) Section
         statsPanel.add(createSuppliesTotalSection());
@@ -519,12 +528,18 @@ public class MokhaLootPanel extends PluginPanel {
         totalUnclaimedLabel = new JLabel("0 gp");
         totalUnclaimedLabel.setFont(FontManager.getRunescapeFont());
         totalUnclaimedLabel.setForeground(Color.WHITE);
-        panel.add(createStatRow("Total Unclaimed:", totalUnclaimedLabel));
+        totalUnclaimedRow = createStatRow("Total Unclaimed:", totalUnclaimedLabel);
+        panel.add(totalUnclaimedRow);
 
         claimUnclaimRatioLabel = new JLabel("0.00x");
         claimUnclaimRatioLabel.setFont(FontManager.getRunescapeFont());
         claimUnclaimRatioLabel.setForeground(Color.WHITE);
-        panel.add(createStatRow("Claim/Unclaim Ratio:", claimUnclaimRatioLabel));
+        claimUnclaimRatioRow = createStatRow("Claim/Unclaim Ratio:", claimUnclaimRatioLabel);
+        panel.add(claimUnclaimRatioRow);
+
+        boolean showUnclaimedRows = config.showUnclaimedSection();
+        totalUnclaimedRow.setVisible(showUnclaimedRows);
+        claimUnclaimRatioRow.setVisible(showUnclaimedRows);
 
         panel.add(createInternalSeparator());
 
@@ -1406,6 +1421,21 @@ public class MokhaLootPanel extends PluginPanel {
                 drynessSectionPanel.setVisible(visible);
             if (drynessSeparatorPanel != null)
                 drynessSeparatorPanel.setVisible(visible);
+            statsPanel.revalidate();
+            statsPanel.repaint();
+        });
+    }
+
+    void setUnclaimedSectionVisible(boolean visible) {
+        SwingUtilities.invokeLater(() -> {
+            if (unclaimedOuterSection != null)
+                unclaimedOuterSection.setVisible(visible);
+            if (unclaimedSeparatorPanel != null)
+                unclaimedSeparatorPanel.setVisible(visible);
+            if (totalUnclaimedRow != null)
+                totalUnclaimedRow.setVisible(visible);
+            if (claimUnclaimRatioRow != null)
+                claimUnclaimRatioRow.setVisible(visible);
             statsPanel.revalidate();
             statsPanel.repaint();
         });

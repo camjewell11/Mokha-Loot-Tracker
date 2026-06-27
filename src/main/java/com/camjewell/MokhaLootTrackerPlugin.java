@@ -793,6 +793,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
                         }
                     });
                     break;
+                case "showUnclaimedSection":
+                    boolean showUnclaimed = "true".equalsIgnoreCase(event.getNewValue());
+                    SwingUtilities.invokeLater(() -> {
+                        if (panel != null) {
+                            panel.setUnclaimedSectionVisible(showUnclaimed);
+                        }
+                    });
+                    break;
                 case "blowpipeCheckReminder":
                     boolean trackingEnabled = "true".equalsIgnoreCase(event.getNewValue());
                     boolean showButton = trackingEnabled && weaponChecklistState == WeaponChecklistState.INACTIVE;
