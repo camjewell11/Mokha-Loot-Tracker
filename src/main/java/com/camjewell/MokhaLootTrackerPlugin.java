@@ -31,7 +31,6 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.NPC;
 import net.runelite.api.Skill;
-import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
@@ -44,6 +43,7 @@ import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.NpcID;
+import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
@@ -58,7 +58,7 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 
-@PluginDescriptor(name = "Mokha Loot Tracker", description = "Tracks loot obtained from Mokhaiotl encounters", enabledByDefault = true, tags = {
+@PluginDescriptor(name = "Doom Loot Tracker", description = "Tracks loot obtained from Mokhaiotl encounters", enabledByDefault = true, tags = {
         "mokha", "loot", "tracker", "mokhaiotl" })
 public class MokhaLootTrackerPlugin extends Plugin {
 
@@ -144,7 +144,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private int lastDescendProcessedTick = -1; // Guard against double-firing Descend in the same tick
     private boolean lootManuallyTaken = false; // Set when items are taken from the loot window manually
     private int lastLootWindowWave = 0; // Wave number at which loot was last parsed from the widget
-    private final Map<Integer, Integer> waveGroupStart = new java.util.HashMap<>(); // wave → first wave in its group (when player right-clicked Descend across multiple waves)
+    private final Map<Integer, Integer> waveGroupStart = new java.util.HashMap<>(); // wave → first wave in its group
+                                                                                    // (when player right-clicked
+                                                                                    // Descend across multiple waves)
     private final Map<Integer, Integer> previousRunWaveGroupStart = new java.util.HashMap<>();
     private long lastArenaExitTime = 0; // Track when player last exited arena to detect stale snapshot usage
     private int ticksOutsideArenaBounds = 0; // Failsafe: detect stale in-arena state
@@ -237,7 +239,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/48icon.png");
 
         navButton = NavigationButton.builder()
-                .tooltip("Mokha Loot Tracker")
+                .tooltip("Doom Loot Tracker")
                 .icon(icon)
                 .priority(5)
                 .panel(panel)
@@ -353,6 +355,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 bossDefeatedThisWave = false;
                 bossWasEverPresentThisWave = false;
                 lastDescendClickJustHappened = true;
+                updatePanelData();
             }
         }
 
@@ -486,7 +489,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 if (weaponChecklistState == WeaponChecklistState.AWAITING_FINAL) {
                     resetWeaponChecklistState();
                     client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-                            "<col=FF6600>[Mokha Loot Tracker] Weapon charges not recorded — left the area before completing check.</col>",
+                            "<col=FF6600>[Doom Loot Tracker] Weapon charges not recorded — left the area before completing check.</col>",
                             null);
                 } else if (weaponChecklistState == WeaponChecklistState.AWAITING_INITIAL
                         || (weaponChecklistState == WeaponChecklistState.TRACKING && !inMokhaArena)) {
@@ -872,8 +875,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
             lootManuallyTaken = true;
         }
 
-        // currentWaveNumber is tracked via arena entry (wave 1) and Descend click events.
-        // The widget's detectedWave is the destination wave (off by +1), so we don't use
+        // currentWaveNumber is tracked via arena entry (wave 1) and Descend click
+        // events.
+        // The widget's detectedWave is the destination wave (off by +1), so we don't
+        // use
         // it to set currentWaveNumber here.
         if (update.isLootWindowVisible() && currentWaveNumber == 0) {
             currentWaveNumber = 1;
@@ -1253,10 +1258,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
             if (snap != null && snap.hasPreviousRunSnapshot) {
                 hasPreviousRunSnapshot = true;
                 previousRunClaimed = snap.previousRunClaimed;
-                if (snap.lootByWave != null) previousRunLootByWave.putAll(snap.lootByWave);
-                if (snap.suppliesConsumed != null) previousRunSuppliesConsumed.putAll(snap.suppliesConsumed);
-                if (snap.weaponChargesData != null) previousRunWeaponChargesData.putAll(snap.weaponChargesData);
-                if (snap.waveGroupStart != null) previousRunWaveGroupStart.putAll(snap.waveGroupStart);
+                if (snap.lootByWave != null)
+                    previousRunLootByWave.putAll(snap.lootByWave);
+                if (snap.suppliesConsumed != null)
+                    previousRunSuppliesConsumed.putAll(snap.suppliesConsumed);
+                if (snap.weaponChargesData != null)
+                    previousRunWeaponChargesData.putAll(snap.weaponChargesData);
+                if (snap.waveGroupStart != null)
+                    previousRunWaveGroupStart.putAll(snap.waveGroupStart);
                 previousRunPerformance = new PerformanceSnapshot(
                         snap.prayerUsed, snap.prayerRegained,
                         snap.hpLost, snap.hpRegained,
@@ -1425,9 +1434,12 @@ public class MokhaLootTrackerPlugin extends Plugin {
         snap.hasPreviousRunSnapshot = hasPreviousRunSnapshot;
         snap.previousRunClaimed = previousRunClaimed;
         snap.lootByWave = previousRunLootByWave.isEmpty() ? null : new java.util.HashMap<>(previousRunLootByWave);
-        snap.suppliesConsumed = previousRunSuppliesConsumed.isEmpty() ? null : new java.util.HashMap<>(previousRunSuppliesConsumed);
-        snap.weaponChargesData = previousRunWeaponChargesData.isEmpty() ? null : new java.util.HashMap<>(previousRunWeaponChargesData);
-        snap.waveGroupStart = previousRunWaveGroupStart.isEmpty() ? null : new java.util.HashMap<>(previousRunWaveGroupStart);
+        snap.suppliesConsumed = previousRunSuppliesConsumed.isEmpty() ? null
+                : new java.util.HashMap<>(previousRunSuppliesConsumed);
+        snap.weaponChargesData = previousRunWeaponChargesData.isEmpty() ? null
+                : new java.util.HashMap<>(previousRunWeaponChargesData);
+        snap.waveGroupStart = previousRunWaveGroupStart.isEmpty() ? null
+                : new java.util.HashMap<>(previousRunWaveGroupStart);
         snap.prayerUsed = previousRunPerformance.getPrayerUsed();
         snap.prayerRegained = previousRunPerformance.getPrayerRegained();
         snap.hpLost = previousRunPerformance.getHpLost();
@@ -2057,7 +2069,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         supplyTrackingService.setWeaponChecklistActive(true);
         weaponChecklistOverlay.showInitial(detectedWeapons, checkedWeapons);
         client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-                "<col=FFAA00>[Mokha Loot Tracker] Weapon(s) with trackable charges detected — check each to begin charge tracking.</col>",
+                "<col=FFAA00>[Doom Loot Tracker] Weapon(s) with trackable charges detected — check each to begin charge tracking.</col>",
                 null);
         SwingUtilities.invokeLater(() -> {
             if (panel != null)
@@ -2084,7 +2096,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         weaponFinalSnapshot.clear();
         weaponChecklistOverlay.showFinal(detectedWeapons, checkedWeapons);
         client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-                "<col=FFAA00>[Mokha Loot Tracker] Check weapons to record charges used this run.</col>", null);
+                "<col=FFAA00>[Doom Loot Tracker] Check weapons to record charges used this run.</col>", null);
     }
 
     private void handleWeaponChecked(TrackedWeapon weapon) {
@@ -2103,7 +2115,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     weaponChecklistOverlay.hide();
                     int totalCharges = weaponInitialSnapshot.values().stream().mapToInt(Integer::intValue).sum();
                     client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-                            "<col=00CC66>[Mokha Loot Tracker] Weapon charge tracking active — " + totalCharges
+                            "<col=00CC66>[Doom Loot Tracker] Weapon charge tracking active — " + totalCharges
                                     + " total charges at start.</col>",
                             null);
                 }
@@ -2133,7 +2145,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                     saveHistoricalData();
                     updatePanelData();
                     client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-                            "<col=00CC66>[Mokha Loot Tracker] Weapon charges recorded: " + used
+                            "<col=00CC66>[Doom Loot Tracker] Weapon charges recorded: " + used
                                     + " used this run.</col>",
                             null);
                 }
@@ -2643,7 +2655,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (calculatedValue == 0 && !hasWarnedAboutZeroClothValue) {
             hasWarnedAboutZeroClothValue = true;
             client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-                    "<col=FF0000>[Mokha Loot Tracker] Mokhaiotl Cloth value is 0 - cannot calculate from component prices.</col>",
+                    "<col=FF0000>[Doom Loot Tracker] Mokhaiotl Cloth value is 0 - cannot calculate from component prices.</col>",
                     null);
         }
 

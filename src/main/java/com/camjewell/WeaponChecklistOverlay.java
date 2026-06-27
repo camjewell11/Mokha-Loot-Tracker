@@ -15,7 +15,9 @@ import net.runelite.client.ui.overlay.components.PanelComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
 
 class WeaponChecklistOverlay extends Overlay {
-    enum Phase { INITIAL, FINAL }
+    enum Phase {
+        INITIAL, FINAL
+    }
 
     private final PanelComponent panelComponent = new PanelComponent();
     private Phase phase;
@@ -56,7 +58,7 @@ class WeaponChecklistOverlay extends Overlay {
 
         panelComponent.getChildren().clear();
         panelComponent.getChildren().add(TitleComponent.builder()
-                .text("Mokha Loot Tracker")
+                .text("Doom Loot Tracker")
                 .color(Color.YELLOW)
                 .build());
 

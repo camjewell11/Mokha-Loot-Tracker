@@ -175,7 +175,8 @@ public class MokhaLootPanel extends PluginPanel {
     private JPanel dryDeepRollsRow;
     private JLabel drynessAvgDepthLabel;
     private JButton drynessCollapseButton;
-    // 0 = collapsed, 1 = expanded (dryness stats + deep rolls), 2 = expanded with wave breakdown
+    // 0 = collapsed, 1 = expanded (dryness stats + deep rolls), 2 = expanded with
+    // wave breakdown
     private int drynessSectionState = 0;
     private JPanel drynessSectionPanel;
     private JPanel drynessSeparatorPanel;
@@ -270,7 +271,7 @@ public class MokhaLootPanel extends PluginPanel {
         titlePanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         titlePanel.setLayout(new BorderLayout());
 
-        JLabel title = new JLabel("Mokha Loot Tracker");
+        JLabel title = new JLabel("Doom Loot Tracker");
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(Color.WHITE);
         titlePanel.add(title, BorderLayout.CENTER);
@@ -1383,7 +1384,8 @@ public class MokhaLootPanel extends PluginPanel {
         }
     }
 
-    void updatePerformance(int prayerUsed, int prayerRegained, int hpLost, int hpRegained, int specialAttacksUsed, int venomApplications) {
+    void updatePerformance(int prayerUsed, int prayerRegained, int hpLost, int hpRegained, int specialAttacksUsed,
+            int venomApplications) {
         SwingUtilities.invokeLater(() -> {
             if (performancePrayerUsedLabel != null)
                 performancePrayerUsedLabel.setText(String.valueOf(prayerUsed));
@@ -1975,8 +1977,10 @@ public class MokhaLootPanel extends PluginPanel {
     }
 
     private void refreshSummaryHaTooltips() {
-        // Fall back to GE values when HA data is absent (historical items collected before
-        // HA tracking was added have totalHaValue=0; showing HA:0 or HA:-cost is misleading).
+        // Fall back to GE values when HA data is absent (historical items collected
+        // before
+        // HA tracking was added have totalHaValue=0; showing HA:0 or HA:-cost is
+        // misleading).
         long claimedHa = claimedSectionHaTotal > 0 ? claimedSectionHaTotal : summaryTotalClaimedGe;
         long unclaimedHa = unclaimedSectionHaTotal > 0 ? unclaimedSectionHaTotal : summaryTotalUnclaimedGe;
 
@@ -2612,7 +2616,6 @@ public class MokhaLootPanel extends PluginPanel {
     private List<ItemData> sortItemDataForDisplay(java.util.Collection<ItemData> items) {
         return LootPanelDisplayUtils.sortItemDataForDisplay(items, config.displaySortMode());
     }
-
 
     private String formatGp(long value) {
         return LootPanelDisplayUtils.formatGp(value);

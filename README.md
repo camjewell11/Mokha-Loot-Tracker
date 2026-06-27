@@ -1,4 +1,4 @@
-# Mokha Loot Tracker
+# Doom Loot Tracker
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-blue?logo=paypal)](https://paypal.me/camjewell)
 
@@ -39,7 +39,7 @@ A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during D
 
 ## How It Works
 
-Mokha Loot Tracker automatically detects when you enter the Mokha arena and tracks all loot, supplies, and deaths:
+Doom Loot Tracker automatically detects when you enter the Mokha arena and tracks all loot, supplies, and deaths:
 
 **On Death:**
 
@@ -101,7 +101,7 @@ When **Enable Historical Edit Mode** is on in plugin settings:
 
 Configure custom notifications to alert you when specific loot items meet or exceed a quantity threshold:
 
-1. Open RuneLite Configuration → Mokha Loot Tracker
+1. Open RuneLite Configuration → Doom Loot Tracker
 2. Find the "Loot Alerts" text area
 3. Add one alert per line in format: `Item Name, Minimum Quantity`
 4. Examples:
@@ -113,7 +113,7 @@ When triggered, alerts display a chat message and play a notification sound. Ale
 
 ## Charged Weapon Tracking (Beta)
 
-> **Beta feature** — Enable via *Charged Weapon Tracking (Beta)* in plugin settings. Accuracy depends on checking your weapons before and after every run. Results may be approximate for the Eye of Ayak (see note below).
+> **Beta feature** — Enable via _Charged Weapon Tracking (Beta)_ in plugin settings. Accuracy depends on checking your weapons before and after every run. Results may be approximate for the Eye of Ayak (see note below).
 
 ### How it works
 
@@ -123,33 +123,33 @@ The result appears in the **Supplies Used (All Time)** panel as a line item such
 
 > `Trident of the Swamp Charge ×10   4,910 gp`
 
-Hovering over the entry shows the full ingredient breakdown (e.g. *10× Death rune, 10× Chaos rune, 50× Fire rune, 10× Zulrah's scale*).
+Hovering over the entry shows the full ingredient breakdown (e.g. _10× Death rune, 10× Chaos rune, 50× Fire rune, 10× Zulrah's scale_).
 
 ### Supported weapons and charge costs
 
-| Weapon | Cost per charge |
-| --- | --- |
-| Toxic Blowpipe | Exact dart + scale consumption tracked directly |
-| Blazing Blowpipe | Exact dart + scale consumption tracked directly |
-| Camphor Blowpipe | Exact dart + scale consumption tracked directly |
-| Ironwood Blowpipe | Exact dart + scale consumption tracked directly |
-| Rosewood Blowpipe | Exact dart + scale consumption tracked directly |
-| Venator Bow | 1 ancient essence |
-| Trident of the Seas | 1 death rune + 1 chaos rune + 5 fire runes |
-| Trident of the Swamp | 1 death rune + 1 chaos rune + 5 fire runes + 1 Zulrah's scale |
-| Sanguinesti Staff | 3 blood runes |
-| Tumeken's Shadow | 2 soul runes + 5 chaos runes |
-| Eye of Ayak | 1 demon tear *(see note)* |
-| Scythe of Vitur | 2 blood runes + 1 vial of blood per 100 charges |
-| Blade of Saeldor | 1 crystal shard per 100 charges *(untradeable — quantity only)* |
-| Bow of Faerdhinen | 1 crystal shard per 100 charges *(untradeable — quantity only)* |
-| Crystal Bow | 1 crystal shard per 100 charges *(untradeable — quantity only)* |
-| Crystal Halberd | 1 crystal shard per 100 charges *(untradeable — quantity only)* |
-| Serpentine Helm | 1 Zulrah's scale |
+| Weapon               | Cost per charge                                                 |
+| -------------------- | --------------------------------------------------------------- |
+| Toxic Blowpipe       | Exact dart + scale consumption tracked directly                 |
+| Blazing Blowpipe     | Exact dart + scale consumption tracked directly                 |
+| Camphor Blowpipe     | Exact dart + scale consumption tracked directly                 |
+| Ironwood Blowpipe    | Exact dart + scale consumption tracked directly                 |
+| Rosewood Blowpipe    | Exact dart + scale consumption tracked directly                 |
+| Venator Bow          | 1 ancient essence                                               |
+| Trident of the Seas  | 1 death rune + 1 chaos rune + 5 fire runes                      |
+| Trident of the Swamp | 1 death rune + 1 chaos rune + 5 fire runes + 1 Zulrah's scale   |
+| Sanguinesti Staff    | 3 blood runes                                                   |
+| Tumeken's Shadow     | 2 soul runes + 5 chaos runes                                    |
+| Eye of Ayak          | 1 demon tear _(see note)_                                       |
+| Scythe of Vitur      | 2 blood runes + 1 vial of blood per 100 charges                 |
+| Blade of Saeldor     | 1 crystal shard per 100 charges _(untradeable — quantity only)_ |
+| Bow of Faerdhinen    | 1 crystal shard per 100 charges _(untradeable — quantity only)_ |
+| Crystal Bow          | 1 crystal shard per 100 charges _(untradeable — quantity only)_ |
+| Crystal Halberd      | 1 crystal shard per 100 charges _(untradeable — quantity only)_ |
+| Serpentine Helm      | 1 Zulrah's scale                                                |
 
 Crystal shard weapons (Blade of Saeldor, Bow of Faerdhinen, Crystal Bow, Crystal Halberd) are recharged with untradeable crystal shards — the shard count is tracked and shown in the tooltip, but contributes 0 gp to your supply cost.
 
-**Eye of Ayak note**: the Eye can be recharged with either 2 death runes + 1 chaos rune *or* 1 demon tear. The plugin defaults to demon tear since it cannot detect which method you used. If you recharge with runes, the displayed cost will not match your actual spend.
+**Eye of Ayak note**: the Eye can be recharged with either 2 death runes + 1 chaos rune _or_ 1 demon tear. The plugin defaults to demon tear since it cannot detect which method you used. If you recharge with runes, the displayed cost will not match your actual spend.
 
 ### Tips for accurate tracking
 
@@ -159,7 +159,7 @@ Crystal shard weapons (Blade of Saeldor, Bow of Faerdhinen, Crystal Bow, Crystal
 
 ## Configuration Options
 
-Accessible via RuneLite Configuration panel → Mokha Loot Tracker:
+Accessible via RuneLite Configuration panel → Doom Loot Tracker:
 
 - **Ignore Sun-kissed Bones Value**: Set value to 0 for Sun-kissed Bones (untradable, base value 8,000 GP).
 - **Ignore Spirit Seeds Value**: Set value to 0 for Spirit Seeds (untradable, base value 140,000 GP).
@@ -200,7 +200,7 @@ Accessible via RuneLite Configuration panel → Mokha Loot Tracker:
 ### From Plugin Hub
 
 1. Open the RuneLite Plugin Hub
-2. Search for "Mokha Loot Tracker"
+2. Search for "Doom Loot Tracker"
 3. Click Install
 
 ### Manual Installation (Development)
