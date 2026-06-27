@@ -50,7 +50,7 @@ Mokha Loot Tracker automatically detects when you enter the Mokha arena and trac
 
 **On Claiming Loot:**
 
-- Detects "Claim and Leave" → "Leave" sequence.
+- Detects "Claim and Leave" as the authoritative claim event. Any subsequent exit (clicking "Leave", teleporting, logging out) correctly records the run as claimed.
 - Records all loot claimed per wave (itemized, with quantities and values).
 - Updates historical claimed statistics and profit/loss.
 - Tracks supplies consumed and adds to historical totals.
@@ -234,6 +234,12 @@ Please include:
 This plugin is open source and available under standard RuneLite plugin licensing.
 
 ## Changelog
+
+### v8.3
+
+- **Claim Routing Fix**: Runs that end with "Claim and Leave" are now correctly recorded as claimed regardless of how the player exits — teleport, logout, or clicking Leave all work. Previously, teleporting or logging out after claiming would incorrectly log the run as unclaimed.
+- **Wave Counter Fix**: A fast double-click on "Descend" could fire two increment events in the same game tick, causing the wave counter to overshoot by one. A per-tick guard now ensures each wave transition is counted exactly once.
+- **Loot Capture Reliability**: The loot window parser now retries on the following tick if item widgets are not yet populated when the window first opens, preventing missed loot on fast click-throughs. Wave detection also triggers on in-place widget refreshes (not only on visibility changes), catching edge cases where the game reuses the same interface element between waves.
 
 ### v8.2
 
