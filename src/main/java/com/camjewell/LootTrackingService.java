@@ -25,6 +25,10 @@ class LootTrackingService {
     private final Map<Integer, Integer> previousLootSnapshot;
 
     private boolean lootWindowWasVisible = false;
+    private int lastDetectedWaveInWindow = 0;
+    private boolean pendingLootParse = false;
+    private int lootWindowItemCountAtLastParse = 0;
+    private boolean lootManuallyTakenFromWindow = false;
     private String cachedAlertRulesRaw = null;
     private List<LootAlertRule> cachedAlertRules = Collections.emptyList();
 
@@ -44,11 +48,14 @@ class LootTrackingService {
         private final boolean lootWindowVisible;
         private final int detectedWave;
         private final Map<Integer, Integer> newLootByItemId;
+        private final boolean lootManuallyTaken;
 
-        LootWindowUpdate(boolean lootWindowVisible, int detectedWave, Map<Integer, Integer> newLootByItemId) {
+        LootWindowUpdate(boolean lootWindowVisible, int detectedWave, Map<Integer, Integer> newLootByItemId,
+                boolean lootManuallyTaken) {
             this.lootWindowVisible = lootWindowVisible;
             this.detectedWave = detectedWave;
             this.newLootByItemId = newLootByItemId;
+            this.lootManuallyTaken = lootManuallyTaken;
         }
 
         boolean isLootWindowVisible() {
@@ -61,6 +68,10 @@ class LootTrackingService {
 
         Map<Integer, Integer> getNewLootByItemId() {
             return newLootByItemId;
+        }
+
+        boolean isLootManuallyTaken() {
+            return lootManuallyTaken;
         }
     }
 
@@ -82,7 +93,11 @@ class LootTrackingService {
     LootWindowUpdate pollLootWindow(boolean inMokhaArena) {
         if (!inMokhaArena) {
             lootWindowWasVisible = false;
-            return new LootWindowUpdate(false, 0, Collections.emptyMap());
+            lastDetectedWaveInWindow = 0;
+            pendingLootParse = false;
+            lootWindowItemCountAtLastParse = 0;
+            lootManuallyTakenFromWindow = false;
+            return new LootWindowUpdate(false, 0, Collections.emptyMap(), false);
         }
 
         Widget mainWidget = client.getWidget(InterfaceID.DomEndLevelUi.FRAME);
@@ -91,16 +106,66 @@ class LootTrackingService {
         int detectedWave = 0;
         Map<Integer, Integer> newLootByItemId = Collections.emptyMap();
 
-        if (lootWindowVisible && !lootWindowWasVisible) {
-            detectedWave = extractWaveNumber(mainWidget);
+        if (lootWindowVisible) {
+            int currentWaveInWidget = extractWaveNumber(mainWidget);
             Widget lootContainerWidget = client.getWidget(InterfaceID.DomEndLevelUi.LOOT_CONTENTS);
-            if (lootContainerWidget != null) {
-                newLootByItemId = parseNewLoot(lootContainerWidget);
+
+            boolean risingEdge = !lootWindowWasVisible;
+            // Also treat as a new window if the wave number changed — handles the case
+            // where the game refreshes the widget in-place between waves without
+            // toggling visibility.
+            boolean waveChanged = currentWaveInWidget > 0 && currentWaveInWidget != lastDetectedWaveInWindow;
+            boolean shouldParse = risingEdge || waveChanged || pendingLootParse;
+
+            if (shouldParse && lootContainerWidget != null) {
+                Widget[] children = lootContainerWidget.getChildren();
+                if (children != null && children.length > 0) {
+                    detectedWave = currentWaveInWidget;
+                    lastDetectedWaveInWindow = currentWaveInWidget;
+                    newLootByItemId = parseNewLoot(lootContainerWidget);
+                    lootWindowItemCountAtLastParse = countVisibleItems(children);
+                    pendingLootParse = false;
+                } else {
+                    // Children not populated yet — retry next tick.
+                    if (currentWaveInWidget > 0) {
+                        detectedWave = currentWaveInWidget;
+                        lastDetectedWaveInWindow = currentWaveInWidget;
+                    }
+                    pendingLootParse = true;
+                }
+            } else if (lootWindowVisible && lootWindowWasVisible && lootContainerWidget != null) {
+                // Window is still open (no new parse needed). Detect if the player
+                // manually removed items from the window (took them to inventory).
+                Widget[] children = lootContainerWidget.getChildren();
+                if (children != null && lootWindowItemCountAtLastParse > 0) {
+                    int currentCount = countVisibleItems(children);
+                    if (currentCount < lootWindowItemCountAtLastParse) {
+                        lootManuallyTakenFromWindow = true;
+                        log.debug("[Mokha] Items removed from loot window ({} → {}), flagging as manually taken",
+                                lootWindowItemCountAtLastParse, currentCount);
+                    }
+                    lootWindowItemCountAtLastParse = currentCount;
+                }
             }
+        } else {
+            // Window just closed — reset per-window state for the next wave.
+            lastDetectedWaveInWindow = 0;
+            pendingLootParse = false;
+            lootWindowItemCountAtLastParse = 0;
         }
 
         lootWindowWasVisible = lootWindowVisible;
-        return new LootWindowUpdate(lootWindowVisible, detectedWave, newLootByItemId);
+        return new LootWindowUpdate(lootWindowVisible, detectedWave, newLootByItemId, lootManuallyTakenFromWindow);
+    }
+
+    private int countVisibleItems(Widget[] children) {
+        int count = 0;
+        for (Widget child : children) {
+            if (child != null && !child.isHidden() && child.getItemQuantity() > 0) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private Map<Integer, Integer> parseNewLoot(Widget containerWidget) {

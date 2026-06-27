@@ -141,6 +141,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private boolean bossWasEverPresentThisWave = false; // Track if boss appeared this wave (for teleport detection)
     private NPC trackedBoss = null;
     private boolean lastDescendClickJustHappened = false; // Track if Descend was just clicked
+    private int lastDescendProcessedTick = -1; // Guard against double-firing Descend in the same tick
+    private boolean lootManuallyTaken = false; // Set when items are taken from the loot window manually
     private long lastArenaExitTime = 0; // Track when player last exited arena to detect stale snapshot usage
     private int ticksOutsideArenaBounds = 0; // Failsafe: detect stale in-arena state
 
@@ -303,6 +305,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 }
 
                 applyArenaState(arenaStateService.createArenaEntryState());
+                lootManuallyTaken = false;
                 lootByWave.clear();
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
@@ -333,16 +336,27 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
         // Detect "Descend" button - continues to next wave without claiming loot
         if (option != null && option.equalsIgnoreCase("Descend")) {
-            log.debug("[Mokha] Descend button clicked, moving to wave {}", currentWaveNumber + 1);
-            // Print accumulated loot so far (not claimed yet, could still be lost)
-            printSuppliesConsumed();
-            printAccumulatedLoot();
-            // Increment wave number since we're moving to the next wave
-            currentWaveNumber++;
-            // Reset boss tracking for next wave
-            bossDefeatedThisWave = false;
-            bossWasEverPresentThisWave = false; // Reset boss presence for next wave
-            lastDescendClickJustHappened = true; // Mark that Descend was clicked (not a teleport)
+            int currentTick = client.getTickCount();
+            if (currentTick == lastDescendProcessedTick) {
+                log.debug("[Mokha] Ignoring duplicate Descend in tick {}", currentTick);
+            } else {
+                lastDescendProcessedTick = currentTick;
+                log.debug("[Mokha] Descend button clicked, moving to wave {}", currentWaveNumber + 1);
+                printSuppliesConsumed();
+                printAccumulatedLoot();
+                currentWaveNumber++;
+                bossDefeatedThisWave = false;
+                bossWasEverPresentThisWave = false;
+                lastDescendClickJustHappened = true;
+            }
+        }
+
+        // "Claim and Leave" makes items individually takeable and is itself the claim
+        // event. If the player teleports after clicking this instead of using the
+        // subsequent "Leave" button, loot must still be routed as claimed.
+        if (option != null && option.equalsIgnoreCase("Claim and Leave")) {
+            log.debug("[Mokha] Claim and Leave clicked — flagging loot as claimed");
+            lootManuallyTaken = true;
         }
 
         // Detect "Leave" button - player exits arena (loot is claimed, whether taken to
@@ -578,7 +592,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 // Print lost loot from previous waves (couldn't claim because of death)
                 printLostLoot();
 
-                capturePreviousRunSnapshot(false);
+                capturePreviousRunSnapshot(lootManuallyTaken);
 
                 // Update historical supply costs (loot was lost, so don't count it)
                 // Add supplies to historical tracking on any arena exit
@@ -591,9 +605,13 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 }
                 historicalSupplyCost += suppliesCost;
 
-                // Move all unclaimed loot from this run to historical (never claimed, so now
-                // unclaimed forever)
-                moveCurrentRunUnclaimedToHistorical();
+                if (lootManuallyTaken) {
+                    // Player had already clicked "Claim and Leave" before dying.
+                    updateHistoricalDataOnClaim();
+                } else {
+                    moveCurrentRunUnclaimedToHistorical();
+                }
+                lootManuallyTaken = false;
 
                 handleWeaponCheckOnRunEnd();
                 applyArenaState(arenaStateService.createArenaExitState());
@@ -680,9 +698,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
         if (state == net.runelite.api.GameState.LOGIN_SCREEN ||
                 state == net.runelite.api.GameState.HOPPING) {
             if (inMokhaArena && !lootByWave.isEmpty()) {
-                // If player is still in arena and has unclaimed loot, save it first
-                capturePreviousRunSnapshot(false);
-                moveCurrentRunUnclaimedToHistorical();
+                if (lootManuallyTaken) {
+                    capturePreviousRunSnapshot(true);
+                    updateHistoricalDataOnClaim();
+                } else {
+                    capturePreviousRunSnapshot(false);
+                    moveCurrentRunUnclaimedToHistorical();
+                }
+                lootManuallyTaken = false;
             }
             // Always save data on logout/hopping
             saveHistoricalData();
@@ -831,6 +854,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
     private void checkForLootWindow() {
         LootTrackingService.LootWindowUpdate update = lootTrackingService.pollLootWindow(inMokhaArena);
+
+        if (update.isLootManuallyTaken()) {
+            lootManuallyTaken = true;
+        }
 
         if (update.getDetectedWave() > 0) {
             currentWaveNumber = update.getDetectedWave();
@@ -1029,13 +1056,19 @@ public class MokhaLootTrackerPlugin extends Plugin {
         long suppliesCost = calculateSuppliesCost();
         historicalSupplyCost += suppliesCost;
 
-        // Route loot - teleporting out always results in unclaimed loot
-        // (player abandoned arena without claiming)
-        log.debug("[Mokha] ===== ADDING LOOT TO UNCLAIMED (teleport exit) =====");
-        log.debug("[Mokha] Boss was defeated: {}", bossDefeatedThisWave);
         printAccumulatedLoot();
-        capturePreviousRunSnapshot(false);
-        moveCurrentRunUnclaimedToHistorical();
+        if (lootManuallyTaken) {
+            // Player took items from the loot window before teleporting — treat as claimed.
+            log.debug("[Mokha] ===== ADDING LOOT TO CLAIMED (items manually taken before teleport) =====");
+            capturePreviousRunSnapshot(true);
+            updateHistoricalDataOnClaim();
+        } else {
+            log.debug("[Mokha] ===== ADDING LOOT TO UNCLAIMED (teleport exit) =====");
+            log.debug("[Mokha] Boss was defeated: {}", bossDefeatedThisWave);
+            capturePreviousRunSnapshot(false);
+            moveCurrentRunUnclaimedToHistorical();
+        }
+        lootManuallyTaken = false;
 
         handleWeaponCheckOnRunEnd();
         // Clear arena state
@@ -1834,8 +1867,14 @@ public class MokhaLootTrackerPlugin extends Plugin {
         long suppliesCost = calculateSuppliesCost();
         historicalSupplyCost += suppliesCost;
 
-        capturePreviousRunSnapshot(false);
-        moveCurrentRunUnclaimedToHistorical();
+        if (lootManuallyTaken) {
+            capturePreviousRunSnapshot(true);
+            updateHistoricalDataOnClaim();
+        } else {
+            capturePreviousRunSnapshot(false);
+            moveCurrentRunUnclaimedToHistorical();
+        }
+        lootManuallyTaken = false;
 
         handleWeaponCheckOnRunEnd();
         applyArenaState(arenaStateService.createArenaExitState());
