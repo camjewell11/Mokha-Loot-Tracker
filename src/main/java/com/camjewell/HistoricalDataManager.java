@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
@@ -41,6 +42,23 @@ public class HistoricalDataManager {
     private long historicalClaims;
     private long historicalDeaths;
     private String activePlayerKey;
+    private PreviousRunSnapshot previousRunSnapshot;
+
+    /** Snapshot of the last completed run, persisted across sessions. */
+    static class PreviousRunSnapshot {
+        boolean hasPreviousRunSnapshot;
+        boolean previousRunClaimed;
+        Map<Integer, List<LootItem>> lootByWave;
+        Map<Integer, Integer> suppliesConsumed;
+        Map<String, ItemAggregate> weaponChargesData;
+        Map<Integer, Integer> waveGroupStart;
+        int prayerUsed;
+        int prayerRegained;
+        int hpLost;
+        int hpRegained;
+        int specialAttackUses;
+        int venomApplications;
+    }
 
     public HistoricalDataManager(File runeLiteDirectory, Gson gson) {
         File mokhalootDir = new File(runeLiteDirectory, MOKHALOOT_DIR);
@@ -269,6 +287,14 @@ public class HistoricalDataManager {
         this.historicalUnclaimedItemsByWave = data;
     }
 
+    public PreviousRunSnapshot getPreviousRunSnapshot() {
+        return previousRunSnapshot;
+    }
+
+    public void setPreviousRunSnapshot(PreviousRunSnapshot snapshot) {
+        this.previousRunSnapshot = snapshot;
+    }
+
     private String normalizePlayerKey(String playerKey) {
         if (playerKey == null) {
             return DEFAULT_PLAYER_KEY;
@@ -290,6 +316,7 @@ public class HistoricalDataManager {
         data.historicalTotalClaimed = historicalTotalClaimed;
         data.historicalClaims = historicalClaims;
         data.historicalDeaths = historicalDeaths;
+        data.previousRunSnapshot = previousRunSnapshot;
         return data;
     }
 
@@ -320,6 +347,7 @@ public class HistoricalDataManager {
         this.historicalUnclaimedItemsByWave = safeData.historicalUnclaimedItemsByWave != null
                 ? safeData.historicalUnclaimedItemsByWave
                 : new HashMap<>();
+        this.previousRunSnapshot = safeData.previousRunSnapshot;
     }
 
     public boolean hasDataForPlayer(String playerKey) {
@@ -428,6 +456,7 @@ public class HistoricalDataManager {
         long historicalTotalClaimed;
         long historicalClaims;
         long historicalDeaths;
+        PreviousRunSnapshot previousRunSnapshot;
     }
 
 }

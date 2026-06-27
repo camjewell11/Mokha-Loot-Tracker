@@ -143,6 +143,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private boolean lastDescendClickJustHappened = false; // Track if Descend was just clicked
     private int lastDescendProcessedTick = -1; // Guard against double-firing Descend in the same tick
     private boolean lootManuallyTaken = false; // Set when items are taken from the loot window manually
+    private int lastLootWindowWave = 0; // Wave number at which loot was last parsed from the widget
+    private final Map<Integer, Integer> waveGroupStart = new java.util.HashMap<>(); // wave → first wave in its group (when player right-clicked Descend across multiple waves)
+    private final Map<Integer, Integer> previousRunWaveGroupStart = new java.util.HashMap<>();
     private long lastArenaExitTime = 0; // Track when player last exited arena to detect stale snapshot usage
     private int ticksOutsideArenaBounds = 0; // Failsafe: detect stale in-arena state
 
@@ -306,6 +309,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
 
                 applyArenaState(arenaStateService.createArenaEntryState());
                 lootManuallyTaken = false;
+                lastLootWindowWave = 0;
+                waveGroupStart.clear();
                 lootByWave.clear();
                 previousLootSnapshot.clear();
                 totalSuppliesConsumed.clear();
@@ -867,9 +872,10 @@ public class MokhaLootTrackerPlugin extends Plugin {
             lootManuallyTaken = true;
         }
 
-        if (update.getDetectedWave() > 0) {
-            currentWaveNumber = update.getDetectedWave();
-        } else if (update.isLootWindowVisible() && currentWaveNumber == 0) {
+        // currentWaveNumber is tracked via arena entry (wave 1) and Descend click events.
+        // The widget's detectedWave is the destination wave (off by +1), so we don't use
+        // it to set currentWaveNumber here.
+        if (update.isLootWindowVisible() && currentWaveNumber == 0) {
             currentWaveNumber = 1;
         }
 
@@ -885,7 +891,16 @@ public class MokhaLootTrackerPlugin extends Plugin {
             }
 
             if (!newLootThisWave.isEmpty()) {
-                lootByWave.put(currentWaveNumber, newLootThisWave);
+                int storeWave = currentWaveNumber;
+                // Detect if the player right-clicked Descend through some waves without
+                // opening the loot widget — loot for those waves is now grouped here.
+                int groupFrom = lastLootWindowWave > 0 ? lastLootWindowWave + 1 : 1;
+                if (groupFrom < storeWave) {
+                    waveGroupStart.put(storeWave, groupFrom);
+                    log.debug("[Mokha] Loot grouped: waves {}-{} combined at widget read", groupFrom, storeWave);
+                }
+                lastLootWindowWave = storeWave;
+                lootByWave.put(storeWave, newLootThisWave);
                 updatePanelData();
             }
         }
@@ -1221,16 +1236,32 @@ public class MokhaLootTrackerPlugin extends Plugin {
     private void loadHistoricalData() {
         try {
             String playerKey = getCurrentPlayerProfileKey();
-            previousRunLootByWave.clear();
-            previousRunSuppliesConsumed.clear();
-            previousRunWeaponChargesData.clear();
-            hasPreviousRunSnapshot = false;
-            previousRunClaimed = false;
-            previousRunPerformance = PerformanceSnapshot.empty();
             historicalDataManager.loadDataForPlayer(playerKey);
             activeHistoricalPlayerKey = historicalDataManager.getActivePlayerKey();
 
             copyHistoricalDataFromManager();
+
+            // Restore previous run snapshot
+            previousRunLootByWave.clear();
+            previousRunSuppliesConsumed.clear();
+            previousRunWeaponChargesData.clear();
+            previousRunWaveGroupStart.clear();
+            hasPreviousRunSnapshot = false;
+            previousRunClaimed = false;
+            previousRunPerformance = PerformanceSnapshot.empty();
+            HistoricalDataManager.PreviousRunSnapshot snap = historicalDataManager.getPreviousRunSnapshot();
+            if (snap != null && snap.hasPreviousRunSnapshot) {
+                hasPreviousRunSnapshot = true;
+                previousRunClaimed = snap.previousRunClaimed;
+                if (snap.lootByWave != null) previousRunLootByWave.putAll(snap.lootByWave);
+                if (snap.suppliesConsumed != null) previousRunSuppliesConsumed.putAll(snap.suppliesConsumed);
+                if (snap.weaponChargesData != null) previousRunWeaponChargesData.putAll(snap.weaponChargesData);
+                if (snap.waveGroupStart != null) previousRunWaveGroupStart.putAll(snap.waveGroupStart);
+                previousRunPerformance = new PerformanceSnapshot(
+                        snap.prayerUsed, snap.prayerRegained,
+                        snap.hpLost, snap.hpRegained,
+                        snap.specialAttackUses, snap.venomApplications);
+            }
 
             // Apply ignore settings and recalculate
             applyIgnoreSettingsToHistoricalItems(historicalClaimedItemsByWave);
@@ -1389,6 +1420,21 @@ public class MokhaLootTrackerPlugin extends Plugin {
         historicalDataManager.setHistoricalDeaths(historicalDeaths);
         historicalDataManager.setHistoricalUnclaimedByWave(historicalUnclaimedByWave);
         historicalDataManager.setHistoricalUnclaimedItemsByWave(historicalUnclaimedItemsByWave);
+
+        HistoricalDataManager.PreviousRunSnapshot snap = new HistoricalDataManager.PreviousRunSnapshot();
+        snap.hasPreviousRunSnapshot = hasPreviousRunSnapshot;
+        snap.previousRunClaimed = previousRunClaimed;
+        snap.lootByWave = previousRunLootByWave.isEmpty() ? null : new java.util.HashMap<>(previousRunLootByWave);
+        snap.suppliesConsumed = previousRunSuppliesConsumed.isEmpty() ? null : new java.util.HashMap<>(previousRunSuppliesConsumed);
+        snap.weaponChargesData = previousRunWeaponChargesData.isEmpty() ? null : new java.util.HashMap<>(previousRunWeaponChargesData);
+        snap.waveGroupStart = previousRunWaveGroupStart.isEmpty() ? null : new java.util.HashMap<>(previousRunWaveGroupStart);
+        snap.prayerUsed = previousRunPerformance.getPrayerUsed();
+        snap.prayerRegained = previousRunPerformance.getPrayerRegained();
+        snap.hpLost = previousRunPerformance.getHpLost();
+        snap.hpRegained = previousRunPerformance.getHpRegained();
+        snap.specialAttackUses = previousRunPerformance.getSpecialAttackUses();
+        snap.venomApplications = previousRunPerformance.getVenomApplications();
+        historicalDataManager.setPreviousRunSnapshot(snap);
     }
 
     private void ensureHistoricalDataLoadedForCurrentPlayer() {
@@ -1468,6 +1514,7 @@ public class MokhaLootTrackerPlugin extends Plugin {
         previousRunLootByWave.clear();
         previousRunSuppliesConsumed.clear();
         previousRunWeaponChargesData.clear();
+        previousRunWaveGroupStart.clear();
         hasPreviousRunSnapshot = false;
         previousRunClaimed = false;
         previousRunPerformance = PerformanceSnapshot.empty();
@@ -1912,6 +1959,9 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 totalSuppliesConsumed,
                 initialSupplySnapshot);
 
+        lastLootWindowWave = 0;
+        waveGroupStart.clear();
+
         // Performance metrics are per-run and should be reset when a run ends.
         performanceTracker.reset();
     }
@@ -2321,7 +2371,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 panelData.currentRunItems,
                 panelData.currentRunItemsByWave,
                 panelData.currentRunTotalsByWave,
-                panelData.currentRunHaTotalsByWave);
+                panelData.currentRunHaTotalsByWave,
+                new java.util.HashMap<>(waveGroupStart));
         panel.updatePreviousRun(hasPreviousRunSnapshot, previousRunClaimed,
                 previousRunData.totalValue, previousRunData.totalHaValue,
                 previousRunData.items,
@@ -2335,7 +2386,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
                 previousRunPerformance.getVenomApplications(),
                 previousRunData.itemsByWave,
                 previousRunData.totalsByWave,
-                previousRunData.haTotalsByWave);
+                previousRunData.haTotalsByWave,
+                new java.util.HashMap<>(previousRunWaveGroupStart));
         panel.updateCurrentRunUniqueChance(
                 currentWaveNumber,
                 DrynessMath.calculateCumulativeUniqueChancePercent(currentWaveNumber),
@@ -2602,6 +2654,8 @@ public class MokhaLootTrackerPlugin extends Plugin {
         previousRunLootByWave.clear();
         previousRunSuppliesConsumed.clear();
         previousRunWeaponChargesData.clear();
+        previousRunWaveGroupStart.clear();
+        previousRunWaveGroupStart.putAll(waveGroupStart);
         hasPreviousRunSnapshot = true;
         previousRunClaimed = claimed;
 

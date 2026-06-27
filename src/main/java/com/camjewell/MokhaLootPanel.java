@@ -71,6 +71,7 @@ public class MokhaLootPanel extends PluginPanel {
     private Map<Integer, Map<String, ItemData>> currentRunItemsByWave = new TreeMap<>();
     private Map<Integer, Long> currentRunTotalsByWave = new TreeMap<>();
     private Map<Integer, Long> currentRunHaTotalsByWave = new TreeMap<>();
+    private Map<Integer, Integer> currentRunWaveGroupStart = new HashMap<>();
     private final Map<Integer, Boolean> currentRunWaveCollapsed = new HashMap<>();
     private boolean currentRunShowByWave = false;
 
@@ -100,6 +101,7 @@ public class MokhaLootPanel extends PluginPanel {
     private Map<Integer, Map<String, ItemData>> previousRunItemsByWave = new TreeMap<>();
     private Map<Integer, Long> previousRunTotalsByWave = new TreeMap<>();
     private Map<Integer, Long> previousRunHaTotalsByWave = new TreeMap<>();
+    private Map<Integer, Integer> previousRunWaveGroupStart = new HashMap<>();
     private int previousRunPrayerUsed;
     private int previousRunPrayerRegained;
     private int previousRunHpLost;
@@ -1623,13 +1625,15 @@ public class MokhaLootPanel extends PluginPanel {
             Map<String, ItemData> itemData,
             Map<Integer, Map<String, ItemData>> itemsByWave,
             Map<Integer, Long> totalsByWave,
-            Map<Integer, Long> haTotalsByWave) {
+            Map<Integer, Long> haTotalsByWave,
+            Map<Integer, Integer> waveGroupStart) {
         currentRunGeTotal = potentialValue;
         currentRunHaTotal = 0;
         currentRunItemData = itemData != null ? new HashMap<>(itemData) : new HashMap<>();
         currentRunItemsByWave = itemsByWave != null ? new TreeMap<>(itemsByWave) : new TreeMap<>();
         currentRunTotalsByWave = totalsByWave != null ? new TreeMap<>(totalsByWave) : new TreeMap<>();
         currentRunHaTotalsByWave = haTotalsByWave != null ? new TreeMap<>(haTotalsByWave) : new TreeMap<>();
+        currentRunWaveGroupStart = waveGroupStart != null ? new HashMap<>(waveGroupStart) : new HashMap<>();
         if (itemData != null) {
             for (ItemData item : itemData.values()) {
                 currentRunHaTotal += item.totalHaValue;
@@ -1653,7 +1657,8 @@ public class MokhaLootPanel extends PluginPanel {
             int venomApplications,
             Map<Integer, Map<String, ItemData>> itemsByWave,
             Map<Integer, Long> totalsByWave,
-            Map<Integer, Long> haTotalsByWave) {
+            Map<Integer, Long> haTotalsByWave,
+            Map<Integer, Integer> waveGroupStart) {
         hasPreviousRunData = hasPreviousRun;
         previousRunGeTotal = totalValue;
         previousRunHaTotal = totalHaValue;
@@ -1669,6 +1674,7 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunItemsByWave = itemsByWave != null ? new TreeMap<>(itemsByWave) : new TreeMap<>();
         previousRunTotalsByWave = totalsByWave != null ? new TreeMap<>(totalsByWave) : new TreeMap<>();
         previousRunHaTotalsByWave = haTotalsByWave != null ? new TreeMap<>(haTotalsByWave) : new TreeMap<>();
+        previousRunWaveGroupStart = waveGroupStart != null ? new HashMap<>(waveGroupStart) : new HashMap<>();
 
         previousRunStatusLabel.setText(hasPreviousRun ? (claimed ? "Claimed" : "Unclaimed") : "");
         previousRunStatusLabel.setForeground(claimed ? new Color(0, 200, 0) : new Color(200, 0, 0));
@@ -2008,6 +2014,7 @@ public class MokhaLootPanel extends PluginPanel {
         currentRunItemsByWave.clear();
         currentRunTotalsByWave.clear();
         currentRunHaTotalsByWave.clear();
+        currentRunWaveGroupStart.clear();
         currentRunWaveCollapsed.clear();
         currentRunShowByWave = false;
         updateCurrentRunViewToggleText();
@@ -2330,7 +2337,11 @@ public class MokhaLootPanel extends PluginPanel {
         headerRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
         headerRow.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        JLabel labelComponent = new JLabel("Wave " + wave + ":");
+        Integer groupStart = currentRunWaveGroupStart.get(wave);
+        String waveLabelText = groupStart != null
+                ? "Waves " + groupStart + "-" + wave + ":"
+                : "Wave " + wave + ":";
+        JLabel labelComponent = new JLabel(waveLabelText);
         labelComponent.setFont(FontManager.getRunescapeFont());
         labelComponent.setForeground(Color.LIGHT_GRAY);
 
@@ -2534,7 +2545,11 @@ public class MokhaLootPanel extends PluginPanel {
         headerRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
         headerRow.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        JLabel labelComponent = new JLabel("Wave " + wave + ":");
+        Integer groupStart = previousRunWaveGroupStart.get(wave);
+        String waveLabelText = groupStart != null
+                ? "Waves " + groupStart + "-" + wave + ":"
+                : "Wave " + wave + ":";
+        JLabel labelComponent = new JLabel(waveLabelText);
         labelComponent.setFont(FontManager.getRunescapeFont());
         labelComponent.setForeground(Color.LIGHT_GRAY);
 
