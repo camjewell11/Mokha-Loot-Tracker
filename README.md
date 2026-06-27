@@ -168,6 +168,7 @@ Accessible via RuneLite Configuration panel → Mokha Loot Tracker:
 - **Mokhaiotl Cloth Value**: Manual override for cloth value. Leave blank to use automatic calculation based on component prices (Confliction Gauntlets - 10000×Demon Tear - Tormented Bracelet).
 - **Loot Alerts**: Configure custom notifications for specific loot items. Format: `Item Name, Minimum Quantity` (one per line). Triggers chat message and sound when threshold is met.
 - **Display Sort Mode**: Choose how displayed loot/supplies are ordered (`By Value` or `Alphabetical`). Default is `By Value`.
+- **Show Unclaimed Section**: Toggles visibility of the Unclaimed Loot by Wave section and the Total Unclaimed and Claim/Unclaim Ratio rows in the Summary. On by default.
 - **Enable Historical Edit Mode**: Enables click-to-remove for historical entries in the side panel with confirmation and immediate recalculation.
 - **Charged Weapon Tracking (Beta)**: Enables the charged weapon checklist overlay and per-charge cost tracking. See [Charged Weapon Tracking](#charged-weapon-tracking-beta) for full details.
 
@@ -240,6 +241,7 @@ This plugin is open source and available under standard RuneLite plugin licensin
 - **Claim Routing Fix**: Runs that end with "Claim and Leave" are now correctly recorded as claimed regardless of how the player exits — teleport, logout, or clicking Leave all work. Previously, teleporting or logging out after claiming would incorrectly log the run as unclaimed.
 - **Wave Counter Fix**: A fast double-click on "Descend" could fire two increment events in the same game tick, causing the wave counter to overshoot by one. A per-tick guard now ensures each wave transition is counted exactly once.
 - **Loot Capture Reliability**: The loot window parser now retries on the following tick if item widgets are not yet populated when the window first opens, preventing missed loot on fast click-throughs. Wave detection also triggers on in-place widget refreshes (not only on visibility changes), catching edge cases where the game reuses the same interface element between waves.
+- **Hide Unclaimed Section**: New config toggle to hide the Unclaimed Loot by Wave section from the panel, as well as the Total Unclaimed and Claim/Unclaim Ratio rows in the Summary. On by default.
 
 ### v8.2
 
