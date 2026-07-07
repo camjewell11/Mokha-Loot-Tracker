@@ -18,10 +18,9 @@ class HistoricalRunService {
         for (Map.Entry<Integer, List<LootItem>> entry : lootByWave.entrySet()) {
             int wave = entry.getKey();
             long waveValue = 0L;
-            int waveIndex = wave > 9 ? 9 : wave;
 
             Map<String, ItemAggregate> waveItems = historicalClaimedItemsByWave
-                    .computeIfAbsent(waveIndex, k -> new HashMap<>());
+                    .computeIfAbsent(wave, k -> new HashMap<>());
 
             for (LootItem item : entry.getValue()) {
                 waveValue += item.value;
@@ -38,8 +37,8 @@ class HistoricalRunService {
             }
 
             claimedValue += waveValue;
-            historicalClaimedByWave.put(waveIndex,
-                    historicalClaimedByWave.getOrDefault(waveIndex, 0L) + waveValue);
+            historicalClaimedByWave.put(wave,
+                    historicalClaimedByWave.getOrDefault(wave, 0L) + waveValue);
         }
 
         return claimedValue;
@@ -49,7 +48,7 @@ class HistoricalRunService {
             Map<Integer, List<LootItem>> lootByWave,
             Map<Integer, Long> historicalUnclaimedByWave,
             Map<Integer, Map<String, ItemAggregate>> historicalUnclaimedItemsByWave) {
-        for (int wave = 1; wave <= 20; wave++) {
+        for (int wave = 1; wave <= 100; wave++) {
             List<LootItem> items = lootByWave.get(wave);
             if (items == null || items.isEmpty()) {
                 continue;

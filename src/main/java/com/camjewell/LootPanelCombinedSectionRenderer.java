@@ -31,7 +31,8 @@ final class LootPanelCombinedSectionRenderer {
             boolean usePricePerItemForUniqueColor,
             Color totalTextColor,
             boolean enableHistoricalEdit,
-            HistoricalInteractionBinder historicalInteractionBinder) {
+            HistoricalInteractionBinder historicalInteractionBinder,
+            Map<String, String> uniqueWaveTooltips) {
         targetPanel.removeAll();
 
         HistoricalAggregateCombiner.CombinedAggregateResult combinedResult = HistoricalAggregateCombiner
@@ -57,7 +58,11 @@ final class LootPanelCombinedSectionRenderer {
                     aggregate.pricePerItem,
                     aggregate.haPricePerItem,
                     displayHaValueOnHover);
-            itemRow.setToolTipText("Price per item: " + pricePerItemText);
+            String waveTooltip = uniqueWaveTooltips != null ? uniqueWaveTooltips.get(aggregate.name) : null;
+            String tooltip = waveTooltip != null
+                    ? waveTooltip + " | Price per item: " + pricePerItemText
+                    : "Price per item: " + pricePerItemText;
+            itemRow.setToolTipText(tooltip);
             itemRow.add(itemLabel, BorderLayout.WEST);
 
             JLabel itemValueLabel = new JLabel(LootPanelDisplayUtils.formatGp(aggregate.totalValue));

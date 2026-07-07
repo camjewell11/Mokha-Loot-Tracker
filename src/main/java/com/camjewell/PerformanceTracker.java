@@ -112,8 +112,11 @@ final class PerformanceTracker {
                         lastPrayerPoints = current;
                         return;
                     }
-                    prayerRegained += current - lastPrayerPoints;
-                    dirty = true;
+                    // Ignore passive +1 prayer ticks (e.g. potion that regenerates prayer over time).
+                    if (current - lastPrayerPoints != 1) {
+                        prayerRegained += current - lastPrayerPoints;
+                        dirty = true;
+                    }
                 }
             }
             lastPrayerPoints = current;

@@ -8,7 +8,9 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -112,6 +114,9 @@ public class MokhaLootPanel extends PluginPanel {
     // 0 = expanded, 1 = collapsed, 2 = combined
     private int previousRunSectionState = 1; // Start collapsed
     private boolean hasPreviousRunData;
+    private JPanel previousRunWaveSubLabelRow;
+    private JLabel previousRunWaveSubLabel;
+    private JLabel previousRunUniqueChanceLabel;
 
     // Claimed Loot by Wave - now stores panels for dynamic item lists
     private JPanel claimedWavesContainer; // Container for all waves
@@ -173,6 +178,7 @@ public class MokhaLootPanel extends PluginPanel {
     private final JLabel[] drynessWaveCompletionLabels = new JLabel[9];
     private JLabel dryDeepRollsLabel;
     private JPanel dryDeepRollsRow;
+    private JPanel drynessAvgDepthRow;
     private JLabel drynessAvgDepthLabel;
     private JButton drynessCollapseButton;
     // 0 = collapsed, 1 = expanded (dryness stats + deep rolls), 2 = expanded with
@@ -678,6 +684,15 @@ public class MokhaLootPanel extends PluginPanel {
         titleRow.add(rightPanel, BorderLayout.EAST);
         panel.add(titleRow);
 
+        previousRunWaveSubLabelRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 22, 0));
+        previousRunWaveSubLabelRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        previousRunWaveSubLabel = new JLabel("");
+        previousRunWaveSubLabel.setFont(FontManager.getRunescapeSmallFont());
+        previousRunWaveSubLabel.setForeground(Color.GRAY);
+        previousRunWaveSubLabelRow.add(previousRunWaveSubLabel);
+        previousRunWaveSubLabelRow.setVisible(false);
+        panel.add(previousRunWaveSubLabelRow);
+
         previousRunContainer = new JPanel();
         previousRunContainer.setLayout(new BoxLayout(previousRunContainer, BoxLayout.Y_AXIS));
         previousRunContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -686,6 +701,11 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunValueLabel.setFont(FontManager.getRunescapeFont());
         previousRunValueLabel.setForeground(Color.WHITE);
         previousRunContainer.add(createStatRow("Loot:", previousRunValueLabel));
+
+        previousRunUniqueChanceLabel = new JLabel("N/A");
+        previousRunUniqueChanceLabel.setFont(FontManager.getRunescapeFont());
+        previousRunUniqueChanceLabel.setForeground(Color.LIGHT_GRAY);
+        previousRunContainer.add(createStatRow("Unique Chance:", previousRunUniqueChanceLabel));
 
         previousRunWavesContainer = new JPanel();
         previousRunWavesContainer.setLayout(new BoxLayout(previousRunWavesContainer, BoxLayout.Y_AXIS));
@@ -976,7 +996,8 @@ public class MokhaLootPanel extends PluginPanel {
                         itemRow,
                         itemName,
                         "claimed historical loot (all waves)",
-                        () -> onRemoveClaimedHistoricalItemAllWaves.accept(itemName)));
+                        () -> onRemoveClaimedHistoricalItemAllWaves.accept(itemName)),
+                buildHistoricalUniqueWaveTooltips(historicalClaimedItemsByWave));
     }
 
     /**
@@ -996,7 +1017,8 @@ public class MokhaLootPanel extends PluginPanel {
                         itemRow,
                         itemName,
                         "unclaimed historical loot (all waves)",
-                        () -> onRemoveUnclaimedHistoricalItemAllWaves.accept(itemName)));
+                        () -> onRemoveUnclaimedHistoricalItemAllWaves.accept(itemName)),
+                buildHistoricalUniqueWaveTooltips(historicalUnclaimedItemsByWave));
     }
 
     private void setUnclaimedCollapseButtonText(String text) {
@@ -1271,19 +1293,18 @@ public class MokhaLootPanel extends PluginPanel {
         dryDeepRollsRow = createStatRow("Deep Rolls (8+):", dryDeepRollsLabel);
         drynessContainer.add(dryDeepRollsRow);
 
-        drynessWaveCompletionsPanel = new JPanel();
-        drynessWaveCompletionsPanel.setLayout(new BoxLayout(drynessWaveCompletionsPanel, BoxLayout.Y_AXIS));
-        drynessWaveCompletionsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        drynessWaveCompletionsPanel.setVisible(false);
-
         drynessAvgDepthLabel = new JLabel("N/A");
         drynessAvgDepthLabel.setFont(FontManager.getRunescapeFont());
         drynessAvgDepthLabel.setForeground(Color.WHITE);
         drynessAvgDepthLabel.setToolTipText("Wave 9+ counted as 9 (lower bound)");
-        JPanel avgDepthRow = createStatRow("Avg Wave Depth:", drynessAvgDepthLabel);
-        avgDepthRow.setToolTipText("Wave 9+ counted as 9 (lower bound)");
-        drynessWaveCompletionsPanel.add(avgDepthRow);
-        drynessWaveCompletionsPanel.add(createInternalSeparator());
+        drynessAvgDepthRow = createStatRow("Avg Wave:", drynessAvgDepthLabel);
+        drynessAvgDepthRow.setToolTipText("Wave 9+ counted as 9 (lower bound)");
+        drynessContainer.add(drynessAvgDepthRow);
+
+        drynessWaveCompletionsPanel = new JPanel();
+        drynessWaveCompletionsPanel.setLayout(new BoxLayout(drynessWaveCompletionsPanel, BoxLayout.Y_AXIS));
+        drynessWaveCompletionsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        drynessWaveCompletionsPanel.setVisible(false);
 
         for (int i = 0; i < 8; i++) {
             drynessWaveCompletionLabels[i] = new JLabel("0");
@@ -1338,7 +1359,7 @@ public class MokhaLootPanel extends PluginPanel {
         drynessContainer.add(createStatRow("Cloth Expected/Received:", dryExpectedClothLabel));
 
         drySyncWarningLabel = new JLabel(
-                "Sync highscores and collection log to initialize dryness.");
+                "<html>Sync highscores and collection log<br>to initialize dryness.</html>");
         drySyncWarningLabel.setFont(FontManager.getRunescapeSmallFont());
         drySyncWarningLabel.setForeground(new Color(220, 70, 70));
         drySyncWarningLabel.setVisible(false);
@@ -1372,12 +1393,14 @@ public class MokhaLootPanel extends PluginPanel {
             case 1: // expanded — dryness stats with deep rolls
                 drynessContainer.setVisible(true);
                 dryDeepRollsRow.setVisible(true);
+                drynessAvgDepthRow.setVisible(true);
                 drynessWaveCompletionsPanel.setVisible(false);
                 drynessCollapseButton.setText(getArrowOrFallback("▾", "↓"));
                 break;
             default: // expanded — dryness stats with wave breakdown
                 drynessContainer.setVisible(true);
                 dryDeepRollsRow.setVisible(false);
+                drynessAvgDepthRow.setVisible(true);
                 drynessWaveCompletionsPanel.setVisible(true);
                 drynessCollapseButton.setText(getArrowOrFallback("◂", "←"));
                 break;
@@ -2028,6 +2051,9 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunSectionTotalLabel.setToolTipText(null);
         previousRunValueLabel.setText("0 gp");
         previousRunValueLabel.setToolTipText(null);
+        previousRunUniqueChanceLabel.setText("N/A");
+        previousRunUniqueChanceLabel.setForeground(Color.LIGHT_GRAY);
+        previousRunUniqueChanceLabel.setToolTipText(null);
         previousRunSuppliesValueLabel.setText("0 gp");
         previousRunGeTotal = 0;
         previousRunHaTotal = 0;
@@ -2137,6 +2163,17 @@ public class MokhaLootPanel extends PluginPanel {
             }
         }
         valueLabel.setToolTipText(formatGeHaTotalText(totalValue, totalHaValue));
+
+        List<String> uniqueNames = new ArrayList<>();
+        for (ItemData item : itemData.values()) {
+            if (LootPanelDisplayUtils.isUniqueLootItem(item)) {
+                uniqueNames.add(item.name + (item.quantity > 1 ? " x" + item.quantity : ""));
+            }
+        }
+        if (!uniqueNames.isEmpty()) {
+            String existing = valueLabel.getToolTipText();
+            valueLabel.setToolTipText(existing + " | " + String.join(", ", uniqueNames));
+        }
 
         for (ItemData item : sortItemDataForDisplay(itemData.values())) {
             String pricePerItemText = formatPricePerItemTooltip(item.pricePerItem, item.haPricePerItem,
@@ -2259,7 +2296,7 @@ public class MokhaLootPanel extends PluginPanel {
             itemRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
             itemRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
             itemRow.setBorder(new EmptyBorder(2, 5, 2, 0));
-            itemRow.setToolTipText("Price per item: " + pricePerItemText);
+            itemRow.setToolTipText(item.tooltipText != null ? item.tooltipText : "Price per item: " + pricePerItemText);
 
             JLabel itemLabel = new JLabel("- " + item.name + " x" + item.quantity);
             Color itemColor = highlightUniques && isUniqueLootItem(item)
@@ -2282,22 +2319,97 @@ public class MokhaLootPanel extends PluginPanel {
         targetPanel.repaint();
     }
 
+    private Map<String, String> buildHistoricalUniqueWaveTooltips(
+            Map<Integer, Map<String, ItemAggregate>> byWave) {
+        Map<String, String> result = new HashMap<>();
+        for (String uniqueName : LootPanelDisplayUtils.UNIQUE_ITEM_NAMES) {
+            List<String> parts = new ArrayList<>();
+            for (Map.Entry<Integer, Map<String, ItemAggregate>> entry : new java.util.TreeMap<>(byWave).entrySet()) {
+                ItemAggregate found = entry.getValue().get(uniqueName);
+                if (found == null) {
+                    for (ItemAggregate agg : entry.getValue().values()) {
+                        if (uniqueName.equalsIgnoreCase(agg.name)) {
+                            found = agg;
+                            break;
+                        }
+                    }
+                }
+                if (found != null && found.totalQuantity > 0) {
+                    int wave = entry.getKey();
+                    String label = "Wave " + wave;
+                    parts.add(found.totalQuantity > 1
+                            ? label + " (x" + found.totalQuantity + ")"
+                            : label);
+                }
+            }
+            if (!parts.isEmpty()) {
+                result.put(uniqueName, "Obtained: " + String.join(", ", parts));
+            }
+        }
+        return result;
+    }
+
+    private String buildUniqueWaveTooltip(String itemName, Map<Integer, Map<String, ItemData>> byWave) {
+        List<String> parts = new ArrayList<>();
+        for (Map.Entry<Integer, Map<String, ItemData>> entry : byWave.entrySet()) {
+            ItemData found = entry.getValue().get(itemName);
+            if (found != null && found.quantity > 0) {
+                int wave = entry.getKey();
+                parts.add(found.quantity > 1
+                        ? "Wave " + wave + " (x" + found.quantity + ")"
+                        : "Wave " + wave);
+            }
+        }
+        return parts.isEmpty() ? null : "Obtained: " + String.join(", ", parts);
+    }
+
+    private Map<String, ItemData> withUniqueWaveTooltips(
+            Map<String, ItemData> items,
+            Map<Integer, Map<String, ItemData>> byWave) {
+        Map<String, ItemData> result = new LinkedHashMap<>(items);
+        for (Map.Entry<String, ItemData> entry : new ArrayList<>(result.entrySet())) {
+            ItemData item = entry.getValue();
+            if (LootPanelDisplayUtils.isUniqueLootItem(item)) {
+                String waveTooltip = buildUniqueWaveTooltip(item.name, byWave);
+                if (waveTooltip != null) {
+                    ItemData copy = new ItemData(item.name, item.quantity, item.pricePerItem,
+                            item.totalValue, item.haPricePerItem, item.totalHaValue);
+                    copy.tooltipText = waveTooltip;
+                    result.put(entry.getKey(), copy);
+                }
+            }
+        }
+        return result;
+    }
+
     private void renderCurrentRunWaveBreakdown() {
         currentRunItemsPanel.removeAll();
 
         if (currentRunShowByWave && !currentRunItemsByWave.isEmpty()) {
-            for (Map.Entry<Integer, Map<String, ItemData>> waveEntry : currentRunItemsByWave.entrySet()) {
-                int wave = waveEntry.getKey();
-                JPanel wavePanel = createCurrentRunWavePanel(
-                        wave,
-                        waveEntry.getValue(),
-                        currentRunTotalsByWave.getOrDefault(wave, 0L),
-                        currentRunHaTotalsByWave.getOrDefault(wave, 0L));
+            java.util.NavigableSet<Integer> sortedKeys = ((java.util.TreeMap<Integer, ?>) currentRunItemsByWave)
+                    .navigableKeySet();
+            List<int[]> displayGroups = computeDisplayGroups(sortedKeys);
+            for (int[] group : displayGroups) {
+                int displayStart = group[0];
+                int displayEnd = group[1];
+                Map<String, ItemData> groupItems = mergeWaveItemData(currentRunItemsByWave, displayStart, displayEnd);
+                long groupTotal = mergeWaveLongTotals(currentRunTotalsByWave, displayStart, displayEnd);
+                long groupHaTotal = mergeWaveLongTotals(currentRunHaTotalsByWave, displayStart, displayEnd);
+                String label;
+                if (displayStart == displayEnd) {
+                    Integer groupStart = currentRunWaveGroupStart.get(displayEnd);
+                    label = groupStart != null ? "Waves " + groupStart + "-" + displayEnd + ":"
+                            : "Wave " + displayEnd + ":";
+                } else {
+                    label = "Waves " + displayStart + "-" + displayEnd + ":";
+                }
+                JPanel wavePanel = createCurrentRunWavePanel(displayEnd, label, groupItems, groupTotal, groupHaTotal);
                 currentRunItemsPanel.add(wavePanel);
             }
         } else {
             // Fallback for callers that only provide aggregated current-run items.
-            updateRunItemsPanel(currentRunItemsPanel, currentRunItemData, true);
+            Map<String, ItemData> itemsWithTooltips = withUniqueWaveTooltips(currentRunItemData, currentRunItemsByWave);
+            updateRunItemsPanel(currentRunItemsPanel, itemsWithTooltips, true);
         }
 
         currentRunItemsPanel.revalidate();
@@ -2314,13 +2426,69 @@ public class MokhaLootPanel extends PluginPanel {
         }
     }
 
-    private JPanel createCurrentRunWavePanel(int wave, Map<String, ItemData> itemData, long totalValue,
-            long totalHaValue) {
+    private List<int[]> computeDisplayGroups(java.util.NavigableSet<Integer> sortedKeys) {
+        if (sortedKeys.isEmpty())
+            return java.util.Collections.emptyList();
+        int maxWave = sortedKeys.last();
+        int groupSize = maxWave < 10 ? 1 : (maxWave < 50 ? 5 : 10);
+        List<int[]> groups = new ArrayList<>();
+        if (groupSize == 1) {
+            for (int k : sortedKeys)
+                groups.add(new int[] { k, k });
+            return groups;
+        }
+        int lastFullEnd = (maxWave / groupSize) * groupSize;
+        for (int end = groupSize; end <= lastFullEnd; end += groupSize) {
+            int start = end - groupSize + 1;
+            if (!sortedKeys.subSet(start, true, end, true).isEmpty()) {
+                groups.add(new int[] { start, end });
+            }
+        }
+        for (int key : sortedKeys.tailSet(lastFullEnd + 1)) {
+            groups.add(new int[] { key, key });
+        }
+        return groups;
+    }
+
+    private Map<String, ItemData> mergeWaveItemData(Map<Integer, Map<String, ItemData>> byWave, int start, int end) {
+        Map<String, ItemData> merged = new LinkedHashMap<>();
+        for (Map.Entry<Integer, Map<String, ItemData>> entry : byWave.entrySet()) {
+            int key = entry.getKey();
+            if (key < start || key > end)
+                continue;
+            for (Map.Entry<String, ItemData> ie : entry.getValue().entrySet()) {
+                String name = ie.getKey();
+                ItemData item = ie.getValue();
+                ItemData existing = merged.get(name);
+                if (existing == null) {
+                    merged.put(name, new ItemData(name, item.quantity, item.pricePerItem,
+                            item.totalValue, item.haPricePerItem, item.totalHaValue));
+                } else {
+                    merged.put(name, new ItemData(name, existing.quantity + item.quantity,
+                            item.pricePerItem, existing.totalValue + item.totalValue,
+                            item.haPricePerItem, existing.totalHaValue + item.totalHaValue));
+                }
+            }
+        }
+        return merged;
+    }
+
+    private long mergeWaveLongTotals(Map<Integer, Long> byWave, int start, int end) {
+        long sum = 0;
+        for (Map.Entry<Integer, Long> e : byWave.entrySet()) {
+            if (e.getKey() >= start && e.getKey() <= end)
+                sum += e.getValue();
+        }
+        return sum;
+    }
+
+    private JPanel createCurrentRunWavePanel(int waveKey, String waveLabelText, Map<String, ItemData> itemData,
+            long totalValue, long totalHaValue) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-        boolean collapsed = currentRunWaveCollapsed.getOrDefault(wave, false);
+        boolean collapsed = currentRunWaveCollapsed.getOrDefault(waveKey, false);
 
         JLabel valueLabel = new JLabel(formatGp(totalValue));
         valueLabel.setFont(FontManager.getRunescapeFont());
@@ -2341,10 +2509,6 @@ public class MokhaLootPanel extends PluginPanel {
         headerRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
         headerRow.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        Integer groupStart = currentRunWaveGroupStart.get(wave);
-        String waveLabelText = groupStart != null
-                ? "Waves " + groupStart + "-" + wave + ":"
-                : "Wave " + wave + ":";
         JLabel labelComponent = new JLabel(waveLabelText);
         labelComponent.setFont(FontManager.getRunescapeFont());
         labelComponent.setForeground(Color.LIGHT_GRAY);
@@ -2363,8 +2527,8 @@ public class MokhaLootPanel extends PluginPanel {
         itemsPanel.setVisible(!collapsed);
 
         collapseButton.addActionListener(e -> {
-            boolean nextCollapsed = !currentRunWaveCollapsed.getOrDefault(wave, false);
-            currentRunWaveCollapsed.put(wave, nextCollapsed);
+            boolean nextCollapsed = !currentRunWaveCollapsed.getOrDefault(waveKey, false);
+            currentRunWaveCollapsed.put(waveKey, nextCollapsed);
             itemsPanel.setVisible(!nextCollapsed);
             collapseButton.setText(getArrowOrFallback(nextCollapsed ? "▸" : "▾", nextCollapsed ? "→" : "↓"));
             panel.revalidate();
@@ -2387,16 +2551,71 @@ public class MokhaLootPanel extends PluginPanel {
 
         previousRunWavesContainer.removeAll();
 
-        if (hasPreviousRunData) {
-            for (Map.Entry<Integer, Map<String, ItemData>> waveEntry : previousRunItemsByWave.entrySet()) {
-                int wave = waveEntry.getKey();
-                JPanel wavePanel = createPreviousRunWavePanel(
-                        wave,
-                        waveEntry.getValue(),
-                        previousRunTotalsByWave.getOrDefault(wave, 0L),
-                        previousRunHaTotalsByWave.getOrDefault(wave, 0L));
+        if (hasPreviousRunData && !previousRunItemsByWave.isEmpty()) {
+            java.util.NavigableSet<Integer> sortedKeys = ((java.util.TreeMap<Integer, ?>) previousRunItemsByWave)
+                    .navigableKeySet();
+            List<int[]> displayGroups = computeDisplayGroups(sortedKeys);
+            for (int[] group : displayGroups) {
+                int displayStart = group[0];
+                int displayEnd = group[1];
+                Map<String, ItemData> groupItems = mergeWaveItemData(previousRunItemsByWave, displayStart, displayEnd);
+                long groupTotal = mergeWaveLongTotals(previousRunTotalsByWave, displayStart, displayEnd);
+                long groupHaTotal = mergeWaveLongTotals(previousRunHaTotalsByWave, displayStart, displayEnd);
+                String label;
+                if (displayStart == displayEnd) {
+                    Integer groupStart = previousRunWaveGroupStart.get(displayEnd);
+                    label = groupStart != null ? "Waves " + groupStart + "-" + displayEnd + ":"
+                            : "Wave " + displayEnd + ":";
+                } else {
+                    label = "Waves " + displayStart + "-" + displayEnd + ":";
+                }
+                JPanel wavePanel = createPreviousRunWavePanel(displayEnd, label, groupItems, groupTotal, groupHaTotal);
                 previousRunWavesContainer.add(wavePanel);
             }
+        }
+
+        if (hasPreviousRunData && !previousRunItemsByWave.isEmpty()) {
+            int maxWave = ((java.util.TreeMap<Integer, ?>) previousRunItemsByWave).lastKey();
+            previousRunWaveSubLabel.setText("Wave " + maxWave);
+            if (maxWave >= 2) {
+                double overall = DrynessMath.calculateCumulativeUniqueChancePercent(maxWave);
+                double cloth = DrynessMath.calculateCumulativeUniqueChancePercent(
+                        2, maxWave, DrynessMath::getClothUniqueChanceForDelve);
+                double eye = DrynessMath.calculateCumulativeUniqueChancePercent(
+                        3, maxWave, DrynessMath::getStandardUniqueChanceForDelve);
+                double treads = DrynessMath.calculateCumulativeUniqueChancePercent(
+                        4, maxWave, DrynessMath::getStandardUniqueChanceForDelve);
+                double dom = DrynessMath.calculateCumulativeUniqueChancePercent(
+                        6, maxWave, DrynessMath::getDomUniqueChanceForDelve);
+                double clothDisplay = toFlooredOneInNDecimal(cloth);
+                double eyeDisplay = toFlooredOneInNDecimal(eye);
+                double treadsDisplay = toFlooredOneInNDecimal(treads);
+                double domDisplay = toFlooredOneInNDecimal(dom);
+                previousRunUniqueChanceLabel.setText(String.format("%.2f%%", overall));
+                previousRunUniqueChanceLabel.setForeground(UNIQUE_GOLD_COLOR);
+                previousRunUniqueChanceLabel.setToolTipText(String.format(
+                        "<html>Per-unique cumulative by delve %d:<br>"
+                                + "Mokhaiotl cloth: %.2f<br>"
+                                + "Eye of ayak: %s<br>"
+                                + "Avernic treads: %s<br>"
+                                + "Dom: %s<br>"
+                                + "Total (excluding Dom): %.2f</html>",
+                        maxWave,
+                        clothDisplay,
+                        maxWave >= 3 ? String.format("%.2f", eyeDisplay) : "N/A (unlocks at 3)",
+                        maxWave >= 4 ? String.format("%.2f", treadsDisplay) : "N/A (unlocks at 4)",
+                        maxWave >= 6 ? String.format("%.2f", domDisplay) : "N/A (unlocks at 6)",
+                        clothDisplay + eyeDisplay + treadsDisplay));
+            } else {
+                previousRunUniqueChanceLabel.setText("N/A");
+                previousRunUniqueChanceLabel.setForeground(Color.LIGHT_GRAY);
+                previousRunUniqueChanceLabel.setToolTipText(null);
+            }
+        } else {
+            previousRunWaveSubLabel.setText("");
+            previousRunUniqueChanceLabel.setText("N/A");
+            previousRunUniqueChanceLabel.setForeground(Color.LIGHT_GRAY);
+            previousRunUniqueChanceLabel.setToolTipText(null);
         }
 
         updatePreviousRunSectionView();
@@ -2412,18 +2631,21 @@ public class MokhaLootPanel extends PluginPanel {
     private void updatePreviousRunSectionView() {
         switch (previousRunSectionState) {
             case 0: // expanded
+                previousRunWaveSubLabelRow.setVisible(false);
                 previousRunContainer.setVisible(true);
                 previousRunCombinedPanel.setVisible(false);
                 previousRunSectionTotalLabel.setVisible(false);
                 setPreviousRunCollapseButtonText("▾");
                 break;
             case 1: // collapsed
+                previousRunWaveSubLabelRow.setVisible(hasPreviousRunData && !previousRunItemsByWave.isEmpty());
                 previousRunContainer.setVisible(false);
                 previousRunCombinedPanel.setVisible(false);
                 previousRunSectionTotalLabel.setVisible(true);
                 setPreviousRunCollapseButtonText("▸");
                 break;
             default: // combined
+                previousRunWaveSubLabelRow.setVisible(false);
                 previousRunContainer.setVisible(false);
                 previousRunCombinedPanel.setVisible(true);
                 previousRunSectionTotalLabel.setVisible(false);
@@ -2439,7 +2661,17 @@ public class MokhaLootPanel extends PluginPanel {
 
     private void populatePreviousRunCombinedPanel() {
         previousRunCombinedPanel.removeAll();
-        updateRunItemsPanel(previousRunCombinedPanel, previousRunItemData, true);
+
+        if (hasPreviousRunData && !previousRunItemsByWave.isEmpty()) {
+            int maxWave = ((java.util.TreeMap<Integer, ?>) previousRunItemsByWave).lastKey();
+            JLabel waveLabel = new JLabel("Wave " + maxWave);
+            waveLabel.setFont(FontManager.getRunescapeFont());
+            waveLabel.setForeground(Color.LIGHT_GRAY);
+            previousRunCombinedPanel.add(createStatRow("Depth:", waveLabel));
+        }
+
+        Map<String, ItemData> itemsWithTooltips = withUniqueWaveTooltips(previousRunItemData, previousRunItemsByWave);
+        updateRunItemsPanel(previousRunCombinedPanel, itemsWithTooltips, true);
 
         if (!previousRunItemData.isEmpty() && displayHaValueOnHover) {
             JPanel totalRow = new JPanel(new BorderLayout());
@@ -2522,13 +2754,13 @@ public class MokhaLootPanel extends PluginPanel {
         return label;
     }
 
-    private JPanel createPreviousRunWavePanel(int wave, Map<String, ItemData> itemData, long totalValue,
-            long totalHaValue) {
+    private JPanel createPreviousRunWavePanel(int waveKey, String waveLabelText, Map<String, ItemData> itemData,
+            long totalValue, long totalHaValue) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-        boolean collapsed = previousRunWaveCollapsed.getOrDefault(wave, false);
+        boolean collapsed = previousRunWaveCollapsed.getOrDefault(waveKey, false);
 
         JLabel valueLabel = new JLabel(formatGp(totalValue));
         valueLabel.setFont(FontManager.getRunescapeFont());
@@ -2549,10 +2781,6 @@ public class MokhaLootPanel extends PluginPanel {
         headerRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
         headerRow.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        Integer groupStart = previousRunWaveGroupStart.get(wave);
-        String waveLabelText = groupStart != null
-                ? "Waves " + groupStart + "-" + wave + ":"
-                : "Wave " + wave + ":";
         JLabel labelComponent = new JLabel(waveLabelText);
         labelComponent.setFont(FontManager.getRunescapeFont());
         labelComponent.setForeground(Color.LIGHT_GRAY);
@@ -2571,8 +2799,8 @@ public class MokhaLootPanel extends PluginPanel {
         itemsPanel.setVisible(!collapsed);
 
         collapseButton.addActionListener(e -> {
-            boolean nextCollapsed = !previousRunWaveCollapsed.getOrDefault(wave, false);
-            previousRunWaveCollapsed.put(wave, nextCollapsed);
+            boolean nextCollapsed = !previousRunWaveCollapsed.getOrDefault(waveKey, false);
+            previousRunWaveCollapsed.put(waveKey, nextCollapsed);
             itemsPanel.setVisible(!nextCollapsed);
             collapseButton.setText(getArrowOrFallback(nextCollapsed ? "▸" : "▾", nextCollapsed ? "→" : "↓"));
             panel.revalidate();
