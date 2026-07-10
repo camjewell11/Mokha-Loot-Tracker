@@ -114,8 +114,8 @@ public class MokhaLootPanel extends PluginPanel {
     // 0 = expanded, 1 = collapsed, 2 = combined
     private int previousRunSectionState = 1; // Start collapsed
     private boolean hasPreviousRunData;
-    private JPanel previousRunWaveSubLabelRow;
-    private JLabel previousRunWaveSubLabel;
+    private JPanel previousRunTitleRow;
+    private JLabel previousRunDepthLabel;
     private JLabel previousRunUniqueChanceLabel;
 
     // Claimed Loot by Wave - now stores panels for dynamic item lists
@@ -650,15 +650,15 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunCollapseButton.setPreferredSize(new Dimension(18, 18));
         previousRunCollapseButton.setMaximumSize(new Dimension(18, 18));
 
-        JPanel titleRow = new JPanel(new BorderLayout());
-        titleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        titleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-        titleRow.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        previousRunTitleRow = new JPanel(new BorderLayout());
+        previousRunTitleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        previousRunTitleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+        previousRunTitleRow.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         JLabel title = new JLabel("Previous Run");
         title.setFont(FontManager.getRunescapeBoldFont());
         title.setForeground(new Color(120, 180, 255));
-        titleRow.add(title, BorderLayout.WEST);
+        previousRunTitleRow.add(title, BorderLayout.WEST);
 
         previousRunSectionTotalLabel = new JLabel("0 gp");
         previousRunSectionTotalLabel.setFont(FontManager.getRunescapeFont());
@@ -681,21 +681,17 @@ public class MokhaLootPanel extends PluginPanel {
 
         rightPanel.add(statusAndTotalPanel, BorderLayout.CENTER);
         rightPanel.add(previousRunCollapseButton, BorderLayout.EAST);
-        titleRow.add(rightPanel, BorderLayout.EAST);
-        panel.add(titleRow);
-
-        previousRunWaveSubLabelRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 22, 0));
-        previousRunWaveSubLabelRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        previousRunWaveSubLabel = new JLabel("");
-        previousRunWaveSubLabel.setFont(FontManager.getRunescapeSmallFont());
-        previousRunWaveSubLabel.setForeground(Color.GRAY);
-        previousRunWaveSubLabelRow.add(previousRunWaveSubLabel);
-        previousRunWaveSubLabelRow.setVisible(false);
-        panel.add(previousRunWaveSubLabelRow);
+        previousRunTitleRow.add(rightPanel, BorderLayout.EAST);
+        panel.add(previousRunTitleRow);
 
         previousRunContainer = new JPanel();
         previousRunContainer.setLayout(new BoxLayout(previousRunContainer, BoxLayout.Y_AXIS));
         previousRunContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        previousRunDepthLabel = new JLabel("N/A");
+        previousRunDepthLabel.setFont(FontManager.getRunescapeFont());
+        previousRunDepthLabel.setForeground(Color.LIGHT_GRAY);
+        previousRunContainer.add(createStatRow("Depth:", previousRunDepthLabel));
 
         previousRunValueLabel = new JLabel("0 gp");
         previousRunValueLabel.setFont(FontManager.getRunescapeFont());
@@ -2051,6 +2047,9 @@ public class MokhaLootPanel extends PluginPanel {
         previousRunSectionTotalLabel.setToolTipText(null);
         previousRunValueLabel.setText("0 gp");
         previousRunValueLabel.setToolTipText(null);
+        previousRunDepthLabel.setText("N/A");
+        previousRunDepthLabel.setForeground(Color.LIGHT_GRAY);
+        previousRunTitleRow.setToolTipText(null);
         previousRunUniqueChanceLabel.setText("N/A");
         previousRunUniqueChanceLabel.setForeground(Color.LIGHT_GRAY);
         previousRunUniqueChanceLabel.setToolTipText(null);
@@ -2576,7 +2575,9 @@ public class MokhaLootPanel extends PluginPanel {
 
         if (hasPreviousRunData && !previousRunItemsByWave.isEmpty()) {
             int maxWave = ((java.util.TreeMap<Integer, ?>) previousRunItemsByWave).lastKey();
-            previousRunWaveSubLabel.setText("Wave " + maxWave);
+            previousRunDepthLabel.setText("Wave " + maxWave);
+            previousRunDepthLabel.setForeground(Color.LIGHT_GRAY);
+            previousRunTitleRow.setToolTipText("Wave " + maxWave);
             if (maxWave >= 2) {
                 double overall = DrynessMath.calculateCumulativeUniqueChancePercent(maxWave);
                 double cloth = DrynessMath.calculateCumulativeUniqueChancePercent(
@@ -2612,7 +2613,9 @@ public class MokhaLootPanel extends PluginPanel {
                 previousRunUniqueChanceLabel.setToolTipText(null);
             }
         } else {
-            previousRunWaveSubLabel.setText("");
+            previousRunDepthLabel.setText("N/A");
+            previousRunDepthLabel.setForeground(Color.LIGHT_GRAY);
+            previousRunTitleRow.setToolTipText(null);
             previousRunUniqueChanceLabel.setText("N/A");
             previousRunUniqueChanceLabel.setForeground(Color.LIGHT_GRAY);
             previousRunUniqueChanceLabel.setToolTipText(null);
@@ -2631,21 +2634,18 @@ public class MokhaLootPanel extends PluginPanel {
     private void updatePreviousRunSectionView() {
         switch (previousRunSectionState) {
             case 0: // expanded
-                previousRunWaveSubLabelRow.setVisible(false);
                 previousRunContainer.setVisible(true);
                 previousRunCombinedPanel.setVisible(false);
                 previousRunSectionTotalLabel.setVisible(false);
                 setPreviousRunCollapseButtonText("▾");
                 break;
             case 1: // collapsed
-                previousRunWaveSubLabelRow.setVisible(hasPreviousRunData && !previousRunItemsByWave.isEmpty());
                 previousRunContainer.setVisible(false);
                 previousRunCombinedPanel.setVisible(false);
                 previousRunSectionTotalLabel.setVisible(true);
                 setPreviousRunCollapseButtonText("▸");
                 break;
             default: // combined
-                previousRunWaveSubLabelRow.setVisible(false);
                 previousRunContainer.setVisible(false);
                 previousRunCombinedPanel.setVisible(true);
                 previousRunSectionTotalLabel.setVisible(false);

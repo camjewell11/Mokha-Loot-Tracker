@@ -12,10 +12,10 @@ A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during D
 
 - **Death Tracking**: Automatically records each death in the Mokha arena, including wave and lost loot.
 - **Lost Loot Monitoring**: Tracks the value and item breakdown of unclaimed loot lost on death, per wave.
-- **Claimed Loot Tracking**: Tracks loot successfully claimed, with per-wave and combined breakdowns.
-- **Per-Wave & Combined Views**: Expandable/collapsible sections for claimed and unclaimed loot by wave, plus a combined all-waves view with bullet-style formatting and tooltips.
-- **Current Run View Toggle**: Current Run supports both summary and by-wave item views, with an arrow-style toggle in the section header (defaults to summary).
-- **Previous Run Wave Breakdown**: Previous Run now supports detailed by-wave breakdown with collapsible wave rows and combined section behavior.
+- **Claimed Loot Tracking**: Tracks loot successfully claimed with exact per-wave storage (including waves beyond 9), with per-wave and combined breakdowns.
+- **Per-Wave & Combined Views**: Expandable/collapsible sections for claimed and unclaimed loot by wave, plus a combined all-waves view. Unique items in combined views show which wave they were obtained on via hover tooltip.
+- **Current Run View Toggle**: Current Run supports both summary and by-wave item views, with an arrow-style toggle in the section header (defaults to summary). Runs beyond wave 9 are grouped into buckets of 5 (waves 10–49) or 10 (waves 50+) for readability.
+- **Previous Run Wave Breakdown**: Previous Run shows depth reached, cumulative unique chance %, and supports detailed by-wave breakdown with collapsible wave rows and combined section behavior.
 - **Display Sorting Options**: Sort displayed loot and supplies alphabetically or by total value, including per-wave and combined views (default: value-descending).
 - **Profit/Loss Calculation**: Shows total claimed minus supply cost, color-coded (green for profit, red for loss).
 - **Supplies Tracking**: Tracks supplies consumed per run (live) and across all runs (historical), including potions (dose-normalized), runes (including rune pouch and Dizana's quiver), and other consumables.
@@ -31,8 +31,8 @@ A comprehensive RuneLite plugin for tracking loot, supplies, and deaths during D
 - **Player-Safe Historical Import**: Import validates the payload player key and only allows overwrite for the currently logged-in character.
 - **Comprehensive Side Panel**: Summary, current run, claimed/unclaimed loot by wave, supplies (current/historical), performance metrics, and interactive controls.
 - **Data Migration**: Automatically migrates old config-based data to new file-based storage.
-- **Performance Metrics**: Tracks prayer points used, HP lost/regained, special attack uses, and venom applications per run. Consumable healing and passive regen are excluded for accuracy.
-- **Dryness Tracking**: Shows expected vs. actual unique drops based on your historical wave completions, with cumulative probability calculations.
+- **Performance Metrics**: Tracks prayer points used/regained, HP lost/regained, special attack uses, and venom applications per run. Consumable healing, passive +1 HP regen, and passive +1 prayer regen ticks are excluded for accuracy.
+- **Dryness Tracking**: Shows expected vs. actual unique drops based on your historical wave completions, with cumulative probability calculations and average wave depth displayed in both summary and wave breakdown views.
 - **Highscores & Collection Log Sync**: Automatically syncs wave completion counts from the Dom Scoreboard and unique item counts from the Collection Log.
 - **Blowpipe Live Ammo Tracking**: Tracks blowpipe ammo consumption using server-pushed varps — no longer requires manually opening the blowpipe interface to register usage.
 - **Charged Weapon Tracking (Beta)**: Tracks charges consumed by powered staves, crystal equipment, blowpipes, and other charged weapons. Calculates per-charge supply cost using each weapon's charge recipe and displays a full ingredient breakdown on hover. See [Charged Weapon Tracking](#charged-weapon-tracking-beta) for details.
@@ -66,13 +66,14 @@ Doom Loot Tracker automatically detects when you enter the Mokha arena and track
 Click the Mokha Loot icon in the RuneLite sidebar to view:
 
 - **Summary**: Total claimed, supply cost, profit/loss, total unclaimed, claim/unclaim ratio, total claims, total deaths, dryness statistics.
-- **Current Run**: Real-time value and item breakdown of unclaimed loot for the current run, with summary/by-wave toggle (summary by default).
-- **Previous Run**: Last run status/value plus loot and supplies, with collapsible section states and by-wave breakdown.
-- **Claimed Loot by Wave**: Expandable/collapsible sections for each wave (1-8, 9+), with itemized loot and values. Combined all-waves view available.
-- **Unclaimed Loot by Wave**: Same as above, for loot lost on death. Combined all-waves view available.
+- **Current Run**: Real-time value and item breakdown of unclaimed loot for the current run, with summary/by-wave toggle (summary by default). Shows current wave and cumulative unique chance %. Runs beyond wave 9 group into buckets of 5 or 10 waves.
+- **Previous Run**: Depth reached, cumulative unique chance %, loot value, and supplies, with collapsed/by-wave/combined states. Combined view shows which wave each unique was obtained on via hover tooltip.
+- **Claimed Loot by Wave**: Expandable/collapsible sections for each wave (1–8, 9+), with itemized loot and values. Combined all-waves view shows which wave each unique was obtained on.
+- **Unclaimed Loot by Wave**: Same as above, for loot lost on death.
 - **Supplies Used (Current Run)**: Live supplies consumed, with dose/rune normalization and values.
 - **Supplies Used (All Time)**: Historical supplies consumed across all runs.
-- **Performance Metrics**: Per-run display of prayer used, HP lost/regained, special attack uses, and venom applications.
+- **Performance Metrics**: Per-run display of prayer used/regained, HP lost/regained, special attack uses, and venom applications.
+- **Dryness**: Expected vs. actual unique drops, dry streaks, average wave depth, and wave completion counts. Average depth shown in both the summary and wave breakdown views.
 
 All sections support:
 
@@ -235,6 +236,17 @@ Please include:
 This plugin is open source and available under standard RuneLite plugin licensing.
 
 ## Changelog
+
+### v8.4
+
+- **Exact Wave Storage for Claimed Loot**: Claimed loot is now stored at the exact wave key (e.g. wave 11, 12) rather than bucketed under wave 9+. Hover tooltips in the combined claimed/unclaimed views now show the precise wave a unique item was obtained on.
+- **Unique Wave Tooltips in Combined Views**: Hovering a unique item (Dom, Avernic treads, Eye of Ayak, Mokhaiotl cloth) in the combined claimed or unclaimed views shows "Obtained: Wave X" alongside the price-per-item tooltip.
+- **Previous Run Unique Chance**: The Previous Run section now displays the cumulative unique chance % for the depth reached that run, with a per-item breakdown on hover.
+- **Previous Run Depth in Combined View**: The combined (◂) state of Previous Run now shows the wave depth reached at the top.
+- **Prayer Passive Regen Guard**: Performance tracker now ignores passive +1 prayer ticks (e.g. from potions that regenerate prayer over time), keeping the "Prayer Regained" stat focused on intentional restoration.
+- **Average Wave Depth in Both Dryness States**: Avg wave depth is now shown in both the summary (▾) and wave breakdown (◂) dryness views.
+- **High-Wave Run Grouping**: Current Run and Previous Run by-wave breakdowns now group waves into buckets of 5 (waves 10–49) or 10 (waves 50+) for readability on deep runs.
+- **Unclaimed Wave Archiving Limit**: Raised from wave 20 to wave 100 to support deep run tracking.
 
 ### v8.3
 
